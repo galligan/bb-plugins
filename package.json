@@ -1,0 +1,18 @@
+{
+  "name": "@galligan/bb-plugins-workspace",
+  "private": true,
+  "packageManager": "bun@1.3.14",
+  "workspaces": [
+    "plugins/*"
+  ],
+  "scripts": {
+    "build": "bun --filter '*' build",
+    "check": "bun --filter '*' check",
+    "test": "bun --filter '*' test",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}
