@@ -10,8 +10,8 @@ source history intact.
 
 ## Plugins
 
-| Plugin | Description |
-| --- | --- |
+| Plugin                               | Description                                                        |
+| ------------------------------------ | ------------------------------------------------------------------ |
 | [`bb-plugin-linear`](plugins/linear) | Search and attach fresh Linear issue context from bb's prompt box. |
 
 ## Develop
