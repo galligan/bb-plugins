@@ -14,6 +14,32 @@ source history intact.
 | ------------------------------------ | ------------------------------------------------------------------ |
 | [`bb-plugin-linear`](plugins/linear) | Search and attach fresh Linear issue context from bb's prompt box. |
 
+## Install
+
+Install a plugin directly from its distribution branch—no repository clone is
+needed:
+
+```sh
+bb plugin install git:https://github.com/galligan/bb-plugins.git@linear
+```
+
+The `linear` branch tracks `plugins/linear` from this repository's `main`
+branch. Check and apply compatible updates with:
+
+```sh
+bb plugin outdated
+bb plugin update linear
+```
+
+Git tags and commit SHAs are pinned instead of tracking updates. Replace
+`linear` in the install command with a tag or commit from that distribution
+branch when you need a fixed revision.
+
+bb currently installs a Git plugin from the checked-out repository root; a
+GitHub URL such as `.../tree/main/plugins/linear` cannot select a monorepo
+subdirectory. The per-plugin branches put the corresponding plugin manifest at
+their root and are regenerated from `main` after changes land.
+
 ## Develop
 
 Install the pinned Bun toolchain dependencies at the repository root, then run
@@ -27,7 +53,8 @@ bun run test
 bun run build
 ```
 
-To work on a plugin through bb, install it from its package directory:
+For source development, clone this repository and install the plugin from its
+package directory:
 
 ```sh
 bb plugin install ./plugins/linear

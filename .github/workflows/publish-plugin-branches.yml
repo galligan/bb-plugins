@@ -1,0 +1,31 @@
+name: Publish plugin branches
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "plugins/**"
+      - ".github/workflows/publish-plugin-branches.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Split plugins onto installable branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          for plugin_dir in plugins/*/; do
+            plugin="${plugin_dir#plugins/}"
+            plugin="${plugin%/}"
+            git subtree split --prefix="plugins/${plugin}" --branch="${plugin}"
+            git push origin "${plugin}:refs/heads/${plugin}"
+          done
