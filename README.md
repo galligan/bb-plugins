@@ -12,13 +12,23 @@ description.
 
 ## Install
 
-From this directory:
+Install directly from GitHub without cloning the repository:
+
+```sh
+bb plugin install git:https://github.com/galligan/bb-plugins.git@linear
+```
+
+The `linear` branch tracks compatible updates. Check and apply them with
+`bb plugin outdated` and `bb plugin update linear`.
+
+For local source development, install from this directory instead:
 
 ```sh
 bb plugin install .
 ```
 
-The plugin installs from this path, so source edits can be activated with:
+The local plugin installs from this path, so source edits can be activated
+with:
 
 ```sh
 bb plugin reload linear
