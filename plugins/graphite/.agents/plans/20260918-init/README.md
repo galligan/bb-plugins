@@ -1,5 +1,8 @@
 # 20260918-init — first working slice
 
+Historical plan: the eight-PR Graphite stack was merged on 2026-09-21. The
+remaining work listed below describes the state when this plan was written.
+
 **State (2026-09-18):** steps 1–5 are built. What the plan did not anticipate is the
 composer banner, which grew out of step 4 and now carries the lineage view. What it
 still calls for and has not been done:
@@ -40,7 +43,7 @@ Everything else in this plan depends on what a non-trunk branch records.
 3. Record the exact field names and types in `docs/agents/graphite.md`, replacing the
    "Unverified" section.
 
-*Done when* `docs/agents/graphite.md` states the child-branch shape as verified, with
+_Done when_ `docs/agents/graphite.md` states the child-branch shape as verified, with
 the observed JSON.
 
 ### 2. Build the ref reader
@@ -57,7 +60,7 @@ A pure module that takes a repository path and returns the stack graph.
 Keep this module free of BB SDK imports and free of `gt`, so it is unit-testable
 without a daemon.
 
-*Done when* unit tests cover a linear stack, a branching stack, a stale branch, a
+_Done when_ unit tests cover a linear stack, a branching stack, a stale branch, a
 malformed blob, and a cycle — with no BB server running.
 
 ### 3. Join with environment state
@@ -65,13 +68,13 @@ malformed blob, and a cycle — with no BB server running.
 Add the BB-side facts.
 
 - Resolve the environment, then call `bb.sdk.environments.status({ environmentId,
-  mergeBaseBranch })`.
+mergeBaseBranch })`.
 - Attach working-tree state and ahead/behind counts to the branch the environment has
   checked out.
 - When `status.outcome` is not `available`, report the stack without environment
   facts rather than failing.
 
-*Done when* a snapshot renders for a real stack in a BB environment, including
+_Done when_ a snapshot renders for a real stack in a BB environment, including
 working-tree state.
 
 ### 4. Expose two surfaces over one snapshot
@@ -84,7 +87,7 @@ Both read one collector module. They must not be able to disagree.
 Bound the output: combined stdout and stderr must fit 1,048,576 bytes, and the host
 rejects a larger result atomically rather than clipping it.
 
-*Done when* both surfaces return equivalent data for the same stack, and `--json`
+_Done when_ both surfaces return equivalent data for the same stack, and `--json`
 parses.
 
 ### 5. Write verbs, one at a time
@@ -100,7 +103,7 @@ Each verb MUST check `environments.status` first and refuse on a non-`clean` wor
 tree unless the caller explicitly asked to proceed. Each MUST invoke `gt`
 non-interactively.
 
-*Done when* each verb has been run against the scratch stack and its refusal path has
+_Done when_ each verb has been run against the scratch stack and its refusal path has
 been exercised.
 
 ## Non-goals for this slice

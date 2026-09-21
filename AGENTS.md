@@ -11,14 +11,15 @@ This repository contains independently versioned plugins for
   tooling. Plugins must not depend on its private workspace packages.
 - The sibling `../bb` checkout is the canonical bb application source. Treat it
   as read-only unless the task explicitly includes bb itself.
-- Use the public `@bb/plugin-sdk` surface. Do not import bb internals.
+- Use the public `@get-bb/plugin-sdk` surface. Do not import bb internals.
 
 ## Development
 
 - Use Bun; the pinned version is in the root `package.json`.
 - Run `bun install` once at the repository root.
-- Run `bun run format:check`, `bun run check`, `bun run test`, and
-  `bun run build` before pushing.
+- Run `bun run format:check`, `bun run lint`, `bun run check`,
+  `bun run test`, and `bun run build` before pushing. Linear is temporarily
+  excluded from these root checks while its package is brought up to standard.
 - Keep plugin package names in the form `bb-plugin-<name>`.
 - Preserve plugin ids and settings keys when moving or refactoring a plugin;
   changing them can strand installed settings.

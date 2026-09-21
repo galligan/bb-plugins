@@ -2,43 +2,39 @@
 
 Independent plugins for [bb](https://github.com/get-bb/bb).
 
-Each directory under [`plugins/`](plugins/) is its own versioned,
-buildable, and publishable bb plugin. The repository begins with the Linear
-plugin, relocated from
-[bb Plugin Studio](https://github.com/galligan/bb-plugin-studio) with its
-source history intact.
+Each directory under [`plugins/`](plugins/) is its own versioned, buildable bb
+plugin. The [collection manifest](.bb/plugins.json) lets bb install one plugin
+from this repository without a separate distribution branch.
 
 ## Plugins
 
-| Plugin                               | Description                                                        |
-| ------------------------------------ | ------------------------------------------------------------------ |
-| [`bb-plugin-linear`](plugins/linear) | Search and attach fresh Linear issue context from bb's prompt box. |
+| Plugin                                   | Description                                                        |
+| ---------------------------------------- | ------------------------------------------------------------------ |
+| [`bb-plugin-linear`](plugins/linear)     | Search and attach fresh Linear issue context from bb's prompt box. |
+| [`bb-plugin-graphite`](plugins/graphite) | Read and drive Graphite stacks from bb.                            |
 
 ## Install
 
-Install a plugin directly from its distribution branch—no repository clone is
-needed:
+Install one plugin from the repository's `main` branch:
 
 ```sh
-bb plugin install git:https://github.com/galligan/bb-plugins.git@linear
+bb plugin install git:https://github.com/galligan/bb-plugins.git@main --plugin graphite
 ```
 
-The `linear` branch tracks `plugins/linear` from this repository's `main`
-branch. Check and apply compatible updates with:
+Replace `graphite` with `linear` to select the Linear package. The `linear`
+distribution branch remains available for existing installs while Linear's
+verification is brought up to the repository standard. New installs can use
+the collection manifest.
+
+Check and apply compatible updates with:
 
 ```sh
 bb plugin outdated
-bb plugin update linear
+bb plugin update graphite
 ```
 
-Git tags and commit SHAs are pinned instead of tracking updates. Replace
-`linear` in the install command with a tag or commit from that distribution
-branch when you need a fixed revision.
-
-bb currently installs a Git plugin from the checked-out repository root; a
-GitHub URL such as `.../tree/main/plugins/linear` cannot select a monorepo
-subdirectory. The per-plugin branches put the corresponding plugin manifest at
-their root and are regenerated from `main` after changes land.
+The `main` ref tracks new commits. Use a commit SHA to pin an installation.
+bb records the selected package directory so updates remain plugin-specific.
 
 ## Develop
 
@@ -48,17 +44,22 @@ the repository checks:
 ```sh
 bun install
 bun run format:check
+bun run lint
 bun run check
 bun run test
 bun run build
 ```
 
-For source development, clone this repository and install the plugin from its
-package directory:
+These root checks cover Graphite and future plugins. Linear is temporarily
+excluded from formatting, linting, type checks, tests, and builds until its
+existing package is brought up to the same standard.
+
+For source development, clone this repository and install a package from its
+directory:
 
 ```sh
-bb plugin install ./plugins/linear
-bb plugin dev ./plugins/linear
+bb plugin install ./plugins/graphite
+bb plugin dev ./plugins/graphite
 ```
 
 Plugins run as full-trust code inside the bb server. Review a plugin before

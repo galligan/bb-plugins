@@ -8,6 +8,7 @@ Before opening a pull request, run:
 
 ```sh
 bun run format:check
+bun run lint
 bun run check
 bun run test
 bun run build
@@ -17,9 +18,14 @@ Pull requests should explain the user-visible behavior, compatibility impact,
 and how the change was verified. Never include plugin credentials or generated
 build output.
 
-## Distribution branches
+## Distribution
 
-Direct bb Git installs require the plugin manifest at the repository root.
-After a change reaches `main`, the `publish-plugin-branches` workflow splits
-each `plugins/<name>` directory onto a matching `<name>` branch. Do not edit
-those generated branches by hand.
+The root `.bb/plugins.json` indexes independently installable packages under
+`plugins/`. Install a package from the repository's `main` branch with
+`bb plugin install git:<repo>@main --plugin <name>`. The
+`publish-plugin-branches` workflow continues to update only the
+legacy `linear` branch for existing installs. Do not edit that generated branch
+by hand.
+
+Root verification currently excludes Linear; add it back once its package
+passes the same format, lint, check, test, and build gates.

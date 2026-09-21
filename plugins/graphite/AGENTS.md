@@ -2,8 +2,8 @@
 
 `bb-plugin-graphite` reads and drives Graphite stacks from BB.
 
-Status: the read path and write verbs are built. `merge` has not yet been exercised
-against a real remote.
+Status: the read path and write verbs are built. `merge` was exercised against
+the eight-PR stack that landed in `galligan/bb-plugin-graphite` on 2026-09-21.
 
 - `lib/stack/` — pure reader over Graphite's metadata. No BB SDK, no `gt`, unit
   tested without a daemon.
@@ -21,8 +21,9 @@ against a real remote.
 - The `bb-plugin-dev` skill — verified BB SDK behavior, destructive hazards, and
   multi-machine rules. Covers what the built-in `bb-plugin-authoring` skill does not.
 - The `bb-plugin-design` skill — scope, surface choice, and composition preferences.
-- [`.agents/plans/20260918-init/`](.agents/plans/20260918-init/) — the current build
-  plan and its done-conditions.
+- [`.agents/plans/20260918-init/`](.agents/plans/20260918-init/) — historical
+  first-slice plan and verification notes; check current code and this file for
+  present behavior.
 
 ## Invariants
 

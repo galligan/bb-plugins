@@ -2,15 +2,14 @@
 
 Read and drive [Graphite](https://graphite.dev) stacks from BB.
 
-> **Status: the read path and the write verbs work.** Not yet released.
+> **Status: the read path and the write verbs work.** Not yet released through
+> the BB Community marketplace.
 
 ## Why
 
 BB has no Graphite support — nothing native, and nothing in the plugin store. Stacked
 work is currently driven by hand in a terminal, which means an agent coordinating a
 stack has to shell out, parse human-readable output, and guess at state.
-
-## What it does
 
 ## What works
 
@@ -30,7 +29,7 @@ data. No output parsing, no interactive prompts, no auth.
 
 **Reports what the CLI cannot.** Because the recorded head and the actual head are
 both readable, the plugin can tell you when Graphite's view of a branch is stale —
-something `gt log` does not print. It can only do that by *not* running `gt`: every
+something `gt log` does not print. It can only do that by _not_ running `gt`: every
 `gt` command, including `gt log`, silently refreshes the recorded head first.
 
 **Drives the small set of operations stacked work needs.** `restack`, `submit`,
@@ -46,11 +45,12 @@ Every write verb refuses a working tree that could lose work —
 state it does not recognise — unless you pass `--force`. `clean` and `untracked`
 proceed.
 
-**Not yet exercised:** `merge` has been run only as far as the guard and has merged
-nothing. Treat the first real use as deliberate.
+`merge` was exercised against an eight-PR stack in the standalone repository on
+2026-09-21. Graphite merged each PR in order after restacking and rechecking the
+next branch.
 
-`submit` is verified against a real remote: it pushed a two-branch stack to this
-repository and opened both PRs correctly based on each other. Note that `gt` creates
+`submit` is verified against a real remote: it pushed a two-branch stack to the
+former standalone repository and opened both PRs correctly based on each other. Note that `gt` creates
 new PRs as drafts when run non-interactively without `--publish`. Check existing
 PRs before reporting their readiness. See [`.agents/plans/20260918-init/`](.agents/plans/20260918-init/).
 
