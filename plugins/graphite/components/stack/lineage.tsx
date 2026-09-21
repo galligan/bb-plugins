@@ -24,11 +24,17 @@ export function laneWidth(offshoots: readonly CurrentStackOffshoot[]): number {
  * close into it. Offshoots arrive in post-order, so a branch always appears after
  * its descendants and every line runs downward to the row it joins.
  */
-export function layoutOffshoots(offshoots: readonly CurrentStackOffshoot[]): OffshootRow[] {
-  const indexOf = new Map(offshoots.map((offshoot, index) => [offshoot.name, index]));
+export function layoutOffshoots(
+  offshoots: readonly CurrentStackOffshoot[],
+): OffshootRow[] {
+  const indexOf = new Map(
+    offshoots.map((offshoot, index) => [offshoot.name, index]),
+  );
   // A row whose parent is not an offshoot joins the chain branch, below every row.
   const parentRow = offshoots.map((offshoot) =>
-    offshoot.parent === null ? offshoots.length : (indexOf.get(offshoot.parent) ?? offshoots.length),
+    offshoot.parent === null
+      ? offshoots.length
+      : (indexOf.get(offshoot.parent) ?? offshoots.length),
   );
 
   return offshoots.map((offshoot, index) => {
@@ -74,7 +80,13 @@ export function ChainJoin({
   );
 }
 
-export function OffshootLanes({ row, width }: { readonly row: OffshootRow; readonly width: number }) {
+export function OffshootLanes({
+  row,
+  width,
+}: {
+  readonly row: OffshootRow;
+  readonly width: number;
+}) {
   const x = (column: number) => (column - 1) * LANE + 7;
   const own = x(row.offshoot.column);
   return (
@@ -113,7 +125,15 @@ export function OffshootLanes({ row, width }: { readonly row: OffshootRow; reado
 export function OffshootNode() {
   return (
     <svg viewBox="0 0 14 20" className="h-5 w-3.5 shrink-0" aria-hidden="true">
-      <circle cx="7" cy="10" r="2.75" fill="none" stroke="currentColor" strokeWidth="1.25" opacity="0.4" />
+      <circle
+        cx="7"
+        cy="10"
+        r="2.75"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        opacity="0.4"
+      />
     </svg>
   );
 }
@@ -142,14 +162,38 @@ export function LineageNode({
   return (
     <svg viewBox="0 0 14 20" className="h-5 w-3.5 shrink-0" aria-hidden="true">
       {passthrough ? (
-        <line x1="7" y1="0" x2="7" y2="20" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+        <line
+          x1="7"
+          y1="0"
+          x2="7"
+          y2="20"
+          stroke="currentColor"
+          strokeWidth="1"
+          opacity="0.3"
+        />
       ) : (
         <>
           {first ? null : (
-            <line x1="7" y1="0" x2="7" y2="5.5" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+            <line
+              x1="7"
+              y1="0"
+              x2="7"
+              y2="5.5"
+              stroke="currentColor"
+              strokeWidth="1"
+              opacity="0.3"
+            />
           )}
           {last ? null : (
-            <line x1="7" y1="14.5" x2="7" y2="20" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+            <line
+              x1="7"
+              y1="14.5"
+              x2="7"
+              y2="20"
+              stroke="currentColor"
+              strokeWidth="1"
+              opacity="0.3"
+            />
           )}
           {join ? (
             <path

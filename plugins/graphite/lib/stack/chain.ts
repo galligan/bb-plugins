@@ -57,10 +57,13 @@ export function stackChain(
   snapshot: StackSnapshot,
   branchName: string,
 ): StackChain | null {
-  const byName = new Map(snapshot.branches.map((branch) => [branch.name, branch]));
+  const byName = new Map(
+    snapshot.branches.map((branch) => [branch.name, branch]),
+  );
   const start = byName.get(branchName);
   // Graphite also keeps metadata rows for branches it has seen but has not tracked.
-  if (start === undefined || (start.parent === null && !start.isTrunk)) return null;
+  if (start === undefined || (start.parent === null && !start.isTrunk))
+    return null;
 
   const inCycle = new Set(snapshot.cycles.flat());
 
@@ -75,11 +78,17 @@ export function stackChain(
 
   const descendants: StackBranch[] = [];
   const seenDown = new Set<string>([branchName]);
-  let down = start.children.length === 1 ? byName.get(start.children[0]) : undefined;
-  while (down !== undefined && !seenDown.has(down.name) && !inCycle.has(down.name)) {
+  let down =
+    start.children.length === 1 ? byName.get(start.children[0]) : undefined;
+  while (
+    down !== undefined &&
+    !seenDown.has(down.name) &&
+    !inCycle.has(down.name)
+  ) {
     descendants.push(down);
     seenDown.add(down.name);
-    down = down.children.length === 1 ? byName.get(down.children[0]) : undefined;
+    down =
+      down.children.length === 1 ? byName.get(down.children[0]) : undefined;
   }
 
   const branches = [...ancestors, start, ...descendants];
@@ -110,7 +119,9 @@ export function stackOffshoots(
   chainNames: ReadonlySet<string>,
   branchName: string,
 ): StackOffshoot[] {
-  const byName = new Map(snapshot.branches.map((branch) => [branch.name, branch]));
+  const byName = new Map(
+    snapshot.branches.map((branch) => [branch.name, branch]),
+  );
   const inCycle = new Set(snapshot.cycles.flat());
   const seen = new Set<string>([branchName]);
   const out: StackOffshoot[] = [];
@@ -124,7 +135,9 @@ export function stackOffshoots(
     if (branch === undefined || seen.has(name) || inCycle.has(name)) return;
     seen.add(name);
     // The first child continues this column; each extra child opens the next one.
-    branch.children.forEach((child, index) => walk(child, column + index, name));
+    branch.children.forEach((child, index) =>
+      walk(child, column + index, name),
+    );
     out.push({
       name,
       column,

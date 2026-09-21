@@ -8,18 +8,24 @@ it("reports Graphite migration changes in the returned stack", () => {
   const snapshot: StackSnapshot = {
     gitCommonDir: "/tmp/repo/.git",
     trunk: "main",
-    schema: { migrations: ["new_migration"], unexpected: ["new_migration"], missing: [] },
-    branches: [{
-      name: "main",
-      parent: null,
-      children: [],
-      isTrunk: true,
-      recordedRevision: "a",
-      actualHead: "a",
-      isStale: false,
-      needsRestack: false,
-      validation: "TRUNK",
-    }],
+    schema: {
+      migrations: ["new_migration"],
+      unexpected: ["new_migration"],
+      missing: [],
+    },
+    branches: [
+      {
+        name: "main",
+        parent: null,
+        children: [],
+        isTrunk: true,
+        recordedRevision: "a",
+        actualHead: "a",
+        isStale: false,
+        needsRestack: false,
+        validation: "TRUNK",
+      },
+    ],
     roots: ["main"],
     cycles: [],
     issues: [

@@ -61,7 +61,9 @@ function findCycles(
 }
 
 export function buildStack(input: BuildStackInput): BuildStackResult {
-  const sorted = [...input.records].sort((a, b) => a.name.localeCompare(b.name));
+  const sorted = [...input.records].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
   const issues: StackIssue[] = [];
 
   // Graphite keeps a row after its branch is gone — 132 of 157 rows in
@@ -83,7 +85,11 @@ export function buildStack(input: BuildStackInput): BuildStackResult {
   for (const record of records) {
     if (record.parent === null) continue;
     if (!byName.has(record.parent)) {
-      issues.push({ kind: "missing_parent", branch: record.name, parent: record.parent });
+      issues.push({
+        kind: "missing_parent",
+        branch: record.name,
+        parent: record.parent,
+      });
       continue;
     }
     parentOf.set(record.name, record.parent);
@@ -125,7 +131,9 @@ export function buildStack(input: BuildStackInput): BuildStackResult {
       recordedRevision: record.revision,
       actualHead,
       isStale:
-        record.revision !== null && actualHead !== null && record.revision !== actualHead,
+        record.revision !== null &&
+        actualHead !== null &&
+        record.revision !== actualHead,
       needsRestack:
         record.parentRevision !== null &&
         parentHead !== null &&

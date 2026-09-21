@@ -6,7 +6,9 @@ const SUBMIT_FLAGS = new Set([
   "--draft",
 ]);
 
-export function submitArgs(argv: readonly string[]):
+export function submitArgs(
+  argv: readonly string[],
+):
   | { readonly ok: true; readonly args: string[] }
   | { readonly ok: false; readonly error: string } {
   const args: string[] = [];

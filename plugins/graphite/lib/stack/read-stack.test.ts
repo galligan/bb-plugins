@@ -81,7 +81,9 @@ describe("readStack", () => {
     it("finds nothing to report", () => {
       assert.deepEqual(snapshot.issues, []);
       assert.ok(snapshot.branches.every((candidate) => !candidate.isStale));
-      assert.ok(snapshot.branches.every((candidate) => !candidate.needsRestack));
+      assert.ok(
+        snapshot.branches.every((candidate) => !candidate.needsRestack),
+      );
     });
   });
 
@@ -137,7 +139,10 @@ describe("readStack", () => {
     after(() => fixture.dispose());
 
     it("gives one parent two children, sorted", () => {
-      assert.deepEqual(branch(snapshot, "feat-a").children, ["feat-b", "feat-c"]);
+      assert.deepEqual(branch(snapshot, "feat-a").children, [
+        "feat-b",
+        "feat-c",
+      ]);
       assert.deepEqual(snapshot.roots, ["main"]);
       assert.deepEqual(snapshot.issues, []);
     });
@@ -246,8 +251,16 @@ describe("readStack", () => {
       assert.deepEqual(
         snapshot.issues.filter((issue) => issue.kind === "row_skipped"),
         [
-          { kind: "row_skipped", branch: null, reason: "branch_name is missing or not text" },
-          { kind: "row_skipped", branch: "feat-blob", reason: "parent_branch_name is not text" },
+          {
+            kind: "row_skipped",
+            branch: null,
+            reason: "branch_name is missing or not text",
+          },
+          {
+            kind: "row_skipped",
+            branch: "feat-blob",
+            reason: "parent_branch_name is not text",
+          },
         ],
       );
       assert.deepEqual(
@@ -274,10 +287,13 @@ describe("readStack", () => {
     it("drops a row whose branch git no longer has, and says so", () => {
       // Graphite keeps metadata for deleted branches; counting them inflates
       // every total. `gt ls` does not show them and neither do we.
-      assert.ok(!snapshot.branches.some((candidate) => candidate.name === "ghost"));
+      assert.ok(
+        !snapshot.branches.some((candidate) => candidate.name === "ghost"),
+      );
       assert.ok(
         snapshot.issues.every(
-          (issue) => issue.kind !== "missing_branch" || issue.branch !== "feat-a",
+          (issue) =>
+            issue.kind !== "missing_branch" || issue.branch !== "feat-a",
         ),
       );
     });
@@ -316,7 +332,12 @@ describe("readStack", () => {
       await fixture.git("checkout", "main");
       const featureY = await fixture.commit("feat-y", "y");
       fixture.writeMetadata([
-        { branch_name: "main", children: "[]", branch_revision: main, validation_result: "TRUNK" },
+        {
+          branch_name: "main",
+          children: "[]",
+          branch_revision: main,
+          validation_result: "TRUNK",
+        },
         {
           branch_name: "feat-x",
           parent_branch_name: "feat-y",
@@ -363,7 +384,9 @@ describe("readStack", () => {
     after(() => fixture.dispose());
 
     it("reports a clean schema when the migrations are the known set", async () => {
-      fixture.writeMetadata([{ branch_name: "main", children: "[]", validation_result: "TRUNK" }]);
+      fixture.writeMetadata([
+        { branch_name: "main", children: "[]", validation_result: "TRUNK" },
+      ]);
       const snapshot = await readStack({ repoPath: fixture.path });
       assert.deepEqual(snapshot.schema.migrations, KNOWN_MIGRATIONS);
       assert.deepEqual(snapshot.schema.unexpected, []);
@@ -374,13 +397,22 @@ describe("readStack", () => {
     it("names a migration it does not know and still returns the stack", async () => {
       const moved = await createFixture();
       try {
-        moved.writeMetadata([{ branch_name: "main", children: "[]", validation_result: "TRUNK" }], {
-          migrations: [...KNOWN_MIGRATIONS, "20270101_add_something"],
-        });
+        moved.writeMetadata(
+          [{ branch_name: "main", children: "[]", validation_result: "TRUNK" }],
+          {
+            migrations: [...KNOWN_MIGRATIONS, "20270101_add_something"],
+          },
+        );
         const snapshot = await readStack({ repoPath: moved.path });
-        assert.deepEqual(snapshot.schema.unexpected, ["20270101_add_something"]);
+        assert.deepEqual(snapshot.schema.unexpected, [
+          "20270101_add_something",
+        ]);
         assert.deepEqual(snapshot.issues, [
-          { kind: "schema_changed", unexpected: ["20270101_add_something"], missing: [] },
+          {
+            kind: "schema_changed",
+            unexpected: ["20270101_add_something"],
+            missing: [],
+          },
         ]);
         assert.deepEqual(
           snapshot.branches.map((candidate) => candidate.name),
@@ -394,13 +426,20 @@ describe("readStack", () => {
     it("names a migration it expected and did not find", async () => {
       const older = await createFixture();
       try {
-        older.writeMetadata([{ branch_name: "main", children: "[]", validation_result: "TRUNK" }], {
-          migrations: KNOWN_MIGRATIONS.slice(0, 1),
-        });
+        older.writeMetadata(
+          [{ branch_name: "main", children: "[]", validation_result: "TRUNK" }],
+          {
+            migrations: KNOWN_MIGRATIONS.slice(0, 1),
+          },
+        );
         const snapshot = await readStack({ repoPath: older.path });
         assert.deepEqual(snapshot.schema.missing, KNOWN_MIGRATIONS.slice(1));
         assert.deepEqual(snapshot.issues, [
-          { kind: "schema_changed", unexpected: [], missing: KNOWN_MIGRATIONS.slice(1) },
+          {
+            kind: "schema_changed",
+            unexpected: [],
+            missing: KNOWN_MIGRATIONS.slice(1),
+          },
         ]);
       } finally {
         older.dispose();
@@ -421,7 +460,8 @@ describe("readStack", () => {
       await assert.rejects(
         () => readStack({ repoPath: fixture.path }),
         (error: unknown) =>
-          error instanceof StackReadError && error.code === "no_graphite_metadata",
+          error instanceof StackReadError &&
+          error.code === "no_graphite_metadata",
       );
     });
   });

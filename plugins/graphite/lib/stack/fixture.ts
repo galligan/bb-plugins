@@ -10,7 +10,11 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
 
-import { KNOWN_MIGRATIONS, METADATA_FILENAME, REPO_CONFIG_FILENAME } from "./metadata.ts";
+import {
+  KNOWN_MIGRATIONS,
+  METADATA_FILENAME,
+  REPO_CONFIG_FILENAME,
+} from "./metadata.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -50,7 +54,10 @@ export class Fixture {
   }
 
   async git(...args: readonly string[]): Promise<string> {
-    const { stdout } = await execFileAsync("git", [...args], { cwd: this.path, encoding: "utf8" });
+    const { stdout } = await execFileAsync("git", [...args], {
+      cwd: this.path,
+      encoding: "utf8",
+    });
     return stdout.trim();
   }
 
@@ -59,9 +66,13 @@ export class Fixture {
     const existing = await this.git("branch", "--list", branch);
     if (existing === "") await this.git("checkout", "-b", branch);
     else await this.git("checkout", branch);
-    writeFileSync(join(this.path, `${branch.replaceAll("/", "-")}.txt`), `${message}\n`, {
-      flag: "a",
-    });
+    writeFileSync(
+      join(this.path, `${branch.replaceAll("/", "-")}.txt`),
+      `${message}\n`,
+      {
+        flag: "a",
+      },
+    );
     await this.git("add", "-A");
     await this.git("commit", "-m", message);
     return this.git("rev-parse", "HEAD");
@@ -81,7 +92,9 @@ export class Fixture {
   ): void {
     const trunk = options.trunk ?? "main";
     const migrations = options.migrations ?? KNOWN_MIGRATIONS;
-    const database = new DatabaseSync(join(this.path, ".git", METADATA_FILENAME));
+    const database = new DatabaseSync(
+      join(this.path, ".git", METADATA_FILENAME),
+    );
     try {
       database.exec(CREATE_TABLE);
       database.exec(CREATE_MIGRATIONS);
@@ -116,7 +129,9 @@ export class Fixture {
 
 /** A repository with one commit on `main` and no Graphite metadata yet. */
 export async function createFixture(): Promise<Fixture> {
-  const fixture = new Fixture(mkdtempSync(join(tmpdir(), "bb-graphite-stack-")));
+  const fixture = new Fixture(
+    mkdtempSync(join(tmpdir(), "bb-graphite-stack-")),
+  );
   await fixture.git("init", "-b", "main");
   await fixture.git("config", "user.email", "fixture@example.invalid");
   await fixture.git("config", "user.name", "Fixture");

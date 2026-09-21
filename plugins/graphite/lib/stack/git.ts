@@ -19,13 +19,20 @@ export interface GitOptions {
   readonly gitBinary?: string;
 }
 
-async function runGit(options: GitOptions, args: readonly string[]): Promise<string> {
-  const { stdout } = await execFileAsync(options.gitBinary ?? "git", [...args], {
-    cwd: options.repoPath,
-    timeout: GIT_TIMEOUT_MS,
-    maxBuffer: GIT_MAX_BUFFER,
-    encoding: "utf8",
-  });
+async function runGit(
+  options: GitOptions,
+  args: readonly string[],
+): Promise<string> {
+  const { stdout } = await execFileAsync(
+    options.gitBinary ?? "git",
+    [...args],
+    {
+      cwd: options.repoPath,
+      timeout: GIT_TIMEOUT_MS,
+      maxBuffer: GIT_MAX_BUFFER,
+      encoding: "utf8",
+    },
+  );
   return stdout;
 }
 
@@ -48,7 +55,9 @@ export async function readGitCommonDir(options: GitOptions): Promise<string> {
 }
 
 /** Every local branch and the commit it points at right now. */
-export async function readBranchHeads(options: GitOptions): Promise<Map<string, string>> {
+export async function readBranchHeads(
+  options: GitOptions,
+): Promise<Map<string, string>> {
   let raw: string;
   try {
     raw = await runGit(options, [

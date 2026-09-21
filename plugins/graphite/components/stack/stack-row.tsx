@@ -1,7 +1,12 @@
 // One branch on the spine, with the branches hanging off it shown on request.
 
 import { Icon } from "@/components/ui/icon";
-import { ChainJoin, LineageNode, OffshootLanes, layoutOffshoots } from "./lineage.tsx";
+import {
+  ChainJoin,
+  LineageNode,
+  OffshootLanes,
+  layoutOffshoots,
+} from "./lineage.tsx";
 import { RestackMark } from "./restack-mark.tsx";
 import { ThreadMarks } from "./thread-mark.tsx";
 import type { CurrentStackBranch } from "@/lib/current-stack.ts";
@@ -36,7 +41,12 @@ export function StackRow({
               key={row.offshoot.name}
               className="grid grid-cols-[0.875rem_auto_minmax(0,1fr)] items-center gap-x-1.5 rounded px-2"
             >
-              <LineageNode first={first} last={last} current={false} passthrough />
+              <LineageNode
+                first={first}
+                last={last}
+                current={false}
+                passthrough
+              />
               <OffshootLanes row={row} width={lanes} />
               <span className="flex min-w-0 items-center gap-1.5">
                 <span className="truncate text-xs leading-5 opacity-55">
@@ -86,7 +96,10 @@ export function StackRow({
             >
               <Icon
                 name="ChevronRight"
-                className={cn("size-3 transition-transform duration-150", open && "rotate-90")}
+                className={cn(
+                  "size-3 transition-transform duration-150",
+                  open && "rotate-90",
+                )}
               />
               {count}
             </button>

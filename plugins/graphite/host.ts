@@ -10,7 +10,9 @@ export default experimental_defineHostEntry({
     stack: ({ repoPath, branchName }) => readHostStack(repoPath, branchName),
     async gt({ cwd, args }, context) {
       const result = await runGt(args, { cwd, signal: context.signal });
-      return result.outcome === "not_found" ? { ...result, tried: [...result.tried] } : result;
+      return result.outcome === "not_found"
+        ? { ...result, tried: [...result.tried] }
+        : result;
     },
   },
 });

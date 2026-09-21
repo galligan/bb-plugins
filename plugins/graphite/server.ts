@@ -109,14 +109,23 @@ export default async function plugin(bb: BbPluginApi) {
       "refresh Graphite's own metadata as a side effect, which destroys the " +
       "staleness signal this tool reports.",
     presentation: {
-      label: { pending: "Reading the Graphite stack", completed: "Read the Graphite stack" },
+      label: {
+        pending: "Reading the Graphite stack",
+        completed: "Read the Graphite stack",
+      },
     },
     parameters: z.object({}),
     async execute(_input, { threadId, projectId }) {
       if (projectId == null) {
-        return { content: [{ type: "text", text: "No project for this thread." }], isError: true };
+        return {
+          content: [{ type: "text", text: "No project for this thread." }],
+          isError: true,
+        };
       }
-      const stack = await currentStack(bb, { projectId, threadId: threadId ?? null });
+      const stack = await currentStack(bb, {
+        projectId,
+        threadId: threadId ?? null,
+      });
       return renderStack(stack);
     },
   });
@@ -125,8 +134,16 @@ export default async function plugin(bb: BbPluginApi) {
     name: "graphite",
     summary: "Read and drive the Graphite stack for this project",
     commands: [
-      { name: "stack", summary: "Show the stack around the checked-out branch", usage: "bb graphite stack [--json]" },
-      { name: "restack", summary: "Rebase the stack onto its parents", usage: "bb graphite restack [--force]" },
+      {
+        name: "stack",
+        summary: "Show the stack around the checked-out branch",
+        usage: "bb graphite stack [--json]",
+      },
+      {
+        name: "restack",
+        summary: "Rebase the stack onto its parents",
+        usage: "bb graphite restack [--force]",
+      },
       {
         name: "submit",
         summary:
@@ -134,8 +151,16 @@ export default async function plugin(bb: BbPluginApi) {
         usage:
           "bb graphite submit [--publish] [--merge-when-ready] [--update-only] [--force]",
       },
-      { name: "sync", summary: "Pull trunk, restack, drop merged branches", usage: "bb graphite sync [--force]" },
-      { name: "merge", summary: "Merge the stack in order", usage: "bb graphite merge [--force]" },
+      {
+        name: "sync",
+        summary: "Pull trunk, restack, drop merged branches",
+        usage: "bb graphite sync [--force]",
+      },
+      {
+        name: "merge",
+        summary: "Merge the stack in order",
+        usage: "bb graphite merge [--force]",
+      },
     ],
     async run(argv, ctx) {
       const [command, ...rest] = argv;
@@ -171,20 +196,24 @@ export default async function plugin(bb: BbPluginApi) {
       const targetThreadId = threadFlag ?? ctx.threadId ?? null;
       let projectId = projectFlag ?? ctx.projectId ?? null;
       if (projectId === null && targetThreadId !== null) {
-        const thread = await bb.sdk.threads.get({ threadId: targetThreadId }).catch(() => null);
+        const thread = await bb.sdk.threads
+          .get({ threadId: targetThreadId })
+          .catch(() => null);
         projectId = thread?.projectId ?? null;
       }
       if (projectId == null) {
         return {
           exitCode: 1,
-          stderr: "Run this inside a project or a thread, or pass --project <id>.",
+          stderr:
+            "Run this inside a project or a thread, or pass --project <id>.",
         };
       }
       // An explicit --project overrides the invoking thread: that thread belongs to
       // whichever BB instance the shell is bound to, which need not be this one.
       const request = {
         projectId,
-        threadId: threadFlag ?? (projectFlag === null ? (ctx.threadId ?? null) : null),
+        threadId:
+          threadFlag ?? (projectFlag === null ? (ctx.threadId ?? null) : null),
       };
 
       if (command === "stack") {
@@ -198,7 +227,10 @@ export default async function plugin(bb: BbPluginApi) {
 
       const verb = WRITE_VERBS.find((candidate) => candidate === command);
       if (verb === undefined) {
-        return { exitCode: 1, stderr: `Unknown command: ${command}\n\n${USAGE}` };
+        return {
+          exitCode: 1,
+          stderr: `Unknown command: ${command}\n\n${USAGE}`,
+        };
       }
 
       const submitted = verb === "submit" ? submitArgs(passthrough) : null;

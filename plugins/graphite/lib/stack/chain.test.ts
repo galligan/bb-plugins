@@ -126,7 +126,9 @@ describe("stackChain", () => {
       // A third off trunk.
       record("z1", "main"),
     ]);
-    const chainNames = new Set(stackChain(forked, "b")!.branches.map((branch) => branch.name));
+    const chainNames = new Set(
+      stackChain(forked, "b")!.branches.map((branch) => branch.name),
+    );
     // A straight run stays in one column however long; only a fork opens the next.
     // Each branch is listed after its descendants, so it renders below them.
     assert.deepEqual(

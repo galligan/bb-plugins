@@ -7,7 +7,10 @@
 
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 
-import { resolveEnvironment, type CurrentStackRequest } from "./current-stack.ts";
+import {
+  resolveEnvironment,
+  type CurrentStackRequest,
+} from "./current-stack.ts";
 import { graphiteHostContract } from "./host-contract.ts";
 
 export type VerbName = "restack" | "submit" | "sync" | "merge";
@@ -41,7 +44,12 @@ export interface VerbRequest extends CurrentStackRequest {
 }
 
 export type VerbOutcome =
-  | { readonly outcome: "ran"; readonly exitCode: number; readonly stdout: string; readonly stderr: string }
+  | {
+      readonly outcome: "ran";
+      readonly exitCode: number;
+      readonly stdout: string;
+      readonly stderr: string;
+    }
   | { readonly outcome: "refused"; readonly reason: string }
   | { readonly outcome: "unavailable"; readonly reason: string };
 
@@ -53,7 +61,10 @@ const FORCE_FLAG: Readonly<Record<VerbName, boolean>> = {
   merge: false,
 };
 
-export async function runVerb(bb: BbPluginApi, request: VerbRequest): Promise<VerbOutcome> {
+export async function runVerb(
+  bb: BbPluginApi,
+  request: VerbRequest,
+): Promise<VerbOutcome> {
   const resolution = await resolveEnvironment(bb, request);
   if (resolution.outcome !== "resolved") {
     return { outcome: "unavailable", reason: resolution.reason };
@@ -61,7 +72,10 @@ export async function runVerb(bb: BbPluginApi, request: VerbRequest): Promise<Ve
   const environment = resolution.environment;
 
   if (request.verb === "sync" && environment.isWorktree) {
-    return { outcome: "refused", reason: "gt sync cannot run in a git worktree; fetch and restack instead" };
+    return {
+      outcome: "refused",
+      reason: "gt sync cannot run in a git worktree; fetch and restack instead",
+    };
   }
 
   if (blocksWrite(environment.workingTree) && request.force !== true) {
@@ -78,11 +92,17 @@ export async function runVerb(bb: BbPluginApi, request: VerbRequest): Promise<Ve
 
   let result;
   try {
-    result = await bb.hosts.experimental_client({ contract: graphiteHostContract }).call(
-      "gt",
-      { cwd: environment.path, args },
-      { hostId: environment.hostId, signal: request.signal, timeoutMs: 125_000 },
-    );
+    result = await bb.hosts
+      .experimental_client({ contract: graphiteHostContract })
+      .call(
+        "gt",
+        { cwd: environment.path, args },
+        {
+          hostId: environment.hostId,
+          signal: request.signal,
+          timeoutMs: 125_000,
+        },
+      );
   } catch {
     return { outcome: "unavailable", reason: "workspace host is unavailable" };
   }
@@ -93,7 +113,10 @@ export async function runVerb(bb: BbPluginApi, request: VerbRequest): Promise<Ve
     };
   }
   if (result.outcome === "failed") {
-    return { outcome: "unavailable", reason: `gt could not be run: ${result.message}` };
+    return {
+      outcome: "unavailable",
+      reason: `gt could not be run: ${result.message}`,
+    };
   }
   return {
     outcome: "ran",

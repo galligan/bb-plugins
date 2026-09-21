@@ -13,13 +13,14 @@ function bbWithEnvironments(
   const bb = {
     sdk: {
       environments: {
-        list: async () => environments.map((environment) => ({
-          id: environment.id,
-          path: "/tmp/graphite-test",
-          hostId: "host-1",
-          isWorktree: environment.isWorktree ?? false,
-          isGitRepo: true,
-        })),
+        list: async () =>
+          environments.map((environment) => ({
+            id: environment.id,
+            path: "/tmp/graphite-test",
+            hostId: "host-1",
+            isWorktree: environment.isWorktree ?? false,
+            isGitRepo: true,
+          })),
         status: async () => {
           return {
             outcome: "available",
@@ -40,7 +41,11 @@ function bbWithEnvironments(
     },
     hosts: {
       experimental_client: () => ({
-        call: async (method: string, _input: unknown, options: { hostId: string }) => {
+        call: async (
+          method: string,
+          _input: unknown,
+          options: { hostId: string },
+        ) => {
           onHostCall?.(method, options.hostId);
           if (method === "stack") {
             return {
@@ -66,18 +71,27 @@ function bbWithEnvironments(
 
 describe("environment targeting", () => {
   it("refuses an explicit thread that cannot be found", async () => {
-    const result = await resolveEnvironment(bbWithEnvironments([{ id: "first" }], null), {
-      projectId: "project",
-      threadId: "missing",
+    const result = await resolveEnvironment(
+      bbWithEnvironments([{ id: "first" }], null),
+      {
+        projectId: "project",
+        threadId: "missing",
+      },
+    );
+    assert.deepEqual(result, {
+      outcome: "unavailable",
+      reason: "thread missing was not found",
     });
-    assert.deepEqual(result, { outcome: "unavailable", reason: "thread missing was not found" });
   });
 
   it("refuses a thread from another project instead of selecting the first environment", async () => {
-    const result = await resolveEnvironment(bbWithEnvironments([{ id: "first" }], "other"), {
-      projectId: "project",
-      threadId: "other-thread",
-    });
+    const result = await resolveEnvironment(
+      bbWithEnvironments([{ id: "first" }], "other"),
+      {
+        projectId: "project",
+        threadId: "other-thread",
+      },
+    );
     assert.deepEqual(result, {
       outcome: "unavailable",
       reason: "thread is not in this project's environments",
@@ -108,12 +122,23 @@ describe("environment targeting", () => {
 
   it("runs Graphite on the environment's host", async () => {
     const calls: string[] = [];
-    const bb = bbWithEnvironments([{ id: "remote" }], "remote", (method, hostId) => {
-      calls.push(`${method}:${hostId}`);
+    const bb = bbWithEnvironments(
+      [{ id: "remote" }],
+      "remote",
+      (method, hostId) => {
+        calls.push(`${method}:${hostId}`);
+      },
+    );
+    const stack = await currentStack(bb, {
+      projectId: "project",
+      threadId: "thread",
     });
-    const stack = await currentStack(bb, { projectId: "project", threadId: "thread" });
     assert.equal(stack.outcome, "stacked");
-    const verb = await runVerb(bb, { projectId: "project", threadId: "thread", verb: "restack" });
+    const verb = await runVerb(bb, {
+      projectId: "project",
+      threadId: "thread",
+      verb: "restack",
+    });
     assert.equal(verb.outcome, "ran");
     assert.deepEqual(calls, ["stack:host-1", "gt:host-1"]);
   });

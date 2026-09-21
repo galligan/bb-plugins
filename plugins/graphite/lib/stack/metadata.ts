@@ -6,7 +6,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import { StackReadError, type MetadataSchema, type StackIssue } from "./types.ts";
+import {
+  StackReadError,
+  type MetadataSchema,
+  type StackIssue,
+} from "./types.ts";
 
 export const METADATA_FILENAME = ".graphite_metadata.db";
 export const REPO_CONFIG_FILENAME = ".graphite_repo_config";
@@ -48,7 +52,8 @@ export interface MetadataRead {
   readonly schema: MetadataSchema;
 }
 
-type Cell = { readonly ok: true; readonly value: string | null } | { readonly ok: false };
+type Cell =
+  { readonly ok: true; readonly value: string | null } | { readonly ok: false };
 
 /** Graphite declares every column `text`. Anything else means the row is not trustworthy. */
 function textCell(value: unknown): Cell {
@@ -115,7 +120,12 @@ function toRecord(
     ["children", children],
   ] as const) {
     if (!cell.ok) {
-      issues.push({ kind: "malformed_field", branch: name.value, field, reason: "not text" });
+      issues.push({
+        kind: "malformed_field",
+        branch: name.value,
+        field,
+        reason: "not text",
+      });
     }
   }
 
@@ -148,7 +158,9 @@ function toRecord(
 function readMigrations(database: DatabaseSync): readonly string[] {
   let rows: Array<Record<string, unknown>>;
   try {
-    rows = database.prepare("select name from kysely_migration order by name").all();
+    rows = database
+      .prepare("select name from kysely_migration order by name")
+      .all();
   } catch {
     return [];
   }
@@ -172,24 +184,36 @@ function checkSchema(migrations: readonly string[]): MetadataSchema {
 export function readBranchRecords(gitCommonDir: string): MetadataRead {
   const path = join(gitCommonDir, METADATA_FILENAME);
   if (!existsSync(path)) {
-    throw new StackReadError("no_graphite_metadata", `no Graphite metadata at ${path}`);
+    throw new StackReadError(
+      "no_graphite_metadata",
+      `no Graphite metadata at ${path}`,
+    );
   }
 
   let rows: Array<Record<string, unknown>>;
   let schema: MetadataSchema;
   let database: DatabaseSync;
   try {
-    database = new DatabaseSync(path, { readOnly: true, timeout: BUSY_TIMEOUT_MS });
+    database = new DatabaseSync(path, {
+      readOnly: true,
+      timeout: BUSY_TIMEOUT_MS,
+    });
   } catch (cause) {
-    throw new StackReadError("metadata_unreadable", `cannot open ${path}`, { cause });
+    throw new StackReadError("metadata_unreadable", `cannot open ${path}`, {
+      cause,
+    });
   }
   try {
     schema = checkSchema(readMigrations(database));
     rows = database.prepare(SELECT_BRANCHES).all();
   } catch (cause) {
-    throw new StackReadError("metadata_unreadable", `cannot read branch_metadata in ${path}`, {
-      cause,
-    });
+    throw new StackReadError(
+      "metadata_unreadable",
+      `cannot read branch_metadata in ${path}`,
+      {
+        cause,
+      },
+    );
   } finally {
     database.close();
   }
@@ -220,7 +244,8 @@ export function readTrunkName(gitCommonDir: string): string | null {
   } catch {
     return null;
   }
-  if (typeof parsed !== "object" || parsed === null || !("trunk" in parsed)) return null;
+  if (typeof parsed !== "object" || parsed === null || !("trunk" in parsed))
+    return null;
   const trunk: unknown = parsed.trunk;
   return typeof trunk === "string" && trunk.length > 0 ? trunk : null;
 }

@@ -80,9 +80,14 @@ export async function resolveEnvironment(
   bb: BbPluginApi,
   request: CurrentStackRequest,
 ): Promise<EnvironmentResolution> {
-  const environments = await bb.sdk.environments.list({ projectId: request.projectId });
+  const environments = await bb.sdk.environments.list({
+    projectId: request.projectId,
+  });
   if (environments.length === 0) {
-    return { outcome: "unavailable", reason: "no environment for this project" };
+    return {
+      outcome: "unavailable",
+      reason: "no environment for this project",
+    };
   }
 
   let chosen = environments[0];
@@ -91,21 +96,39 @@ export async function resolveEnvironment(
       .get({ threadId: request.threadId })
       .catch(() => null);
     if (thread === null) {
-      return { outcome: "unavailable", reason: `thread ${request.threadId} was not found` };
+      return {
+        outcome: "unavailable",
+        reason: `thread ${request.threadId} was not found`,
+      };
     }
-    const match =
-      environments.find((candidate) => candidate.id === thread.environmentId);
+    const match = environments.find(
+      (candidate) => candidate.id === thread.environmentId,
+    );
     if (match === undefined) {
-      return { outcome: "unavailable", reason: "thread is not in this project's environments" };
+      return {
+        outcome: "unavailable",
+        reason: "thread is not in this project's environments",
+      };
     }
     chosen = match;
   } else if (environments.length > 1) {
-    return { outcome: "unavailable", reason: "project has multiple environments; pass --thread <id>" };
+    return {
+      outcome: "unavailable",
+      reason: "project has multiple environments; pass --thread <id>",
+    };
   }
 
   const path = chosen.path;
-  if (path === null) return { outcome: "unavailable", reason: "environment has no workspace path" };
-  if (!chosen.isGitRepo) return { outcome: "unavailable", reason: "workspace is not a git repository" };
+  if (path === null)
+    return {
+      outcome: "unavailable",
+      reason: "environment has no workspace path",
+    };
+  if (!chosen.isGitRepo)
+    return {
+      outcome: "unavailable",
+      reason: "workspace is not a git repository",
+    };
 
   // Branch and working-tree state come from BB, never from a git call here.
   const status = await bb.sdk.environments.status({ environmentId: chosen.id });
@@ -140,11 +163,13 @@ export async function currentStack(
 
   let stack;
   try {
-    stack = await bb.hosts.experimental_client({ contract: graphiteHostContract }).call(
-      "stack",
-      { repoPath: environment.path, branchName: environment.branchName },
-      { hostId: environment.hostId, timeoutMs: 10_000 },
-    );
+    stack = await bb.hosts
+      .experimental_client({ contract: graphiteHostContract })
+      .call(
+        "stack",
+        { repoPath: environment.path, branchName: environment.branchName },
+        { hostId: environment.hostId, timeoutMs: 10_000 },
+      );
   } catch {
     return none("workspace host is unavailable");
   }
@@ -153,16 +178,24 @@ export async function currentStack(
   // Which thread is working on which branch — the join neither tool has alone.
   // Graphite cannot see BB's threads; BB does not know the branches form a stack.
   const byBranch = new Map<string, CurrentStackThread[]>();
-  const environments = await bb.sdk.environments.list({ projectId: request.projectId });
+  const environments = await bb.sdk.environments.list({
+    projectId: request.projectId,
+  });
   const environmentBranch = new Map<string, string>();
   for (const candidate of environments) {
-    if (candidate.branchName !== null) environmentBranch.set(candidate.id, candidate.branchName);
+    if (candidate.branchName !== null)
+      environmentBranch.set(candidate.id, candidate.branchName);
   }
   if (environmentBranch.size > 0) {
-    const threads = await bb.sdk.threads.list({ projectId: request.projectId, limit: 200 });
+    const threads = await bb.sdk.threads.list({
+      projectId: request.projectId,
+      limit: 200,
+    });
     for (const thread of threads) {
       const branchName =
-        thread.environmentId === null ? undefined : environmentBranch.get(thread.environmentId);
+        thread.environmentId === null
+          ? undefined
+          : environmentBranch.get(thread.environmentId);
       if (branchName === undefined) continue;
       const entry = {
         id: thread.id,
@@ -173,7 +206,8 @@ export async function currentStack(
       else existing.push(entry);
     }
   }
-  const threadsFor = (name: string): CurrentStackThread[] => byBranch.get(name) ?? [];
+  const threadsFor = (name: string): CurrentStackThread[] =>
+    byBranch.get(name) ?? [];
 
   return {
     outcome: "stacked",

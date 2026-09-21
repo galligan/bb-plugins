@@ -30,7 +30,12 @@ const KNOWN_PATHS: readonly string[] = [
 ];
 
 export type GtResult =
-  | { readonly outcome: "ran"; readonly exitCode: number; readonly stdout: string; readonly stderr: string }
+  | {
+      readonly outcome: "ran";
+      readonly exitCode: number;
+      readonly stdout: string;
+      readonly stderr: string;
+    }
   | { readonly outcome: "not_found"; readonly tried: readonly string[] }
   | { readonly outcome: "failed"; readonly message: string };
 
@@ -46,7 +51,9 @@ export async function resolveGt(): Promise<string | null> {
     }
   }
   try {
-    const { stdout } = await execFileAsync("command", ["-v", "gt"], { shell: "/bin/sh" });
+    const { stdout } = await execFileAsync("command", ["-v", "gt"], {
+      shell: "/bin/sh",
+    });
     const found = stdout.trim();
     cached = found.length > 0 ? found : null;
   } catch {
@@ -67,16 +74,25 @@ export async function runGt(
   if (binary === null) return { outcome: "not_found", tried: KNOWN_PATHS };
 
   try {
-    const { stdout, stderr } = await execFileAsync(binary, [...args, "--no-interactive"], {
-      cwd: options.cwd,
-      signal: options.signal,
-      timeout: GT_TIMEOUT_MS,
-      maxBuffer: GT_MAX_BUFFER,
-      encoding: "utf8",
-    });
+    const { stdout, stderr } = await execFileAsync(
+      binary,
+      [...args, "--no-interactive"],
+      {
+        cwd: options.cwd,
+        signal: options.signal,
+        timeout: GT_TIMEOUT_MS,
+        maxBuffer: GT_MAX_BUFFER,
+        encoding: "utf8",
+      },
+    );
     return { outcome: "ran", exitCode: 0, stdout, stderr };
   } catch (cause) {
-    if (cause !== null && typeof cause === "object" && "code" in cause && "stdout" in cause) {
+    if (
+      cause !== null &&
+      typeof cause === "object" &&
+      "code" in cause &&
+      "stdout" in cause
+    ) {
       const code = cause.code;
       const stdout = cause.stdout;
       const stderr = "stderr" in cause ? cause.stderr : "";
@@ -87,6 +103,9 @@ export async function runGt(
         stderr: typeof stderr === "string" ? stderr : "",
       };
     }
-    return { outcome: "failed", message: cause instanceof Error ? cause.message : String(cause) };
+    return {
+      outcome: "failed",
+      message: cause instanceof Error ? cause.message : String(cause),
+    };
   }
 }

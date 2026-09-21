@@ -14,13 +14,21 @@ import { cn } from "@/lib/utils";
  * A thread working on this branch. Hover names it, click opens it.
  * `gt ls` prints the worktree path here; a thread is the thing you actually want.
  */
-export function ThreadMarks({ threads }: { readonly threads: CurrentStackThread[] }) {
+export function ThreadMarks({
+  threads,
+}: {
+  readonly threads: CurrentStackThread[];
+}) {
   const { threadId } = useBbContext();
   if (threads.length === 0) return null;
   return (
     <span className="flex shrink-0 items-center gap-0.5">
       {threads.map((thread) => (
-        <ThreadMark key={thread.id} thread={thread} isCurrent={thread.id === threadId} />
+        <ThreadMark
+          key={thread.id}
+          thread={thread}
+          isCurrent={thread.id === threadId}
+        />
       ))}
     </span>
   );

@@ -34,7 +34,9 @@ export function renderStack(stack: CurrentStack): string {
     // `gt ls` prints it and the way the banner draws it.
     for (const offshoot of branch.offshoots) {
       const offshootFlags = offshoot.needsRestack ? "  [needs restack]" : "";
-      lines.push(`${MARK_OTHER} ${"  ".repeat(offshoot.column)}${offshoot.name}${offshootFlags}`);
+      lines.push(
+        `${MARK_OTHER} ${"  ".repeat(offshoot.column)}${offshoot.name}${offshootFlags}`,
+      );
     }
     lines.push(
       `${branch.isCurrent ? MARK_CURRENT : MARK_OTHER} ${branch.name}` +

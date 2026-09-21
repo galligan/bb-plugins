@@ -13,7 +13,8 @@ import { STACK_ICON_REGISTRATIONS } from "@/components/icons/stack-position.tsx"
 import { StackBanner } from "@/components/stack/stack-banner.tsx";
 
 export default definePluginApp((app) => {
-  for (const icon of STACK_ICON_REGISTRATIONS) app.experimental_icons.register(icon);
+  for (const icon of STACK_ICON_REGISTRATIONS)
+    app.experimental_icons.register(icon);
 
   app.composer.customize({
     id: "stack",

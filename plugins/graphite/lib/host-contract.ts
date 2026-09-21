@@ -33,7 +33,12 @@ const stackResultSchema = z.discriminatedUnion("outcome", [
 ]);
 
 const gtResultSchema = z.discriminatedUnion("outcome", [
-  z.object({ outcome: z.literal("ran"), exitCode: z.number(), stdout: z.string(), stderr: z.string() }),
+  z.object({
+    outcome: z.literal("ran"),
+    exitCode: z.number(),
+    stdout: z.string(),
+    stderr: z.string(),
+  }),
   z.object({ outcome: z.literal("not_found"), tried: z.array(z.string()) }),
   z.object({ outcome: z.literal("failed"), message: z.string() }),
 ]);

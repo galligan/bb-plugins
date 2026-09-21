@@ -236,8 +236,8 @@ Verified 2026-09-19 against Graphite CLI `1.8.6`, submitting a two-branch stack 
 `galligan/bb-plugin-graphite`.
 
 - `gt submit --no-interactive` prints `Running in non-interactive mode. Inline
-  prompts to fill PR fields will be skipped and new PRs will be created in draft
-  mode.` and creates every new PR as a draft.
+prompts to fill PR fields will be skipped and new PRs will be created in draft
+mode.` and creates every new PR as a draft.
 - It takes the PR title and body from the branch's commit message. There is no
   prompt to skip past, so the command cannot hang.
 - It sets each PR's base to its Graphite parent, so a stack arrives on GitHub
@@ -256,11 +256,11 @@ Verified 2026-09-19 against Graphite CLI `1.8.6`, submitting a two-branch stack 
 
 Two errors appear in `~/.config/claude/rules/graphite.md`. Do not inherit them.
 
-- `gt merge --confirm` does **not** skip prompts. `-c, --confirm` *asks*. Using it
+- `gt merge --confirm` does **not** skip prompts. `-c, --confirm` _asks_. Using it
   non-interactively fails with `Cannot perform interactive operation in
-  non-interactive mode`. Use `--no-interactive`.
+non-interactive mode`. Use `--no-interactive`.
 - `gt status` does not emit structured JSON with stack parentage. It is a `git
-  status` passthrough.
+status` passthrough.
 
 ### Worktree rule
 

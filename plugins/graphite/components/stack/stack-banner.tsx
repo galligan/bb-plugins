@@ -25,7 +25,9 @@ export function StackBanner() {
   const { projectId, threadId } = useBbContext();
   const [stack, setStack] = useState<CurrentStack | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const [openBranches, setOpenBranches] = useState<ReadonlySet<string>>(new Set());
+  const [openBranches, setOpenBranches] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
     if (projectId === null) {
@@ -91,7 +93,10 @@ export function StackBanner() {
           aria-expanded={expanded}
           className="flex min-h-6 min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-state-hover"
         >
-          <StackPositionIcon position={stack.placement} className="size-3.5 shrink-0" />
+          <StackPositionIcon
+            position={stack.placement}
+            className="size-3.5 shrink-0"
+          />
           <span className="min-w-0 truncate tabular-nums">
             {stack.position}/{stack.total}
           </span>
@@ -118,7 +123,9 @@ export function StackBanner() {
         <div className="overflow-hidden rounded-b-[7px] bg-popover">
           <ol className="max-h-72 overflow-auto p-1">
             {stack.warnings.map((warning) => (
-              <li key={warning} className="px-2 py-1 text-warning-text">{warning}</li>
+              <li key={warning} className="px-2 py-1 text-warning-text">
+                {warning}
+              </li>
             ))}
             {rows.map((branch, index) => (
               <StackRow

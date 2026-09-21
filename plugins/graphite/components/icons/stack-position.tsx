@@ -46,11 +46,19 @@ export function StackTopIcon({ className }: { readonly className?: string }) {
   return <StackPositionIcon position="top" className={className} />;
 }
 
-export function StackMiddleIcon({ className }: { readonly className?: string }) {
+export function StackMiddleIcon({
+  className,
+}: {
+  readonly className?: string;
+}) {
   return <StackPositionIcon position="middle" className={className} />;
 }
 
-export function StackBottomIcon({ className }: { readonly className?: string }) {
+export function StackBottomIcon({
+  className,
+}: {
+  readonly className?: string;
+}) {
   return <StackPositionIcon position="bottom" className={className} />;
 }
 

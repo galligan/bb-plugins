@@ -10,7 +10,11 @@
 
 export type StackPosition = "top" | "middle" | "bottom";
 
-export const STACK_POSITIONS: readonly StackPosition[] = ["top", "middle", "bottom"];
+export const STACK_POSITIONS: readonly StackPosition[] = [
+  "top",
+  "middle",
+  "bottom",
+];
 
 /** The three plates, top to bottom. Identical in every variant; only opacity moves. */
 export const STACK_LAYER_PATHS: Readonly<Record<StackPosition, string>> = {

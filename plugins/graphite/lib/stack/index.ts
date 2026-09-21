@@ -22,7 +22,9 @@ export interface ReadStackOptions {
  * or Graphite has no metadata there. Every per-branch problem is reported in
  * `snapshot.issues` instead.
  */
-export async function readStack(options: ReadStackOptions): Promise<StackSnapshot> {
+export async function readStack(
+  options: ReadStackOptions,
+): Promise<StackSnapshot> {
   const gitCommonDir = await readGitCommonDir(options);
   const heads = await readBranchHeads(options);
   const { records, issues, schema } = readBranchRecords(gitCommonDir);
@@ -44,7 +46,11 @@ export async function readStack(options: ReadStackOptions): Promise<StackSnapsho
 export { buildStack } from "./graph.ts";
 export { stackChain, stackOffshoots } from "./chain.ts";
 export type { StackChain, StackOffshoot } from "./chain.ts";
-export { KNOWN_MIGRATIONS, METADATA_FILENAME, REPO_CONFIG_FILENAME } from "./metadata.ts";
+export {
+  KNOWN_MIGRATIONS,
+  METADATA_FILENAME,
+  REPO_CONFIG_FILENAME,
+} from "./metadata.ts";
 export type { BranchRecord } from "./metadata.ts";
 export { StackReadError } from "./types.ts";
 export type {

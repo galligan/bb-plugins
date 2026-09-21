@@ -26,9 +26,22 @@ export interface StackBranch {
 
 /** Something the reader refused to trust, recorded instead of thrown. */
 export type StackIssue =
-  | { readonly kind: "row_skipped"; readonly branch: string | null; readonly reason: string }
-  | { readonly kind: "malformed_field"; readonly branch: string; readonly field: string; readonly reason: string }
-  | { readonly kind: "missing_parent"; readonly branch: string; readonly parent: string }
+  | {
+      readonly kind: "row_skipped";
+      readonly branch: string | null;
+      readonly reason: string;
+    }
+  | {
+      readonly kind: "malformed_field";
+      readonly branch: string;
+      readonly field: string;
+      readonly reason: string;
+    }
+  | {
+      readonly kind: "missing_parent";
+      readonly branch: string;
+      readonly parent: string;
+    }
   | { readonly kind: "missing_branch"; readonly branch: string }
   | {
       readonly kind: "children_mismatch";
@@ -74,15 +87,17 @@ export interface StackSnapshot {
 }
 
 export type StackReadErrorCode =
-  | "not_a_repository"
-  | "no_graphite_metadata"
-  | "metadata_unreadable";
+  "not_a_repository" | "no_graphite_metadata" | "metadata_unreadable";
 
 /** Thrown only when no snapshot can be produced at all. Per-branch problems become issues. */
 export class StackReadError extends Error {
   readonly code: StackReadErrorCode;
 
-  constructor(code: StackReadErrorCode, message: string, options?: { cause?: unknown }) {
+  constructor(
+    code: StackReadErrorCode,
+    message: string,
+    options?: { cause?: unknown },
+  ) {
     super(message, options);
     this.name = "StackReadError";
     this.code = code;
