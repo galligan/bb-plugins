@@ -2,7 +2,7 @@
 //
 // Three surfaces over one collector, so they cannot disagree:
 //
-//   - `stack_current` RPC, which app.tsx draws above the composer
+//   - `stack_current` RPC, which the thread header and panel render
 //   - `bb graphite …`, for a terminal and for agents through the generated
 //     plugin-commands skill
 //   - a `graphite_stack` agent tool, for a thread that wants the snapshot

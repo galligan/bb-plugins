@@ -11,7 +11,7 @@ the eight-PR stack that landed in `galligan/bb-plugin-graphite` on 2026-09-21.
 - `lib/current-stack.ts` — joins the host's stack with BB threads.
 - `lib/gt.ts`, `lib/verbs.ts` — host-side `gt` execution and the server-side guard.
 - `server.ts` — the RPC, `bb graphite …`, and the `graphite_stack` agent tool.
-- `app.tsx`, `components/stack/` — the composer banner.
+- `app.tsx`, `components/stack/` — the thread-header action and lineage panel.
 
 ## Read first
 
@@ -54,7 +54,7 @@ the eight-PR stack that landed in `galligan/bb-plugin-graphite` on 2026-09-21.
 - State what is verified and what is not. When a fact comes from a specific version,
   name the version.
 - Prefer a CLI command over a UI panel until a decision exists that a human cannot
-  make from `--json` output. The stack banner earns its place: position and lineage
+  make from `--json` output. The stack action earns its place: position and lineage
   are not readable from a JSON array.
 - Keep a surface thin. Anything a second surface could want belongs in `lib/`.
 
