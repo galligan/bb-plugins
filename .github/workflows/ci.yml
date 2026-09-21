@@ -17,7 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: bun install --frozen-lockfile
+      # The Graphite gates use node:sqlite; native addon build scripts are not needed.
+      - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun run format:check
       - run: bun run lint
       - run: bun run check
