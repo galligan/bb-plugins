@@ -6,9 +6,9 @@
     "plugins/*"
   ],
   "scripts": {
-    "build": "bun --filter '*' --filter '!bb-plugin-linear' build",
-    "check": "bun --filter '*' --filter '!bb-plugin-linear' check",
-    "test": "bun --filter '*' --filter '!bb-plugin-linear' test",
+    "build": "bun --filter '!bb-plugin-linear' build",
+    "check": "bun --filter '!bb-plugin-linear' check",
+    "test": "bun --filter '!bb-plugin-linear' test",
     "lint": "oxlint plugins --ignore-pattern 'plugins/linear/**' --deny-warnings",
     "format": "prettier . --write",
     "format:check": "prettier . --check"
