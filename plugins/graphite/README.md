@@ -19,8 +19,11 @@ bb graphite stack --json     # the same snapshot, for agents
 bb graphite restack | submit | sync | merge
 ```
 
-Plus a `graphite_stack` agent tool and a row above the composer showing where the
-branch sits, what needs a restack, and which thread is on each branch.
+Plus a `graphite_stack` agent tool and a compact control in the thread header.
+The header shows the current branch's stack position; hover for status and click
+to open a side-panel tab with lineage, restack warnings, and threads on each
+branch. On narrow screens, the control shows only its icon. It appears only when
+the current branch belongs to a multi-branch stack.
 
 **Reads the stack from stored state, not from CLI output.** Graphite keeps its
 topology in a SQLite database inside your git directory, so the stack graph, each
