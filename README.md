@@ -21,10 +21,9 @@ Install one plugin from the repository's `main` branch:
 bb plugin install git:https://github.com/galligan/bb-plugins.git@main --plugin graphite
 ```
 
-Replace `graphite` with `linear` to select the Linear package. The `linear`
-distribution branch remains available for existing installs while Linear's
-verification is brought up to the repository standard. New installs can use
-the collection manifest.
+The collection currently advertises only Graphite. The `linear` distribution
+branch remains available for existing installs while Linear's package and
+verification are brought up to the repository standard.
 
 Check and apply compatible updates with:
 

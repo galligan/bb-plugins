@@ -20,8 +20,8 @@ build output.
 
 ## Distribution
 
-The root `.bb/plugins.json` indexes independently installable packages under
-`plugins/`. Install a package from the repository's `main` branch with
+The root `.bb/plugins.json` indexes verified packages under `plugins/`.
+Graphite is the first entry. Install a listed package from the repository's `main` branch with
 `bb plugin install git:<repo>@main --plugin <name>`. The
 `publish-plugin-branches` workflow continues to update only the
 legacy `linear` branch for existing installs. Do not edit that generated branch
