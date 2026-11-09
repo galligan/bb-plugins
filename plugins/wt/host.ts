@@ -10,6 +10,7 @@ import {
 } from "@get-bb/plugin-sdk/host";
 
 import { hostContract, hostSignals } from "./lib/host-contract.ts";
+import { killAllScripts } from "./lib/process.ts";
 import {
   createWorktree,
   listWorktrees,
@@ -47,6 +48,8 @@ export default experimental_defineHostEntry({
       worktrees: await listWorktrees(quiet(context)),
     }),
   },
+  // A setup script must not outlive the worker that was waiting on it.
+  dispose: () => killAllScripts(),
 });
 
 function reporting(

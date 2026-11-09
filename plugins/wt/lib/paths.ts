@@ -1,4 +1,5 @@
-import { join, relative, sep } from "node:path";
+import { realpath } from "node:fs/promises";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 
 /**
  * Turns a project or branch name into one safe directory segment: separators
@@ -35,4 +36,32 @@ export function isUnder(root: string, candidate: string): boolean {
     !rel.startsWith(`..${sep}`) &&
     !rel.startsWith(sep)
   );
+}
+
+/**
+ * `path` with every symlink in its longest existing prefix resolved. The part
+ * that does not exist yet is appended unchanged.
+ */
+export async function canonical(path: string): Promise<string> {
+  let existing = resolve(path);
+  const missing: string[] = [];
+  for (;;) {
+    const real = await realpath(existing).catch(() => null);
+    if (real !== null) return join(real, ...missing);
+    const parent = dirname(existing);
+    if (parent === existing) return resolve(path);
+    missing.unshift(basename(existing));
+    existing = parent;
+  }
+}
+
+/**
+ * Like `isUnder`, but compares real locations, so a symlink anywhere along
+ * `candidate` cannot make a path outside `root` look contained.
+ */
+export async function isContained(
+  root: string,
+  candidate: string,
+): Promise<boolean> {
+  return isUnder(await canonical(root), await canonical(candidate));
 }

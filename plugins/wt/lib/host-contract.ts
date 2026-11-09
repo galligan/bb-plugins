@@ -17,6 +17,7 @@ export const inspectionSchema = z.strictObject({
   editedSharedFiles: z.array(z.string()),
   operation: z.string().nullable(),
   unreferencedHead: z.boolean(),
+  unsavedSubmodules: z.array(z.string()),
   branchState: z.enum(["no-commits", "merged", "pushed", "local", "detached"]),
   unpushedCommits: z.number().int().nonnegative(),
   lastActivity: z.number().nullable(),

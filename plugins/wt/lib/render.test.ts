@@ -26,6 +26,7 @@ test("an unsaved worktree lists its reasons", () => {
         editedSharedFiles: [],
         operation: null,
         unreferencedHead: false,
+        unsavedSubmodules: [],
         branchState: "local",
         unpushedCommits: 2,
         lastActivity: NOW - 3_600_000,

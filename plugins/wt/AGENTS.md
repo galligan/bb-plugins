@@ -17,10 +17,14 @@
 
 - Run all git, filesystem and script work in the host entry. The server may be a different machine from the checkout.
 - MUST NOT run `.bb-env-setup.sh` or `.bb-env-teardown.sh`. bb core runs them for every environment created with `ownsPath: true`; running them here would run them twice.
-- MUST NOT delete a path that `isUnder(root, path)` rejects.
-- MUST NOT remove a worktree with uncommitted or untracked files before `saveRescueSnapshot` succeeds.
+- MUST NOT delete a path that `isContained(root, path)` rejects. It compares real locations; a lexical check is not enough.
+- MUST NOT delete a worktree folder by any means other than `git worktree remove`. If inspection, the rescue snapshot, or git fails, return `failed` and leave the folder.
+- MUST NOT touch the path of a record whose `state` is `planned`. Only `createWorktree`, called after bb granted the claim, marks a record `owned`.
+- MUST NOT reset an existing branch (`git worktree add -B`). Removal keeps branches, so one may hold commits.
+- MUST NOT replay a setup script whose record says `running`: its outcome is unknown.
+- Inspect and save after cleanup scripts and process termination, immediately before deletion.
 - MUST NOT derive a worktree's folder from the bb project name. Use `repoLocation`.
-- Keep `inspectWorktree` read-only: no fetch, no writes.
+- Keep `inspectWorktree` read-only: no fetch, and no writes to the repository's objects or index.
 - Write the per-path-key record before mutating the repository. `create` must be resumable and `remove` must work from the path key alone.
 - Keep `lib/` free of `@get-bb/plugin-sdk` runtime imports other than the contract helpers, so `node --test` runs without a daemon.
 

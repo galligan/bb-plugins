@@ -124,3 +124,30 @@ test("an unfinished merge is reported", async (t) => {
   assert.equal(report.operation, "merge");
   assert.equal(report.safeToRemove, false);
 });
+
+test("tracking a local branch does not count as pushed", async (t) => {
+  const f = await fixture(t);
+  const path = await provisioned(f);
+  await commit(path, "feature.txt", "x\n");
+  git(path, "branch", "backup");
+  git(path, "branch", "--set-upstream-to=backup");
+
+  const report = await inspect(f, path);
+  assert.equal(report.branchState, "local");
+  assert.equal(report.unpushedCommits, 1);
+});
+
+test("inspecting diverged branches adds no objects to the repository", async (t) => {
+  const f = await fixture(t);
+  const path = await provisioned(f);
+  await commit(path, "feature.txt", "x\n");
+  await writeFile(join(f.source, "other.txt"), "y\n");
+  git(f.source, "add", "-A");
+  git(f.source, "commit", "--quiet", "-m", "main moves");
+
+  const objects = () => git(f.source, "count-objects", "-v");
+  const before = objects();
+  const report = await inspect(f, path);
+  assert.equal(report.branchState, "local");
+  assert.equal(objects(), before);
+});

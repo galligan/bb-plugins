@@ -38,10 +38,23 @@ export function git(
 export type ScriptResult = { ok: true } | { ok: false; reason: string };
 
 const OUTPUT_LINE_MAX = 4096;
+const OUTPUT_LINES_MAX = 5000;
+const KILL_GRACE_MS = 5000;
+/** How long to wait for the pipes to close once the group has been SIGKILLed. */
+const SETTLE_MS = 2000;
+
+const running = new Set<() => void>();
+
+/** SIGKILLs every script still running. For worker shutdown. */
+export function killAllScripts(): void {
+  for (const kill of running) kill();
+}
 
 /**
  * Runs a shell script with bash in `cwd`, forwarding each output line. The
- * script gets its own process group so a timeout or abort stops its children.
+ * script gets its own process group. A timeout or abort sends SIGTERM to the
+ * group, then SIGKILL after a grace period, so the promise always settles.
+ * Output is bounded: long lines are cut and only the first lines are forwarded.
  */
 export function runScript(options: {
   script: string;
@@ -50,6 +63,7 @@ export function runScript(options: {
   timeoutMs: number;
   signal?: AbortSignal;
   onOutput: (line: string) => void;
+  killGraceMs?: number;
 }): Promise<ScriptResult> {
   return new Promise((resolve) => {
     const child = spawn("bash", ["-c", options.script], {
@@ -58,17 +72,51 @@ export function runScript(options: {
       stdio: ["ignore", "pipe", "pipe"],
       detached: true,
     });
-
-    let stopReason: string | null = null;
-    const stop = (reason: string) => {
-      if (stopReason !== null || child.pid === undefined) return;
-      stopReason = reason;
+    const signalGroup = (name: NodeJS.Signals) => {
+      if (child.pid === undefined) return;
       try {
-        process.kill(-child.pid, "SIGTERM");
+        process.kill(-child.pid, name);
       } catch {
         // The group already exited.
       }
     };
+
+    let settled = false;
+    let stopReason: string | null = null;
+    let killTimer: NodeJS.Timeout | undefined;
+    let settleTimer: NodeJS.Timeout | undefined;
+    const finish = (result: ScriptResult) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      clearTimeout(killTimer);
+      clearTimeout(settleTimer);
+      options.signal?.removeEventListener("abort", onAbort);
+      running.delete(forceKill);
+      child.stdout.destroy();
+      child.stderr.destroy();
+      resolve(result);
+    };
+    const kill = (reason: string) => {
+      signalGroup("SIGKILL");
+      // A descendant that escaped the group can still hold the pipes open.
+      settleTimer = setTimeout(() => finish({ ok: false, reason }), SETTLE_MS);
+    };
+    const stop = (reason: string) => {
+      if (stopReason !== null) return;
+      stopReason = reason;
+      signalGroup("SIGTERM");
+      killTimer = setTimeout(
+        () => kill(reason),
+        options.killGraceMs ?? KILL_GRACE_MS,
+      );
+    };
+    const forceKill = () => {
+      stopReason ??= "stopped with the worker";
+      kill(stopReason);
+    };
+    running.add(forceKill);
+
     const timer = setTimeout(
       () =>
         stop(
@@ -80,27 +128,38 @@ export function runScript(options: {
     options.signal?.addEventListener("abort", onAbort, { once: true });
     if (options.signal?.aborted === true) onAbort();
 
+    let forwarded = 0;
+    const emit = (line: string) => {
+      forwarded += 1;
+      if (forwarded <= OUTPUT_LINES_MAX) {
+        options.onOutput(line);
+      } else if (forwarded === OUTPUT_LINES_MAX + 1) {
+        options.onOutput(
+          `[output truncated after ${String(OUTPUT_LINES_MAX)} lines]`,
+        );
+      }
+    };
     const forward = (stream: NodeJS.ReadableStream) => {
+      // `pending` never grows past OUTPUT_LINE_MAX, however long a line is.
       let pending = "";
       stream.setEncoding("utf8");
       stream.on("data", (chunk: string) => {
-        const lines = (pending + chunk).split(/\r?\n/u);
-        pending = lines.pop() ?? "";
-        for (const line of lines)
-          options.onOutput(line.slice(0, OUTPUT_LINE_MAX));
+        const parts = chunk.split(/\r?\n/u);
+        parts.forEach((part, index) => {
+          pending += part.slice(0, OUTPUT_LINE_MAX - pending.length);
+          if (index < parts.length - 1) {
+            emit(pending);
+            pending = "";
+          }
+        });
       });
       stream.on("end", () => {
-        if (pending !== "") options.onOutput(pending.slice(0, OUTPUT_LINE_MAX));
+        if (pending !== "") emit(pending);
       });
     };
     forward(child.stdout);
     forward(child.stderr);
 
-    const finish = (result: ScriptResult) => {
-      clearTimeout(timer);
-      options.signal?.removeEventListener("abort", onAbort);
-      resolve(result);
-    };
     child.on("error", (error) => finish({ ok: false, reason: error.message }));
     child.on("close", (code, killSignal) => {
       if (stopReason !== null) finish({ ok: false, reason: stopReason });

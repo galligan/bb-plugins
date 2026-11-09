@@ -39,6 +39,12 @@ export interface Inspection {
   readonly operation: string | null;
   /** HEAD is detached on commits no branch or remote reaches. */
   readonly unreferencedHead: boolean;
+  /**
+   * Initialized submodules with uncommitted changes or commits on no remote.
+   * A submodule's own repository lives inside the worktree's git data, so
+   * removal would delete this work and a rescue snapshot cannot hold it.
+   */
+  readonly unsavedSubmodules: string[];
   readonly branchState: BranchState;
   /** Commits on HEAD that no remote has. */
   readonly unpushedCommits: number;
@@ -95,21 +101,59 @@ async function inProgressOperation(
   return null;
 }
 
-/** True when merging HEAD into `base` would leave `base` unchanged. */
+/**
+ * True when merging HEAD into `base` would leave `base` unchanged. The merge
+ * is computed into a throwaway object directory, so the repository gains no
+ * objects.
+ */
 async function contentIsIn(
   path: string,
   base: string,
   signal?: AbortSignal,
 ): Promise<boolean> {
-  const merged = await git(
+  const objects = await out(
     path,
-    ["merge-tree", "--write-tree", base, "HEAD"],
+    ["rev-parse", "--path-format=absolute", "--git-path", "objects"],
     signal,
   );
-  if (merged.code !== 0) return false;
-  const mergedTree = merged.stdout.split("\n")[0]?.trim();
   const baseTree = await out(path, ["rev-parse", `${base}^{tree}`], signal);
-  return baseTree !== null && mergedTree === baseTree;
+  if (objects === null || baseTree === null) return false;
+  const scratch = await mkdtemp(join(tmpdir(), "wt-merge-"));
+  try {
+    const merged = await git(
+      path,
+      ["merge-tree", "--write-tree", base, "HEAD"],
+      signal,
+      {
+        GIT_OBJECT_DIRECTORY: scratch,
+        GIT_ALTERNATE_OBJECT_DIRECTORIES: objects,
+      },
+    );
+    return (
+      merged.code === 0 && merged.stdout.split("\n")[0]?.trim() === baseTree
+    );
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
+
+const SUBMODULE_PROBE =
+  'if [ -n "$(git status --porcelain)" ] || [ -n "$(git rev-list -n 1 HEAD --not --remotes 2>/dev/null)" ]; then printf "%s\\n" "$displaypath"; fi';
+
+async function submodulesWithUnsavedWork(
+  path: string,
+  signal?: AbortSignal,
+): Promise<string[]> {
+  if (!existsSync(join(path, ".gitmodules"))) return [];
+  const probed = await git(
+    path,
+    ["submodule", "foreach", "--quiet", "--recursive", SUBMODULE_PROBE],
+    signal,
+  );
+  if (probed.code !== 0) {
+    throw new Error(`Could not inspect submodules: ${probed.stderr.trim()}`);
+  }
+  return probed.stdout.split("\n").filter((line) => line !== "");
 }
 
 async function sameContent(a: string, b: string): Promise<boolean> {
@@ -122,7 +166,7 @@ async function sameContent(a: string, b: string): Promise<boolean> {
 
 /**
  * Reports what removing a worktree would lose. Read-only: it runs no fetch and
- * changes nothing, so "pushed" and "merged" reflect the remote refs as last
+ * writes nothing to the repository, so "pushed" and "merged" reflect the remote refs as last
  * fetched.
  */
 export async function inspectWorktree(options: {
@@ -134,7 +178,12 @@ export async function inspectWorktree(options: {
 }): Promise<Inspection> {
   const { path, sourcePath, mergeBaseBranch, signal } = options;
 
-  const status = await git(path, ["status", "--porcelain", "-z"], signal);
+  // --no-optional-locks: do not refresh the index file while only reading.
+  const status = await git(
+    path,
+    ["--no-optional-locks", "status", "--porcelain", "-z"],
+    signal,
+  );
   if (status.code !== 0) {
     throw new Error(`git status failed in ${path}: ${status.stderr.trim()}`);
   }
@@ -210,6 +259,10 @@ export async function inspectWorktree(options: {
     signal,
   );
 
+  // "Pushed" means every commit is on some remote. An upstream is not enough:
+  // git lets a branch track another local branch.
+  const offRemote = await count(path, ["HEAD", "--not", "--remotes"], signal);
+
   let branchState: BranchState;
   if (branch === null) {
     branchState = "detached";
@@ -220,18 +273,11 @@ export async function inspectWorktree(options: {
     branchState = "no-commits";
   } else if (base !== null && (await contentIsIn(path, base, signal))) {
     branchState = "merged";
-  } else if (
-    (await out(
-      path,
-      ["rev-parse", "--verify", "--quiet", "@{upstream}"],
-      signal,
-    )) !== null &&
-    (await count(path, ["@{upstream}..HEAD"], signal)) === 0
-  ) {
-    branchState = "pushed";
   } else {
-    branchState = unpushedCommits === 0 ? "pushed" : "local";
+    branchState = offRemote === 0 ? "pushed" : "local";
   }
+
+  const unsavedSubmodules = await submodulesWithUnsavedWork(path, signal);
 
   let lastActivity: number | null = null;
   for (const file of [...dirtyPaths, ...editedSharedFiles]) {
@@ -263,6 +309,11 @@ export async function inspectWorktree(options: {
   if (unreferencedHead) {
     reasons.push("HEAD is detached on commits no branch or remote reaches");
   }
+  if (unsavedSubmodules.length > 0) {
+    reasons.push(
+      `${plural(unsavedSubmodules.length, "submodule")} with unsaved work (${unsavedSubmodules.join(", ")})`,
+    );
+  }
 
   return {
     path,
@@ -272,6 +323,7 @@ export async function inspectWorktree(options: {
     editedSharedFiles,
     operation,
     unreferencedHead,
+    unsavedSubmodules,
     branchState,
     unpushedCommits,
     lastActivity,
@@ -280,10 +332,25 @@ export async function inspectWorktree(options: {
   };
 }
 
+const RESCUE_IDENTITY = [
+  "-c",
+  "user.name=Worktrees+",
+  "-c",
+  "user.email=wt@bb.invalid",
+] as const;
+
 /**
- * Saves a worktree's uncommitted and untracked files as a commit under
- * `refs/wt-rescue/`, without touching its index, branch or working tree.
- * Ignored files are not included. Returns the ref.
+ * Saves a worktree's uncommitted state as a commit under `refs/wt-rescue/`,
+ * without touching its index, branch or working tree. Returns the ref.
+ *
+ * The commit's tree is the working tree: tracked changes plus untracked files.
+ * Its first parent is HEAD. When anything is staged, a second parent holds the
+ * index, as `git stash` does, so a staged version that differs from the file
+ * on disk survives too. An index with unresolved conflicts cannot be written
+ * as a tree, so its raw file is stored as `raw-index` in that parent instead.
+ *
+ * Ignored files and submodule contents are not included. The ref name is
+ * unique per snapshot and an existing ref is never overwritten.
  */
 export async function saveRescueSnapshot(options: {
   path: string;
@@ -294,32 +361,74 @@ export async function saveRescueSnapshot(options: {
   const { path, signal } = options;
   const scratch = await mkdtemp(join(tmpdir(), "wt-rescue-"));
   try {
-    const env = { GIT_INDEX_FILE: join(scratch, "index") };
-    const must = async (args: readonly string[]): Promise<string> => {
+    const must = async (
+      args: readonly string[],
+      env: NodeJS.ProcessEnv = {},
+    ): Promise<string> => {
       const result = await git(path, args, signal, env);
       if (result.code !== 0) {
-        throw new Error(`git ${args[0] ?? ""} failed: ${result.stderr.trim()}`);
+        throw new Error(
+          `git ${args.find((arg) => !arg.startsWith("-") && !arg.includes("=")) ?? ""} failed: ${result.stderr.trim()}`,
+        );
       }
       return result.stdout.trim();
     };
-    await must(["read-tree", "HEAD"]);
-    await must(["add", "--all"]);
-    const tree = await must(["write-tree"]);
-    const commit = await must([
-      "-c",
-      "user.name=Worktrees+",
-      "-c",
-      "user.email=wt@bb.invalid",
-      "commit-tree",
-      tree,
-      "-p",
-      "HEAD",
-      "-m",
+    const commitTree = (tree: string, parents: string[], message: string) =>
+      must([
+        ...RESCUE_IDENTITY,
+        "commit-tree",
+        tree,
+        ...parents.flatMap((parent) => ["-p", parent]),
+        "-m",
+        message,
+      ]);
+
+    const parents = ["HEAD"];
+    const staged = await git(path, ["diff", "--cached", "--quiet"], signal);
+    if (staged.code !== 0) {
+      const written = await git(path, ["write-tree"], signal);
+      let indexTree: string;
+      if (written.code === 0) {
+        indexTree = written.stdout.trim();
+      } else {
+        const indexFile = await must([
+          "rev-parse",
+          "--path-format=absolute",
+          "--git-path",
+          "index",
+        ]);
+        const blob = await must(["hash-object", "-w", indexFile]);
+        const env = { GIT_INDEX_FILE: join(scratch, "raw") };
+        await must(
+          ["update-index", "--add", "--cacheinfo", `100644,${blob},raw-index`],
+          env,
+        );
+        indexTree = await must(["write-tree"], env);
+      }
+      parents.push(
+        await commitTree(indexTree, ["HEAD"], `Index rescued from ${path}`),
+      );
+    }
+
+    const env = { GIT_INDEX_FILE: join(scratch, "worktree") };
+    await must(["read-tree", "HEAD"], env);
+    await must(["add", "--all"], env);
+    const commit = await commitTree(
+      await must(["write-tree"], env),
+      parents,
       `Uncommitted work rescued from ${path}`,
-    ]);
+    );
+
     const stamp = options.now.toISOString().replace(/\D/gu, "").slice(0, 14);
-    const ref = `refs/wt-rescue/${slug(options.branch ?? "detached")}-${stamp}`;
-    await must(["update-ref", ref, commit]);
+    const ref = `refs/wt-rescue/${slug(options.branch ?? "detached")}-${stamp}-${commit.slice(0, 10)}`;
+    // An empty old value makes this create-only: it never replaces a rescue.
+    const created = await git(path, ["update-ref", ref, commit, ""], signal);
+    if (created.code !== 0) {
+      const existing = await out(path, ["rev-parse", "--verify", ref], signal);
+      if (existing !== commit) {
+        throw new Error(`Could not create ${ref}: ${created.stderr.trim()}`);
+      }
+    }
     return ref;
   } finally {
     await rm(scratch, { recursive: true, force: true });

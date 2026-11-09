@@ -78,3 +78,21 @@ test("no remote, a local remote, or junk falls back to _local/<checkout folder>"
 test("path segments can never traverse", () => {
   assert.deepEqual(at("https://github.com/../../etc"), ["gh", "etc"]);
 });
+
+test("an scp-style remote with an absolute path still names its host", () => {
+  assert.deepEqual(at("git@git.example.com:/srv/git/team/repo.git"), [
+    "git.example.com",
+    "srv",
+    "git",
+    "team",
+    "repo",
+  ]);
+});
+
+test("relative and home-relative local remotes are local", () => {
+  const expected = ["_local", "checkout"];
+  assert.deepEqual(at("file:../remote.git"), expected);
+  assert.deepEqual(at("../remote.git"), expected);
+  assert.deepEqual(at("./remote.git"), expected);
+  assert.deepEqual(at("~/git/remote.git"), expected);
+});

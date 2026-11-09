@@ -24,17 +24,15 @@ const KNOWN_HOSTS: readonly KnownHost[] = [
 ];
 
 function parseRemote(url: string): { host: string; path: string } | null {
-  // scp-like: [user@]host:path (no scheme, and the path does not start with /)
-  const scp = /^(?:[^@/\s]+@)?([^:/\s]+):(?!\/)(.+)$/u.exec(url);
-  if (scp !== null && !url.includes("://")) {
-    return { host: scp[1] ?? "", path: scp[2] ?? "" };
-  }
+  // A local path or file URI names no host.
+  if (url === "" || /^(?:[/.~]|file:)/iu.test(url)) return null;
   const full =
     /^[a-z][a-z0-9+.-]*:\/\/(?:[^@/]*@)?([^/:]+)(?::\d+)?\/(.*)$/iu.exec(url);
-  if (full !== null && !/^file:/iu.test(url)) {
-    return { host: full[1] ?? "", path: full[2] ?? "" };
-  }
-  return null;
+  if (full !== null) return { host: full[1] ?? "", path: full[2] ?? "" };
+  if (url.includes("://")) return null;
+  // scp-like: [user@]host:path, where the path may be relative or absolute.
+  const scp = /^(?:[^@/\s]+@)?([^:/\s]+):(.+)$/u.exec(url);
+  return scp === null ? null : { host: scp[1] ?? "", path: scp[2] ?? "" };
 }
 
 /**

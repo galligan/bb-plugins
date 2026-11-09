@@ -234,7 +234,16 @@ test("remove saves uncommitted and untracked files to a rescue ref first", async
     await removeWorktree(f.env, { pathKey: "thr_1-1", path: created.path }),
     { status: "removed" },
   );
-  const ref = "refs/wt-rescue/bb-task-thr_1-20260102030405";
+  const ref = git(
+    f.source,
+    "for-each-ref",
+    "--format=%(refname)",
+    "refs/wt-rescue",
+  );
+  assert.match(
+    ref,
+    /^refs\/wt-rescue\/bb-task-thr_1-20260102030405-[0-9a-f]{10}$/u,
+  );
   assert.equal(git(f.source, "show", `${ref}:README.md`), "edited");
   assert.equal(git(f.source, "show", `${ref}:notes.txt`), "new");
   assert.ok(f.logs.some((line) => line.includes(ref)));

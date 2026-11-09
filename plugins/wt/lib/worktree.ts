@@ -5,6 +5,7 @@ import {
   readFile,
   realpath,
   rm,
+  rmdir,
   writeFile,
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -16,7 +17,7 @@ import {
   saveRescueSnapshot,
   type Inspection,
 } from "./inspect.ts";
-import { isUnder, worktreePath } from "./paths.ts";
+import { isContained, worktreePath } from "./paths.ts";
 import { git, runScript } from "./process.ts";
 import { repoLocation } from "./remote.ts";
 import {
@@ -62,6 +63,13 @@ const recordSchema = z.strictObject({
   branchName: z.string().min(1),
   baseRef: z.string().min(1),
   mergeBaseBranch: z.string().min(1).nullable(),
+  // `planned`: a destination was chosen but bb has not granted the path to
+  // this launch, so nothing at `path` is ours. `owned`: bb granted the claim.
+  // Only an owned record authorizes touching `path`.
+  state: z.enum(["planned", "owned"]),
+  // `running` on entry means an earlier call was cut off mid-script and the
+  // script's outcome is unknown; it is never replayed.
+  setup: z.enum(["pending", "running", "done"]),
 });
 type WorktreeRecord = z.infer<typeof recordSchema>;
 
@@ -227,6 +235,11 @@ export async function resolveWorktree(
       input.sourcePath,
     );
     const path = worktreePath(env.root, location, input.branchName);
+    if (!(await isContained(env.root, path))) {
+      return failed(
+        `${path} resolves outside ${env.root}; a folder on the way is a symlink.`,
+      );
+    }
     if (existsSync(path)) {
       return failed(`${path} already exists and belongs to another launch.`);
     }
@@ -237,6 +250,8 @@ export async function resolveWorktree(
       branchName: input.branchName,
       baseRef: base.baseRef,
       mergeBaseBranch: base.mergeBaseBranch,
+      state: "planned",
+      setup: "pending",
     });
     return { status: "resolved", path, mergeBaseBranch: base.mergeBaseBranch };
   } catch (error) {
@@ -248,25 +263,51 @@ export async function resolveWorktree(
 export type CreateResult =
   { status: "created"; path: string; mergeBaseBranch: string | null } | Failed;
 
-/** Creates (or resumes) the worktree a prior `resolveWorktree` recorded. */
+/**
+ * Creates (or resumes) the worktree a prior `resolveWorktree` recorded. Call it
+ * only after bb has granted this launch the path: it marks the record owned.
+ *
+ * Safe to call again for the same path key. An existing worktree is kept, shared
+ * files already present are not replaced, and a setup script that finished is
+ * not run again.
+ */
 export async function createWorktree(
   env: HostEnvironment,
   input: { pathKey: string },
 ): Promise<CreateResult> {
   try {
-    const record = await readRecord(env, input.pathKey);
+    let record = await readRecord(env, input.pathKey);
     if (record === null) {
       return failed(`No worktree was resolved for ${input.pathKey}.`);
+    }
+    if (record.state === "planned") {
+      record = { ...record, state: "owned" };
+      await writeRecord(env, record);
     }
     const { sourcePath, path, branchName, baseRef } = record;
 
     if (!(await isRegisteredWorktree(sourcePath, path, env.signal))) {
+      if (existsSync(path)) {
+        return failed(`${path} exists but is not this launch's worktree.`);
+      }
       env.report("step", `Creating worktree at ${path}`);
       await mkdir(dirname(path), { recursive: true });
-      // --no-track: the task branch gets no upstream until it is pushed.
+      // Never reset a branch that already exists: removal keeps branches, so it
+      // may hold commits from an earlier attempt. Check it out as it is.
+      const reuse = await refExists(
+        sourcePath,
+        `refs/heads/${branchName}`,
+        env.signal,
+      );
+      if (reuse) {
+        env.report("log", `Branch ${branchName} already exists; reusing it.`);
+      }
       const added = await git(
         sourcePath,
-        ["worktree", "add", "--no-track", "-B", branchName, path, baseRef],
+        reuse
+          ? ["worktree", "add", path, branchName]
+          : // --no-track: the task branch gets no upstream until it is pushed.
+            ["worktree", "add", "--no-track", "-b", branchName, path, baseRef],
         env.signal,
       );
       if (added.code !== 0) {
@@ -284,11 +325,20 @@ export async function createWorktree(
       for (const file of copied) env.report("log", file);
     }
 
-    const plan = await readSetupPlan(path);
-    if (plan.source === "codex" && plan.setup !== null) {
-      env.report("step", `Running setup from ${CODEX_ENVIRONMENT}`);
-      const ran = await runRepoScript(env, path, plan.setup);
-      if (!ran.ok) return failed(`Setup script failed: ${ran.reason}.`);
+    if (record.setup === "running") {
+      return failed(
+        "Setup was interrupted and its outcome is unknown. Retry the launch to rebuild the worktree.",
+      );
+    }
+    if (record.setup === "pending") {
+      const plan = await readSetupPlan(path);
+      if (plan.source === "codex" && plan.setup !== null) {
+        await writeRecord(env, { ...record, setup: "running" });
+        env.report("step", `Running setup from ${CODEX_ENVIRONMENT}`);
+        const ran = await runRepoScript(env, path, plan.setup);
+        if (!ran.ok) return failed(`Setup script failed: ${ran.reason}.`);
+      }
+      await writeRecord(env, { ...record, setup: "done" });
     }
 
     return {
@@ -305,9 +355,12 @@ export async function createWorktree(
 export type RemoveResult = { status: "removed" } | Failed;
 
 /**
- * Removes a launch's worktree and its record, keeping the branch. Uncommitted
- * and untracked files are first saved as a commit under `refs/wt-rescue/`, so
- * removal never discards them; if that save fails, the worktree is kept.
+ * Removes a launch's worktree and its record, keeping the branch.
+ *
+ * It fails closed. Nothing is deleted unless the folder is inside the managed
+ * root, belongs to this launch, can be inspected, and every uncommitted change
+ * was saved to `refs/wt-rescue/` first. Only `git worktree remove` deletes the
+ * folder; if git refuses, the worktree is left in place.
  */
 export async function removeWorktree(
   env: HostEnvironment,
@@ -315,66 +368,87 @@ export async function removeWorktree(
 ): Promise<RemoveResult> {
   try {
     const record = await readRecord(env, input.pathKey);
+    const forget = async (): Promise<RemoveResult> => {
+      await rm(recordPath(env, input.pathKey), { force: true });
+      return { status: "removed" };
+    };
+    // A planned record never got the path: whatever is there is someone else's.
+    if (record !== null && record.state === "planned") return forget();
     const path = record?.path ?? input.path;
-    if (path === null) return { status: "removed" };
-    if (!isUnder(env.root, path)) {
+    if (path === null) return forget();
+    if (!(await isContained(env.root, path))) {
       return failed(`Refusing to remove ${path}: it is outside ${env.root}.`);
     }
+    const sourcePath = record?.sourcePath ?? path;
 
     if (existsSync(path)) {
-      const inspection = await inspectWorktree({
-        path,
-        sourcePath: record?.sourcePath ?? path,
-        mergeBaseBranch: record?.mergeBaseBranch ?? null,
-        signal: env.signal,
-      }).catch(() => null);
-      if (
-        inspection !== null &&
-        (inspection.changedFiles > 0 ||
-          inspection.untrackedFiles > 0 ||
-          inspection.unreferencedHead)
-      ) {
-        const ref = await saveRescueSnapshot({
+      const entries = await readdir(path);
+      if (entries.length === 0) {
+        await rmdir(path);
+      } else {
+        // Cleanup and running processes can still write files, so both finish
+        // before the worktree is inspected and saved.
+        const plan = await readSetupPlan(path).catch((): SetupPlan => ({
+          source: "none",
+        }));
+        if (plan.source === "codex" && plan.cleanup !== null) {
+          env.report("step", `Running cleanup from ${CODEX_ENVIRONMENT}`);
+          const ran = await runRepoScript(env, path, plan.cleanup);
+          if (!ran.ok) {
+            env.report("log", `Cleanup script failed: ${ran.reason}.`);
+          }
+        }
+        await env.killProcessesUnder?.(path);
+
+        const inspection = await inspectWorktree({
           path,
-          branch: inspection.branch,
-          now: env.now?.() ?? new Date(),
+          sourcePath,
+          mergeBaseBranch: record?.mergeBaseBranch ?? null,
           signal: env.signal,
         });
-        env.report("step", `Saved uncommitted work to ${ref}`);
-        env.report("log", `Restore it with: git checkout ${ref} -- .`);
-      }
-      if (inspection !== null && inspection.editedSharedFiles.length > 0) {
-        env.report(
-          "log",
-          `Not saved (ignored by git): ${inspection.editedSharedFiles.join(", ")}`,
+        if (inspection.unsavedSubmodules.length > 0) {
+          return failed(
+            `Not removing ${path}: submodule work cannot be saved automatically (${inspection.unsavedSubmodules.join(", ")}). Commit and push it there, then delete again.`,
+          );
+        }
+        if (
+          inspection.changedFiles > 0 ||
+          inspection.untrackedFiles > 0 ||
+          inspection.unreferencedHead
+        ) {
+          const ref = await saveRescueSnapshot({
+            path,
+            branch: inspection.branch,
+            now: env.now?.() ?? new Date(),
+            signal: env.signal,
+          });
+          env.report("step", `Saved uncommitted work to ${ref}`);
+          env.report("log", `Restore it with: git checkout ${ref} -- .`);
+        }
+        if (inspection.editedSharedFiles.length > 0) {
+          env.report(
+            "log",
+            `Not saved (ignored by git): ${inspection.editedSharedFiles.join(", ")}`,
+          );
+        }
+
+        env.report("step", `Removing worktree at ${path}`);
+        const removed = await git(
+          path,
+          ["worktree", "remove", "--force", path],
+          env.signal,
         );
-      }
-
-      const plan = await readSetupPlan(path).catch((): SetupPlan => ({
-        source: "none",
-      }));
-      if (plan.source === "codex" && plan.cleanup !== null) {
-        env.report("step", `Running cleanup from ${CODEX_ENVIRONMENT}`);
-        const ran = await runRepoScript(env, path, plan.cleanup);
-        if (!ran.ok) env.report("log", `Cleanup script failed: ${ran.reason}.`);
-      }
-
-      env.report("step", `Removing worktree at ${path}`);
-      await env.killProcessesUnder?.(path);
-      const removed = await git(
-        path,
-        ["worktree", "remove", "--force", path],
-        env.signal,
-      ).catch(() => null);
-      if (removed === null || removed.code !== 0) {
-        await rm(path, { recursive: true, force: true });
+        if (removed.code !== 0) {
+          return failed(
+            `git worktree remove failed, so ${path} was left in place: ${removed.stderr.trim()}`,
+          );
+        }
       }
     }
     if (record !== null && existsSync(record.sourcePath)) {
       await git(record.sourcePath, ["worktree", "prune"], env.signal);
     }
-    await rm(recordPath(env, input.pathKey), { force: true });
-    return { status: "removed" };
+    return await forget();
   } catch (error) {
     if (env.signal?.aborted === true) throw error;
     return failed(messageOf(error));
