@@ -1,8 +1,8 @@
-# Worktrees+ (`bb-plugin-wt`)
+# Worktree+ (`bb-plugin-wt`)
 
 An environment provider for [bb](https://github.com/get-bb/bb) that runs a thread in a Git worktree it creates under `~/.worktrees`, and sets that worktree up from scripts the repository already has.
 
-It appears in the New Thread environment picker as **Worktrees+**, beside bb's built-in **Worktree**.
+It appears in the New Thread environment picker as **Worktree+**, beside bb's built-in **Worktree**.
 
 ## What it does
 
@@ -35,7 +35,9 @@ Slashes in the branch name become dashes, so `feat/x` and `feat/x/y` never nest.
 
 ## Base branch
 
-By default the new branch starts from the remote's default branch, using the local branch of that name when it exists, and that branch is recorded as the environment's merge base for diffs. Pass a different base from the CLI:
+Pick the base in the New Thread composer with the **Branch from:** control beside the provider, the same control the built-in Worktree offers. It starts on the project's default base, normally `origin/main`. The chosen base is recorded as the environment's merge base for diffs.
+
+From the CLI, omit the inputs to start from the remote's default branch as last fetched, or pass a base:
 
 ```sh
 bb thread spawn --environment-provider wt --environment-inputs '{"base":"my-parent-branch"}' --prompt '...'
@@ -76,7 +78,6 @@ It also reports where the branch's commits stand: `no commits yet`, `merged into
 
 ## Not yet built
 
-- A picker control for choosing the base branch in the UI.
 - Stack-aware bases for Graphite and gh-stack.
 - Agent tools for spawning sibling and child threads.
 - Adopting or taking over worktrees created by Claude Code or Codex.

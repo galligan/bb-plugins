@@ -468,7 +468,7 @@ export async function inspectWorktree(options: {
 
 const RESCUE_IDENTITY = [
   "-c",
-  "user.name=Worktrees+",
+  "user.name=Worktree+",
   "-c",
   "user.email=wt@bb.invalid",
 ] as const;

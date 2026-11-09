@@ -1,4 +1,4 @@
-// bb-plugin-wt — registers the "Worktrees+" environment provider.
+// bb-plugin-wt — registers the "Worktree+" environment provider.
 //
 // bb core owns launch attempts, retries, attachment and retirement. This file
 // only maps core's create/remove calls onto the host entry, which does the
@@ -42,7 +42,7 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
 
   bb.experimental_environments.register({
     id: PROVIDER_ID,
-    displayName: "Worktrees+",
+    displayName: "Worktree+",
     description:
       "Create a Git worktree under ~/.worktrees, set up from the repo's own scripts.",
     icon: "FolderGit",
@@ -127,11 +127,11 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
     defineCli({
       name: "wt",
       summary:
-        "Worktrees+: list managed worktrees and what removing each would lose",
+        "Worktree+: list managed worktrees and what removing each would lose",
       commands: {
         list: cliCommand({
           summary:
-            "List every Worktrees+ worktree on each connected machine, marked SAFE or UNSAVED with the reasons",
+            "List every Worktree+ worktree on each connected machine, marked SAFE or UNSAVED with the reasons",
           options: {
             json: {
               type: "boolean",
@@ -166,7 +166,7 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
               exitCode: 0,
               stdout:
                 blocks.length === 0
-                  ? "No Worktrees+ worktrees."
+                  ? "No Worktree+ worktrees."
                   : blocks.join("\n\n"),
             };
           },

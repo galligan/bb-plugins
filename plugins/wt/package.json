@@ -13,13 +13,14 @@
     "bbPluginSdk": ">=0.6.132"
   },
   "bb": {
-    "name": "Worktrees+",
+    "name": "Worktree+",
     "description": "Run a thread in a Git worktree under ~/.bb/worktrees, set up from the repo's own scripts.",
     "branding": {
       "icon": "FolderGit"
     },
     "server": "./server.ts",
-    "host": "./host.ts"
+    "host": "./host.ts",
+    "app": "./app.tsx"
   },
   "scripts": {
     "check": "tsc --noEmit",
@@ -33,6 +34,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "typescript": "^5.7.0"
   }
 }

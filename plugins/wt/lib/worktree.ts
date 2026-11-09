@@ -130,8 +130,8 @@ async function refExists(
 
 /**
  * Picks the ref a new branch starts from. An explicit base is used as given.
- * Otherwise the remote's default branch, preferring the local branch of that
- * name, then the source checkout's current branch.
+ * Otherwise the remote's default branch as last fetched (`origin/main`), then
+ * the source checkout's current branch.
  */
 async function resolveBase(
   sourcePath: string,
@@ -149,12 +149,10 @@ async function resolveBase(
     signal,
   );
   const remoteRef = remoteHead.code === 0 ? remoteHead.stdout.trim() : "";
-  if (remoteRef !== "") {
-    const name = remoteRef.replace(/^origin\//u, "");
-    const baseRef = (await refExists(sourcePath, `refs/heads/${name}`, signal))
-      ? name
-      : remoteRef;
-    return { baseRef, mergeBaseBranch: name };
+  if (remoteRef !== "" && (await refExists(sourcePath, remoteRef, signal))) {
+    // The remote-tracking ref, as bb's own Worktree provider uses: a local
+    // default branch is often behind it.
+    return { baseRef: remoteRef, mergeBaseBranch: remoteRef };
   }
   const current = await git(sourcePath, ["branch", "--show-current"], signal);
   const branch = current.code === 0 ? current.stdout.trim() : "";

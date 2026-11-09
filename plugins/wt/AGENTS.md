@@ -1,8 +1,10 @@
 # AGENTS.md
 
-`bb-plugin-wt` registers the "Worktrees+" environment provider (id `wt`).
+`bb-plugin-wt` registers the "Worktree+" environment provider (id `wt`).
 
 - `server.ts` — registers the provider and maps bb core's `create` and `remove` onto the host entry. No git or file work happens here.
+- `app.tsx` — the frontend entry: the "Branch from:" control for the provider, built on bb's `experimental_BranchPicker`.
+- `lib/base-input.ts` — reads and writes that control's value.
 - `host.ts` — the host entry. Thin wiring from the RPC contract to `lib/worktree.ts`.
 - `lib/worktree.ts` — resolve, create and remove. Takes its root, data directory and reporter as arguments, so tests run it against a temporary repository.
 - `lib/setup-plan.ts` — pure decision of where setup and cleanup scripts come from.

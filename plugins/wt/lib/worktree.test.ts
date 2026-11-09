@@ -278,3 +278,30 @@ test("list reports each recorded worktree, including ones whose folder is gone",
     { status: "missing", pathKey: "thr_1-1", path: created.path },
   ]);
 });
+
+test("with no base given, the branch starts from the remote's default branch", async (t) => {
+  const f = await fixture(t);
+  const remote = join(f.base, "remote.git");
+  git(f.base, "init", "--quiet", "--bare", remote);
+  git(f.source, "remote", "add", "origin", remote);
+  git(f.source, "push", "--quiet", "origin", "main");
+  git(f.source, "remote", "set-head", "origin", "main");
+  const pushed = git(f.source, "rev-parse", "origin/main");
+  // Local main moves on without being pushed.
+  await writeFile(join(f.source, "local.txt"), "unpushed\n");
+  git(f.source, "add", "-A");
+  git(f.source, "commit", "--quiet", "-m", "local only");
+
+  const resolved = await resolveWorktree(f.env, {
+    pathKey: "k",
+    sourcePath: f.source,
+    branchName: "bb/from-remote",
+    base: null,
+  });
+  assert.equal(resolved.status, "resolved");
+  const created = await createWorktree(f.env, { pathKey: "k" });
+  assert.equal(created.status, "created");
+  if (created.status !== "created") return;
+  assert.equal(created.mergeBaseBranch, "origin/main");
+  assert.equal(git(created.path, "rev-parse", "HEAD"), pushed);
+});
