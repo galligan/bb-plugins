@@ -51,6 +51,7 @@ Removal keeps the branch and fails closed: nothing is deleted unless every uncom
 - Uncommitted and untracked files are saved as a commit under `refs/wt-rescue/<branch>-<timestamp>-<id>` in the repository. Restore them with `git checkout <ref> -- .`. Anything that was staged is kept as that commit's second parent (`<ref>^2`), the way `git stash` does.
 - Only `git worktree remove` deletes the folder. If the worktree cannot be inspected, the save fails, or git refuses, the worktree is left in place and the removal reports why.
 - A submodule with uncommitted changes or unpushed commits blocks removal, because its repository lives inside the worktree and cannot be saved automatically. Commit and push there, then delete again.
+- Unresolved merge conflicts block removal too: a conflicted index cannot be saved faithfully. Resolve or abort the merge, then delete again.
 - Files git ignores (such as an edited `.env`) are not saved; removal names them in its log.
 - The plugin refuses to delete any path outside `~/.worktrees`, including through a symlinked folder.
 
@@ -67,6 +68,7 @@ Each worktree is marked `SAFE` or `UNSAVED`, with the reasons:
 - tracked files with uncommitted changes, and untracked files;
 - ignored files listed in `.worktreeinclude` that were edited in the worktree, which `git status` never shows;
 - an unfinished rebase, merge, cherry-pick, revert or bisect;
+- files with unresolved merge conflicts;
 - a detached HEAD on commits no branch or remote reaches;
 - a submodule with uncommitted changes or unpushed commits.
 

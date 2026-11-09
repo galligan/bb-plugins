@@ -24,6 +24,7 @@ test("an unsaved worktree lists its reasons", () => {
         changedFiles: 1,
         untrackedFiles: 0,
         editedSharedFiles: [],
+        conflictedFiles: 0,
         operation: null,
         unreferencedHead: false,
         unsavedSubmodules: [],

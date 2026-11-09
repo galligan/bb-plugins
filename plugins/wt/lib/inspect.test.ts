@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { writeFile } from "node:fs/promises";
+import { readFile, utimes, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -150,4 +150,37 @@ test("inspecting diverged branches adds no objects to the repository", async (t)
   const report = await inspect(f, path);
   assert.equal(report.branchState, "local");
   assert.equal(objects(), before);
+});
+
+test("inspection does not rewrite a submodule's index", async (t) => {
+  const f = await fixture(t);
+  const library = join(f.base, "library");
+  git(f.base, "init", "--quiet", "--initial-branch=main", library);
+  git(library, "config", "user.email", "test@example.com");
+  git(library, "config", "user.name", "Test");
+  await writeFile(join(library, "lib.txt"), "lib\n");
+  git(library, "add", "-A");
+  git(library, "commit", "--quiet", "-m", "lib");
+  const allow = ["-c", "protocol.file.allow=always"];
+  git(f.source, ...allow, "submodule", "add", "--quiet", library, "vendor");
+  git(f.source, "commit", "--quiet", "-m", "add submodule");
+  const path = await provisioned(f);
+  git(path, ...allow, "submodule", "update", "--init", "--quiet");
+
+  // Same content, new timestamp: a plain `git status` would refresh the index.
+  const file = join(path, "vendor", "lib.txt");
+  const later = new Date(Date.now() + 60_000);
+  await utimes(file, later, later);
+  const indexFile = git(
+    join(path, "vendor"),
+    "rev-parse",
+    "--path-format=absolute",
+    "--git-path",
+    "index",
+  );
+  const before = await readFile(indexFile);
+
+  const report = await inspect(f, path);
+  assert.deepEqual(report.unsavedSubmodules, []);
+  assert.ok(before.equals(await readFile(indexFile)));
 });

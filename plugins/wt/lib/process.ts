@@ -81,16 +81,28 @@ export function runScript(options: {
       }
     };
 
+    const groupAlive = (): boolean => {
+      if (child.pid === undefined) return false;
+      try {
+        process.kill(-child.pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
     let settled = false;
     let stopReason: string | null = null;
     let killTimer: NodeJS.Timeout | undefined;
     let settleTimer: NodeJS.Timeout | undefined;
+    let goneTimer: NodeJS.Timeout | undefined;
     const finish = (result: ScriptResult) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       clearTimeout(killTimer);
       clearTimeout(settleTimer);
+      clearInterval(goneTimer);
       options.signal?.removeEventListener("abort", onAbort);
       running.delete(forceKill);
       child.stdout.destroy();
@@ -106,6 +118,11 @@ export function runScript(options: {
       if (stopReason !== null) return;
       stopReason = reason;
       signalGroup("SIGTERM");
+      // A stopped script is finished only when its whole group is gone. The
+      // shell exiting, or its pipes closing, says nothing about its children.
+      goneTimer = setInterval(() => {
+        if (!groupAlive()) finish({ ok: false, reason });
+      }, 50);
       killTimer = setTimeout(
         () => kill(reason),
         options.killGraceMs ?? KILL_GRACE_MS,
@@ -113,7 +130,8 @@ export function runScript(options: {
     };
     const forceKill = () => {
       stopReason ??= "stopped with the worker";
-      kill(stopReason);
+      signalGroup("SIGKILL");
+      finish({ ok: false, reason: stopReason });
     };
     running.add(forceKill);
 
@@ -162,8 +180,9 @@ export function runScript(options: {
 
     child.on("error", (error) => finish({ ok: false, reason: error.message }));
     child.on("close", (code, killSignal) => {
-      if (stopReason !== null) finish({ ok: false, reason: stopReason });
-      else if (code === 0) finish({ ok: true });
+      // Once stopping, `goneTimer` decides when this is over, not the shell.
+      if (stopReason !== null) return;
+      if (code === 0) finish({ ok: true });
       else if (code !== null)
         finish({ ok: false, reason: `exit code ${String(code)}` });
       else finish({ ok: false, reason: `killed by ${String(killSignal)}` });

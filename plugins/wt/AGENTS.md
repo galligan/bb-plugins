@@ -19,7 +19,10 @@
 - MUST NOT run `.bb-env-setup.sh` or `.bb-env-teardown.sh`. bb core runs them for every environment created with `ownsPath: true`; running them here would run them twice.
 - MUST NOT delete a path that `isContained(root, path)` rejects. It compares real locations; a lexical check is not enough.
 - MUST NOT delete a worktree folder by any means other than `git worktree remove`. If inspection, the rescue snapshot, or git fails, return `failed` and leave the folder.
-- MUST NOT touch the path of a record whose `state` is `planned`. Only `createWorktree`, called after bb granted the claim, marks a record `owned`.
+- MUST NOT touch the path of a record whose `state` is `planned`. A record becomes `owned` only after `createWorktree` created the worktree or verified the one at that path is its own. A granted claim is not ownership.
+- MUST NOT remove a worktree whose index has unresolved conflicts or whose submodules hold unsaved work. Neither can be saved; return `failed`.
+- Write records through `writeRecord` only. It replaces the file atomically.
+- A stopped script is finished when its process group is gone, not when the shell exits.
 - MUST NOT reset an existing branch (`git worktree add -B`). Removal keeps branches, so one may hold commits.
 - MUST NOT replay a setup script whose record says `running`: its outcome is unknown.
 - Inspect and save after cleanup scripts and process termination, immediately before deletion.

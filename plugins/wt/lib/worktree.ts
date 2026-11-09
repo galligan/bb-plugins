@@ -4,6 +4,7 @@ import {
   readdir,
   readFile,
   realpath,
+  rename,
   rm,
   rmdir,
   writeFile,
@@ -63,8 +64,10 @@ const recordSchema = z.strictObject({
   branchName: z.string().min(1),
   baseRef: z.string().min(1),
   mergeBaseBranch: z.string().min(1).nullable(),
-  // `planned`: a destination was chosen but bb has not granted the path to
-  // this launch, so nothing at `path` is ours. `owned`: bb granted the claim.
+  // `planned`: a destination was chosen, and nothing at `path` is ours yet.
+  // `owned`: this launch created the worktree at `path`, or verified that the
+  // worktree there is its own. A granted claim alone is not ownership: bb's
+  // claim arbitrates between launches, not what is on disk.
   // Only an owned record authorizes touching `path`.
   state: z.enum(["planned", "owned"]),
   // `running` on entry means an earlier call was cut off mid-script and the
@@ -78,6 +81,7 @@ const recordsDir = (env: HostEnvironment): string =>
 const recordPath = (env: HostEnvironment, pathKey: string): string =>
   join(recordsDir(env), `${encodeURIComponent(pathKey)}.json`);
 
+/** The record for a path key, or null when there is none or it is unreadable. */
 async function readRecord(
   env: HostEnvironment,
   pathKey: string,
@@ -85,16 +89,26 @@ async function readRecord(
   const text = await readFile(recordPath(env, pathKey), "utf8").catch(
     () => null,
   );
-  return text === null ? null : recordSchema.parse(JSON.parse(text));
+  if (text === null) return null;
+  try {
+    return recordSchema.parse(JSON.parse(text));
+  } catch {
+    // A damaged record authorizes nothing. Callers treat it as absent, which
+    // lets a launch be cleaned up or re-planned instead of failing forever.
+    return null;
+  }
 }
 
+/** Replaces the record atomically, so a crash never leaves a truncated file. */
 async function writeRecord(
   env: HostEnvironment,
   record: WorktreeRecord,
 ): Promise<void> {
   const file = recordPath(env, record.pathKey);
   await mkdir(dirname(file), { recursive: true });
-  await writeFile(file, `${JSON.stringify(record, null, 2)}\n`);
+  const temporary = `${file}.${String(process.pid)}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(record, null, 2)}\n`);
+  await rename(temporary, file);
 }
 
 async function refExists(
@@ -167,6 +181,18 @@ async function isRegisteredWorktree(
     if (resolved === target) return true;
   }
   return false;
+}
+
+/** True when `path` is a worktree of `sourcePath` with `branchName` checked out. */
+async function isOwnWorktree(
+  record: Pick<WorktreeRecord, "sourcePath" | "path" | "branchName">,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  if (!(await isRegisteredWorktree(record.sourcePath, record.path, signal))) {
+    return false;
+  }
+  const branch = await git(record.path, ["branch", "--show-current"], signal);
+  return branch.code === 0 && branch.stdout.trim() === record.branchName;
 }
 
 async function readSetupPlan(path: string): Promise<SetupPlan> {
@@ -265,7 +291,8 @@ export type CreateResult =
 
 /**
  * Creates (or resumes) the worktree a prior `resolveWorktree` recorded. Call it
- * only after bb has granted this launch the path: it marks the record owned.
+ * only after bb has granted this launch the path. The record becomes `owned`
+ * once the worktree exists and is this launch's, never before.
  *
  * Safe to call again for the same path key. An existing worktree is kept, shared
  * files already present are not replaced, and a setup script that finished is
@@ -280,39 +307,57 @@ export async function createWorktree(
     if (record === null) {
       return failed(`No worktree was resolved for ${input.pathKey}.`);
     }
+    const { sourcePath, path, branchName, baseRef } = record;
+    // The plan may be old (a restart can sit between resolve and create), so
+    // check again where it really points before touching the filesystem.
+    if (!(await isContained(env.root, path))) {
+      return failed(
+        `${path} resolves outside ${env.root}; a folder on the way is a symlink.`,
+      );
+    }
+
     if (record.state === "planned") {
+      if (existsSync(path)) {
+        if (!(await isOwnWorktree(record, env.signal))) {
+          return failed(`${path} exists but is not this launch's worktree.`);
+        }
+      } else {
+        env.report("step", `Creating worktree at ${path}`);
+        await mkdir(dirname(path), { recursive: true });
+        // Never reset a branch that already exists: removal keeps branches, so
+        // it may hold commits from an earlier attempt. Check it out as it is.
+        const reuse = await refExists(
+          sourcePath,
+          `refs/heads/${branchName}`,
+          env.signal,
+        );
+        if (reuse) {
+          env.report("log", `Branch ${branchName} already exists; reusing it.`);
+        }
+        const added = await git(
+          sourcePath,
+          reuse
+            ? ["worktree", "add", path, branchName]
+            : // --no-track: the branch gets no upstream until it is pushed.
+              [
+                "worktree",
+                "add",
+                "--no-track",
+                "-b",
+                branchName,
+                path,
+                baseRef,
+              ],
+          env.signal,
+        );
+        if (added.code !== 0) {
+          return failed(`git worktree add failed: ${added.stderr.trim()}`);
+        }
+      }
       record = { ...record, state: "owned" };
       await writeRecord(env, record);
-    }
-    const { sourcePath, path, branchName, baseRef } = record;
-
-    if (!(await isRegisteredWorktree(sourcePath, path, env.signal))) {
-      if (existsSync(path)) {
-        return failed(`${path} exists but is not this launch's worktree.`);
-      }
-      env.report("step", `Creating worktree at ${path}`);
-      await mkdir(dirname(path), { recursive: true });
-      // Never reset a branch that already exists: removal keeps branches, so it
-      // may hold commits from an earlier attempt. Check it out as it is.
-      const reuse = await refExists(
-        sourcePath,
-        `refs/heads/${branchName}`,
-        env.signal,
-      );
-      if (reuse) {
-        env.report("log", `Branch ${branchName} already exists; reusing it.`);
-      }
-      const added = await git(
-        sourcePath,
-        reuse
-          ? ["worktree", "add", path, branchName]
-          : // --no-track: the task branch gets no upstream until it is pushed.
-            ["worktree", "add", "--no-track", "-b", branchName, path, baseRef],
-        env.signal,
-      );
-      if (added.code !== 0) {
-        return failed(`git worktree add failed: ${added.stderr.trim()}`);
-      }
+    } else if (!(await isRegisteredWorktree(sourcePath, path, env.signal))) {
+      return failed(`${path} is no longer a worktree of ${sourcePath}.`);
     }
 
     const copied = await copySharedFiles({
@@ -406,6 +451,11 @@ export async function removeWorktree(
           mergeBaseBranch: record?.mergeBaseBranch ?? null,
           signal: env.signal,
         });
+        if (inspection.conflictedFiles > 0) {
+          return failed(
+            `Not removing ${path}: ${String(inspection.conflictedFiles)} file(s) have unresolved conflicts, which cannot be saved faithfully. Resolve or abort the ${inspection.operation ?? "merge"} there, then delete again.`,
+          );
+        }
         if (inspection.unsavedSubmodules.length > 0) {
           return failed(
             `Not removing ${path}: submodule work cannot be saved automatically (${inspection.unsavedSubmodules.join(", ")}). Commit and push it there, then delete again.`,
@@ -468,8 +518,17 @@ export async function listWorktrees(
   const listed: ListedWorktree[] = [];
   for (const file of files.filter((name) => name.endsWith(".json")).sort()) {
     const pathKey = decodeURIComponent(file.slice(0, -".json".length));
-    const record = await readRecord(env, pathKey).catch(() => null);
-    if (record === null) continue;
+    const record = await readRecord(env, pathKey);
+    if (record === null) {
+      listed.push({
+        status: "unreadable",
+        pathKey,
+        path: recordPath(env, pathKey),
+        message:
+          "This record file is damaged, so the worktree it described is unknown.",
+      });
+      continue;
+    }
     if (!existsSync(record.path)) {
       listed.push({ status: "missing", pathKey, path: record.path });
       continue;

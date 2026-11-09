@@ -15,6 +15,7 @@ export const inspectionSchema = z.strictObject({
   changedFiles: z.number().int().nonnegative(),
   untrackedFiles: z.number().int().nonnegative(),
   editedSharedFiles: z.array(z.string()),
+  conflictedFiles: z.number().int().nonnegative(),
   operation: z.string().nullable(),
   unreferencedHead: z.boolean(),
   unsavedSubmodules: z.array(z.string()),

@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -35,6 +35,11 @@ export interface Inspection {
    * the source checkout's copy. Git status never shows these.
    */
   readonly editedSharedFiles: string[];
+  /**
+   * Files with unresolved merge conflicts. Their index entries cannot be
+   * written as a tree, so they cannot be saved faithfully.
+   */
+  readonly conflictedFiles: number;
   /** An unfinished rebase, merge, cherry-pick, revert or bisect. */
   readonly operation: string | null;
   /** HEAD is detached on commits no branch or remote reaches. */
@@ -137,23 +142,75 @@ async function contentIsIn(
   }
 }
 
-const SUBMODULE_PROBE =
-  'if [ -n "$(git status --porcelain)" ] || [ -n "$(git rev-list -n 1 HEAD --not --remotes 2>/dev/null)" ]; then printf "%s\\n" "$displaypath"; fi';
-
+/**
+ * Initialized submodules, at any depth, with uncommitted changes or commits on
+ * no remote. They are found from the index's gitlink entries, not from
+ * `.gitmodules`, which is only a working-tree file and may be missing or
+ * edited. Submodule data with no matching gitlink is reported too: it cannot
+ * be inspected, and removal would delete it.
+ */
 async function submodulesWithUnsavedWork(
   path: string,
   signal?: AbortSignal,
+  prefix = "",
 ): Promise<string[]> {
-  if (!existsSync(join(path, ".gitmodules"))) return [];
-  const probed = await git(
+  const staged = await git(
     path,
-    ["submodule", "foreach", "--quiet", "--recursive", SUBMODULE_PROBE],
+    ["--no-optional-locks", "ls-files", "--stage", "-z"],
     signal,
   );
-  if (probed.code !== 0) {
-    throw new Error(`Could not inspect submodules: ${probed.stderr.trim()}`);
+  if (staged.code !== 0) {
+    throw new Error(`Could not list submodules: ${staged.stderr.trim()}`);
   }
-  return probed.stdout.split("\n").filter((line) => line !== "");
+  const unsaved: string[] = [];
+  let initialized = 0;
+  for (const entry of staged.stdout.split("\0")) {
+    if (!entry.startsWith("160000 ")) continue;
+    const relative = entry.slice(entry.indexOf("\t") + 1);
+    const directory = join(path, relative);
+    if (!existsSync(join(directory, ".git"))) continue;
+    initialized += 1;
+    const status = await git(
+      directory,
+      ["--no-optional-locks", "status", "--porcelain"],
+      signal,
+    );
+    if (status.code !== 0) {
+      throw new Error(
+        `Could not inspect submodule ${prefix}${relative}: ${status.stderr.trim()}`,
+      );
+    }
+    const offRemote = await count(
+      directory,
+      ["HEAD", "--not", "--remotes"],
+      signal,
+    );
+    if (status.stdout.trim() !== "" || offRemote > 0) {
+      unsaved.push(`${prefix}${relative}`);
+    }
+    unsaved.push(
+      ...(await submodulesWithUnsavedWork(
+        directory,
+        signal,
+        `${prefix}${relative}/`,
+      )),
+    );
+  }
+  if (initialized === 0) {
+    const modules = await out(
+      path,
+      ["rev-parse", "--path-format=absolute", "--git-path", "modules"],
+      signal,
+    );
+    const orphaned =
+      modules === null ? [] : await readdir(modules).catch((): string[] => []);
+    if (orphaned.length > 0) {
+      unsaved.push(
+        `${prefix}(submodule data without a gitlink: ${orphaned.join(", ")})`,
+      );
+    }
+  }
+  return unsaved;
 }
 
 async function sameContent(a: string, b: string): Promise<boolean> {
@@ -202,6 +259,23 @@ export async function inspectWorktree(options: {
     else changedFiles += 1;
     if (code.startsWith("R") || code.startsWith("C")) index += 1;
   }
+
+  const unmerged = await git(
+    path,
+    ["--no-optional-locks", "ls-files", "--unmerged", "-z"],
+    signal,
+  );
+  if (unmerged.code !== 0) {
+    throw new Error(
+      `git ls-files failed in ${path}: ${unmerged.stderr.trim()}`,
+    );
+  }
+  const conflictedFiles = new Set(
+    unmerged.stdout
+      .split("\0")
+      .filter((entry) => entry !== "")
+      .map((entry) => entry.slice(entry.indexOf("\t") + 1)),
+  ).size;
 
   const editedSharedFiles: string[] = [];
   const shared = await listSharedFiles({
@@ -305,6 +379,11 @@ export async function inspectWorktree(options: {
       `${plural(editedSharedFiles.length, "ignored file")} edited here (${editedSharedFiles.join(", ")})`,
     );
   }
+  if (conflictedFiles > 0) {
+    reasons.push(
+      `${plural(conflictedFiles, "file")} with unresolved conflicts`,
+    );
+  }
   if (operation !== null) reasons.push(`a ${operation} is in progress`);
   if (unreferencedHead) {
     reasons.push("HEAD is detached on commits no branch or remote reaches");
@@ -321,6 +400,7 @@ export async function inspectWorktree(options: {
     changedFiles,
     untrackedFiles,
     editedSharedFiles,
+    conflictedFiles,
     operation,
     unreferencedHead,
     unsavedSubmodules,
@@ -347,7 +427,7 @@ const RESCUE_IDENTITY = [
  * Its first parent is HEAD. When anything is staged, a second parent holds the
  * index, as `git stash` does, so a staged version that differs from the file
  * on disk survives too. An index with unresolved conflicts cannot be written
- * as a tree, so its raw file is stored as `raw-index` in that parent instead.
+ * as a tree, so this throws for one; `conflictedFiles` reports that up front.
  *
  * Ignored files and submodule contents are not included. The ref name is
  * unique per snapshot and an existing ref is never overwritten.
@@ -386,25 +466,9 @@ export async function saveRescueSnapshot(options: {
     const parents = ["HEAD"];
     const staged = await git(path, ["diff", "--cached", "--quiet"], signal);
     if (staged.code !== 0) {
-      const written = await git(path, ["write-tree"], signal);
-      let indexTree: string;
-      if (written.code === 0) {
-        indexTree = written.stdout.trim();
-      } else {
-        const indexFile = await must([
-          "rev-parse",
-          "--path-format=absolute",
-          "--git-path",
-          "index",
-        ]);
-        const blob = await must(["hash-object", "-w", indexFile]);
-        const env = { GIT_INDEX_FILE: join(scratch, "raw") };
-        await must(
-          ["update-index", "--add", "--cacheinfo", `100644,${blob},raw-index`],
-          env,
-        );
-        indexTree = await must(["write-tree"], env);
-      }
+      // Fails when the index has unresolved conflicts. Callers must refuse to
+      // remove such a worktree: there is no faithful way to save that index.
+      const indexTree = await must(["write-tree"]);
       parents.push(
         await commitTree(indexTree, ["HEAD"], `Index rescued from ${path}`),
       );

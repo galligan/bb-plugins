@@ -39,3 +39,14 @@ test("output beyond the line limit is dropped with one notice", async () => {
   assert.equal(lines[4999], "5000");
   assert.match(lines[5000] ?? "", /truncated after 5000 lines/u);
 });
+
+test("a child that outlives the shell and ignores SIGTERM is still killed", async () => {
+  const { result, lines } = await run(
+    "(trap '' TERM; exec sleep 30 >/dev/null 2>&1) & echo $!; wait",
+    { timeoutMs: 150 },
+  );
+  assert.equal(result.ok, false);
+  const pid = Number.parseInt(lines[0] ?? "", 10);
+  assert.ok(pid > 0);
+  assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+});

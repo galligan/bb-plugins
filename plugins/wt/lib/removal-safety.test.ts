@@ -2,15 +2,44 @@
 
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { fixture, git, provision, provisioned } from "./fixture.ts";
+import {
+  fixture,
+  git,
+  provision,
+  provisioned,
+  type Fixture,
+} from "./fixture.ts";
 import { saveRescueSnapshot } from "./inspect.ts";
-import { createWorktree, removeWorktree, resolveWorktree } from "./worktree.ts";
+import {
+  createWorktree,
+  listWorktrees,
+  removeWorktree,
+  resolveWorktree,
+} from "./worktree.ts";
 
 const KEY = "thr_1-1";
+
+/** Provisions a worktree whose `vendor` folder is an initialized submodule. */
+async function withSubmodule(f: Fixture): Promise<string> {
+  const library = join(f.base, "library");
+  await mkdir(library);
+  git(library, "init", "--quiet", "--initial-branch=main");
+  git(library, "config", "user.email", "test@example.com");
+  git(library, "config", "user.name", "Test");
+  await writeFile(join(library, "lib.txt"), "lib\n");
+  git(library, "add", "-A");
+  git(library, "commit", "--quiet", "-m", "lib");
+  const allow = ["-c", "protocol.file.allow=always"];
+  git(f.source, ...allow, "submodule", "add", "--quiet", library, "vendor");
+  git(f.source, "commit", "--quiet", "-m", "add submodule");
+  const path = await provisioned(f);
+  git(path, ...allow, "submodule", "update", "--init", "--quiet");
+  return path;
+}
 const rescueRefs = (repo: string): string[] =>
   git(repo, "for-each-ref", "--format=%(refname)", "refs/wt-rescue")
     .split("\n")
@@ -77,7 +106,7 @@ test("a staged version that differs from the file on disk is saved", async (t) =
   assert.equal(git(f.source, "show", `${ref}^2:README.md`), "staged only");
 });
 
-test("an index with unresolved conflicts is saved as a raw file", async (t) => {
+test("unresolved conflicts block removal, since they cannot be saved", async (t) => {
   const f = await fixture(t);
   const path = await provisioned(f);
   await writeFile(join(path, "README.md"), "theirs\n");
@@ -90,15 +119,11 @@ test("an index with unresolved conflicts is saved as a raw file", async (t) => {
     // The conflict is the point.
   }
 
-  assert.deepEqual(await removeWorktree(f.env, { pathKey: KEY, path }), {
-    status: "removed",
-  });
-  const [ref] = rescueRefs(f.source);
-  assert.match(git(f.source, "show", `${ref}:README.md`), /<<<<<<< /u);
-  assert.equal(
-    git(f.source, "ls-tree", "--name-only", `${ref}^2`),
-    "raw-index",
-  );
+  const removed = await removeWorktree(f.env, { pathKey: KEY, path });
+  assert.equal(removed.status, "failed");
+  assert.match(removed.status === "failed" ? removed.message : "", /conflict/u);
+  assert.match(await readFile(join(path, "README.md"), "utf8"), /<<<<<<< /u);
+  assert.deepEqual(rescueRefs(f.source), []);
 });
 
 test("writes made while processes are stopped are still saved", async (t) => {
@@ -184,36 +209,7 @@ test("a repeated create does not run the setup script again", async (t) => {
 
 test("a submodule with unsaved work blocks removal", async (t) => {
   const f = await fixture(t);
-  const library = join(f.base, "library");
-  await mkdir(library);
-  git(library, "init", "--quiet", "--initial-branch=main");
-  git(library, "config", "user.email", "test@example.com");
-  git(library, "config", "user.name", "Test");
-  await writeFile(join(library, "lib.txt"), "lib\n");
-  git(library, "add", "-A");
-  git(library, "commit", "--quiet", "-m", "lib");
-  git(
-    f.source,
-    "-c",
-    "protocol.file.allow=always",
-    "submodule",
-    "add",
-    "--quiet",
-    library,
-    "vendor",
-  );
-  git(f.source, "commit", "--quiet", "-m", "add submodule");
-
-  const path = await provisioned(f);
-  git(
-    path,
-    "-c",
-    "protocol.file.allow=always",
-    "submodule",
-    "update",
-    "--init",
-    "--quiet",
-  );
+  const path = await withSubmodule(f);
   await writeFile(join(path, "vendor", "lib.txt"), "edited in the worktree\n");
 
   const removed = await removeWorktree(f.env, { pathKey: KEY, path });
@@ -223,4 +219,76 @@ test("a submodule with unsaved work blocks removal", async (t) => {
     await readFile(join(path, "vendor", "lib.txt"), "utf8"),
     "edited in the worktree\n",
   );
+});
+
+test("a destination occupied by something else is never treated as owned", async (t) => {
+  const f = await fixture(t);
+  const resolved = await resolveWorktree(f.env, {
+    pathKey: KEY,
+    sourcePath: f.source,
+    branchName: "bb/task-thr_1",
+    base: null,
+  });
+  assert.equal(resolved.status, "resolved");
+  if (resolved.status !== "resolved") return;
+  // Something unrelated appears at the planned destination before create runs.
+  await mkdir(resolved.path, { recursive: true });
+  await writeFile(join(resolved.path, "foreign.txt"), "not ours\n");
+
+  const created = await createWorktree(f.env, { pathKey: KEY });
+  assert.equal(created.status, "failed");
+  assert.deepEqual(await removeWorktree(f.env, { pathKey: KEY, path: null }), {
+    status: "removed",
+  });
+  assert.equal(
+    await readFile(join(resolved.path, "foreign.txt"), "utf8"),
+    "not ours\n",
+  );
+});
+
+test("create rechecks containment when the plan is older than a symlink", async (t) => {
+  const f = await fixture(t);
+  const resolved = await resolveWorktree(f.env, {
+    pathKey: KEY,
+    sourcePath: f.source,
+    branchName: "bb/task-thr_1",
+    base: null,
+  });
+  assert.equal(resolved.status, "resolved");
+  const outside = join(f.base, "outside");
+  await mkdir(outside);
+  await mkdir(f.env.root, { recursive: true });
+  await symlink(outside, join(f.env.root, "_local"));
+
+  const created = await createWorktree(f.env, { pathKey: KEY });
+  assert.equal(created.status, "failed");
+  assert.equal(existsSync(join(outside, "repo")), false);
+});
+
+test("a submodule's unsaved work blocks removal even without .gitmodules", async (t) => {
+  const f = await fixture(t);
+  const path = await withSubmodule(f);
+  await writeFile(join(path, "vendor", "lib.txt"), "edited in the worktree\n");
+  await rm(join(path, ".gitmodules"));
+
+  const removed = await removeWorktree(f.env, { pathKey: KEY, path });
+  assert.equal(removed.status, "failed");
+  assert.equal(
+    await readFile(join(path, "vendor", "lib.txt"), "utf8"),
+    "edited in the worktree\n",
+  );
+});
+
+test("a damaged record can still be cleaned up and is listed", async (t) => {
+  const f = await fixture(t);
+  await provisioned(f);
+  const file = join(f.env.dataDir, "worktrees", `${KEY}.json`);
+  await writeFile(file, '{"pathKey": "thr_1-');
+
+  const [listed] = await listWorktrees(f.env);
+  assert.equal(listed?.status, "unreadable");
+  assert.deepEqual(await removeWorktree(f.env, { pathKey: KEY, path: null }), {
+    status: "removed",
+  });
+  assert.equal(existsSync(file), false);
 });
