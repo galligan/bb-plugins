@@ -543,22 +543,26 @@ export async function removeWorktree(
       if (
         inspection.changedFiles > 0 ||
         inspection.untrackedFiles > 0 ||
-        inspection.unreferencedHead
+        inspection.unreferencedHead ||
+        inspection.editedSharedFiles.length > 0
       ) {
         const ref = await saveRescueSnapshot({
           path,
           branch: inspection.branch,
           now: env.now?.() ?? new Date(),
+          // Edited copies of shared files exist nowhere else, and removal can
+          // run on a timer with nobody watching.
+          ignoredFiles: inspection.editedSharedFiles,
           signal: env.signal,
         });
         env.report("step", `Saved uncommitted work to ${ref}`);
         env.report("log", `Restore it with: git checkout ${ref} -- .`);
-      }
-      if (inspection.editedSharedFiles.length > 0) {
-        env.report(
-          "log",
-          `Not saved (ignored by git): ${inspection.editedSharedFiles.join(", ")}`,
-        );
+        if (inspection.editedSharedFiles.length > 0) {
+          env.report(
+            "log",
+            `Includes edited ignored files: ${inspection.editedSharedFiles.join(", ")}`,
+          );
+        }
       }
 
       env.report("step", `Removing worktree at ${path}`);

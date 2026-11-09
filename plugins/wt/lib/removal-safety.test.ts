@@ -453,3 +453,20 @@ test("shared files are not copied through a symlink out of the worktree", async 
   assert.equal(created.status, "created");
   assert.equal(existsSync(join(outside, "secret")), false);
 });
+
+test("an edited ignored shared file is saved before removal", async (t) => {
+  const f = await fixture(t, {
+    ".gitignore": ".env\n",
+    ".worktreeinclude": ".env\n",
+  });
+  await writeFile(join(f.source, ".env"), "TOKEN=1\n");
+  const path = await provisioned(f);
+  await writeFile(join(path, ".env"), "TOKEN=edited\n");
+
+  assert.deepEqual(await removeWorktree(f.env, { pathKey: KEY, path }), {
+    status: "removed",
+  });
+  const [ref] = rescueRefs(f.source);
+  assert.notEqual(ref, undefined);
+  assert.equal(git(f.source, "show", `${ref ?? ""}:.env`), "TOKEN=edited");
+});

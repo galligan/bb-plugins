@@ -57,7 +57,11 @@ bb thread spawn --environment-provider wt --environment-inputs '{"base":"my-pare
 
 ## Retention and removal
 
-Worktrees are kept until their environment is deleted. Unlike the built-in provider, archiving the last thread does not start a removal timer.
+A worktree is kept for as long as a thread uses it. Once every thread on it is archived or deleted, bb removes it after a grace period (30 minutes by default); unarchiving a thread within that time keeps it. Deleting the environment removes it straight away.
+
+Two settings control this: **Remove worktrees after their threads are archived** (`retireWhenArchived`, on by default) and **Grace period before removal (minutes)** (`retireGraceMinutes`). Turn the first off to keep worktrees until their environment is deleted. Changing either reloads the plugin so it applies at once.
+
+A removal that is refused (see below) leaves the worktree in place, and bb shows the environment's cleanup as failed with the reason.
 
 Removal keeps the branch and fails closed: nothing is deleted unless every uncommitted change was saved first.
 
@@ -68,7 +72,7 @@ Removal keeps the branch and fails closed: nothing is deleted unless every uncom
 - Unresolved merge conflicts block removal too: a conflicted index cannot be saved faithfully. Resolve or abort the merge, then delete again.
 - So does a git operation in progress, such as a paused rebase or cherry-pick: its remaining steps cannot be saved. Finish or abort it, then delete again.
 - If the folder is no longer the worktree the plugin created (it was removed by hand and something else now sits at that path), the plugin leaves it alone and says so.
-- Files git ignores (such as an edited `.env`) are not saved; removal names them in its log.
+- Ignored files listed in `.worktreeinclude` that were edited in the worktree (such as a changed `.env`) are saved in the same rescue commit, since they exist nowhere else. The rescue ref is local and is not pushed by an ordinary `git push`. Other ignored files, such as build output, are not saved.
 - The plugin refuses to delete any path outside `~/.worktrees`, including through a symlinked folder.
 
 If a branch with the suggested name already exists, the new worktree checks it out as it is. The plugin never resets a branch.
