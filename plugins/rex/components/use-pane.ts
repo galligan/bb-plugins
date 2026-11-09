@@ -126,6 +126,10 @@ export function usePane(attempt: number): PaneState {
         phase: "failed",
         message: error instanceof Error ? error.message : String(error),
       });
+      // Whatever failed, the stream request may be open or still on its way,
+      // such as when the WASM would not load. End it, so the backend does
+      // not keep relaying a terminal that nothing is drawing.
+      abort.abort();
     });
     return () => abort.abort();
   }, [attempt]);

@@ -81,7 +81,10 @@ export default async function plugin(bb: BbPluginApi) {
 
     open.add(pane);
     void pane.closed.then(() => open.delete(pane));
-    context.req.raw.signal.addEventListener("abort", () => pane.close());
+    // The tab may have gone away while the pane was being opened.
+    const { signal } = context.req.raw;
+    if (signal.aborted) pane.close();
+    else signal.addEventListener("abort", () => pane.close());
 
     return new Response(pane.body, {
       headers: {
