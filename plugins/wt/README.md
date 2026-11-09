@@ -72,7 +72,7 @@ Removal keeps the branch and fails closed: nothing is deleted unless every uncom
 - Unresolved merge conflicts block removal too: a conflicted index cannot be saved faithfully. Resolve or abort the merge, then delete again.
 - So does a git operation in progress, such as a paused rebase or cherry-pick: its remaining steps cannot be saved. Finish or abort it, then delete again.
 - If the folder is no longer the worktree the plugin created (it was removed by hand and something else now sits at that path), the plugin leaves it alone and says so.
-- Files git ignores (such as an edited `.env`) are not saved; removal names them in its log.
+- Ignored files listed in `.worktreeinclude` that were edited in the worktree (such as a changed `.env`) are saved in the same rescue commit, since they exist nowhere else. The rescue ref is local and is not pushed by an ordinary `git push`. Other ignored files, such as build output, are not saved.
 - The plugin refuses to delete any path outside `~/.worktrees`, including through a symlinked folder.
 
 If a branch with the suggested name already exists, the new worktree checks it out as it is. The plugin never resets a branch.
