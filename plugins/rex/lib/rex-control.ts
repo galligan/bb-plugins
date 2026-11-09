@@ -87,6 +87,7 @@ export function openRexSocket(
 export class RexControl {
   readonly #socket: WebSocket;
   readonly #pending = new Map<string, Waiter>();
+  readonly #listeners: ((message: unknown) => void)[] = [];
   #nextId = 1;
 
   /** Connects, sends the hello, and waits for the welcome. */
@@ -145,9 +146,13 @@ export class RexControl {
   }
 
   #receive(message: unknown): void {
-    // Events and message types this plugin does not know are skipped.
+    // Anything that is not a response goes to the listeners: events, and
+    // message types this plugin does not know, which they skip.
     const parsed = responseSchema.safeParse(message);
-    if (!parsed.success) return;
+    if (!parsed.success) {
+      for (const listener of this.#listeners) listener(message);
+      return;
+    }
     const waiter = this.#pending.get(parsed.data.id);
     if (waiter === undefined) return;
     this.#pending.delete(parsed.data.id);
@@ -190,6 +195,11 @@ export class RexControl {
       "rex_refused",
       `Rex answered ${method} in a shape this plugin does not read.`,
     );
+  }
+
+  /** Calls `listener` with every message from Rex that is not a response. */
+  onMessage(listener: (message: unknown) => void): void {
+    this.#listeners.push(listener);
   }
 
   onClose(listener: () => void): void {

@@ -1,4 +1,4 @@
-// The "Rex" tab: one read-only terminal pane and a line of status above it.
+// The "Rex" tab: one terminal pane and a line of status above it.
 
 import { useState, type ReactNode } from "react";
 
@@ -39,10 +39,7 @@ function statusText(pane: Extract<PaneState, { phase: "open" }>): string {
   }
   if (!pane.live) return "stream ended";
   if (pane.frame === null) return "waiting for the terminal";
-  const size = `${pane.frame.cols}×${pane.frame.rows}`;
-  return pane.created
-    ? `${size} · read-only · session created`
-    : `${size} · read-only`;
+  return `${pane.frame.cols}×${pane.frame.rows}`;
 }
 
 export function RexTab() {
@@ -65,10 +62,19 @@ export function RexTab() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
         <span className="font-medium text-foreground">{pane.sessionLabel}</span>
-        <span className="min-w-0 flex-1 truncate">{statusText(pane)}</span>
+        <span className="shrink-0">{statusText(pane)}</span>
+        <span className="min-w-0 flex-1 truncate text-destructive">
+          {pane.inputProblem}
+        </span>
         {!pane.live && <ActionButton onClick={reopen}>Reconnect</ActionButton>}
       </div>
-      {pane.frame !== null && <TerminalView frame={pane.frame} />}
+      {pane.frame !== null && (
+        <TerminalView
+          frame={pane.frame}
+          onInput={pane.live ? pane.send : null}
+          fitsPanel={pane.fitsPanel}
+        />
+      )}
     </div>
   );
 }

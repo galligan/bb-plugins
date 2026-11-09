@@ -1,22 +1,32 @@
-// Opens one Rex terminal pane as a byte stream.
+// Opens one Rex terminal pane: its byte stream out, and input back in.
 //
-// Each open stream holds its own control connection and one data connection.
+// Each open pane holds its own control connection and one data connection.
 // Rex ends a stream when the client that opened it leaves, so the control
-// connection stays open for as long as the stream does.
+// connection stays open for as long as the stream does. Input for the pane
+// goes out on that same control connection, which is what keeps it in order.
 //
-// The plugin is read-only towards Rex. It never claims a block and never
-// requests a size or theme, because a terminal follows its owner and either
-// call would resize or recolor the pane in the user's own Rex client.
+// Typing goes to whichever pane the tab shows. Claiming a pane and asking for
+// a size do not: a terminal follows its owner, so those would resize the pane
+// in the user's own Rex client. pane-sizing.ts holds the rule for when the
+// tab may, and it only ever applies to a session this plugin created.
+
+import { randomUUID } from "node:crypto";
 
 import type WebSocket from "ws";
 import { z } from "zod";
 
+import {
+  readCreatedSessions,
+  updateCreatedSessions,
+} from "./created-sessions.ts";
 import {
   describeReject,
   encodeDataHello,
   parseDataHandshakeReply,
 } from "./data-handshake.ts";
 import { PaneError } from "./pane-error.ts";
+import { blockEventFor, type GridSize, type PaneInput } from "./pane-input.ts";
+import { ownerChange, PaneSizing } from "./pane-sizing.ts";
 import { openRexSocket, RexControl, toBuffer } from "./rex-control.ts";
 import {
   choosePane,
@@ -35,18 +45,35 @@ const HANDSHAKE_TIMEOUT_MS = 10_000;
  */
 const QUEUE_BYTES = 1024 * 1024;
 
-export interface PaneStream {
+/** The terminal's bytes, and the means to stop them. */
+interface Relay {
   /** Marks Rex's own messages in `body`. */
   readonly nonce: string;
-  readonly sessionLabel: string;
-  /** Whether this call created the session because none had the label. */
-  readonly created: boolean;
   /** The terminal stream: a Ghostty snapshot, then live output. */
   readonly body: ReadableStream<Uint8Array>;
   /** Resolves when the stream has ended, for whatever reason. */
   readonly closed: Promise<void>;
   /** Ends the stream on the Rex server and closes both connections. */
   close(): void;
+}
+
+export interface PaneStream extends Relay {
+  /** Names this open pane to the tab, which sends it back with its input. */
+  readonly id: string;
+  readonly sessionLabel: string;
+  /** Whether the tab should report the size its panel has room for. */
+  readonly fitsPanel: boolean;
+  /**
+   * Delivers the tab's input to the pane, in order. Resolves once Rex has
+   * taken all of it.
+   */
+  input(events: readonly PaneInput[]): Promise<void>;
+}
+
+/** Where the plugin keeps the IDs of the sessions it created. */
+export interface CreatedSessionsStore {
+  read(): Promise<unknown>;
+  write(sessionIds: string[]): Promise<void>;
 }
 
 // Two tabs opening at once must not both find the label missing and both
@@ -59,14 +86,26 @@ function oneAtATime<T>(task: () => Promise<T>): Promise<T> {
   return result;
 }
 
+/**
+ * Finds the session labelled `label`, or creates it with one shell. `ours`
+ * says whether this plugin created it, now or on an earlier open.
+ */
 async function findOrCreateSession(
   control: RexControl,
   label: string,
-): Promise<{ sessionId: string; created: boolean }> {
+  store: CreatedSessionsStore,
+): Promise<{ sessionId: string; ours: boolean }> {
   const list = await control.call("session.list", undefined, sessionListSchema);
+  const live = (list.sessions ?? []).map((session) => session.session_id);
+  const stored = readCreatedSessions(await store.read());
+  const recorded = updateCreatedSessions(stored, live);
+  if (recorded.length !== stored.length) await store.write(recorded);
   const choice = chooseSession(list, label);
   if (choice.kind === "found") {
-    return { sessionId: choice.sessionId, created: false };
+    return {
+      sessionId: choice.sessionId,
+      ours: recorded.includes(choice.sessionId),
+    };
   }
   if (choice.kind === "ambiguous") {
     throw new PaneError(
@@ -82,33 +121,37 @@ async function findOrCreateSession(
     },
     z.object({ session_id: z.string() }),
   );
-  return { sessionId: created.session_id, created: true };
+  await store.write(updateCreatedSessions(recorded, live, created.session_id));
+  return { sessionId: created.session_id, ours: true };
 }
+
+const ownedBlocksSchema = z.object({
+  blocks: z
+    .array(
+      z.object({
+        block_id: z.string().nullable(),
+        owner: z.string().nullish(),
+      }),
+    )
+    .nullable(),
+});
 
 /** Opens the focused terminal of the session labelled `label`. */
 export async function openPane(options: {
   socketPath: string;
   label: string;
+  createdSessions: CreatedSessionsStore;
 }): Promise<PaneStream> {
   const control = await RexControl.connect(options.socketPath);
   try {
-    const { sessionId, created } = await oneAtATime(() =>
-      findOrCreateSession(control, options.label),
+    const { sessionId, ours } = await oneAtATime(() =>
+      findOrCreateSession(control, options.label, options.createdSessions),
     );
     const attached = await control.call(
       "session.attach",
       { session_id: sessionId },
-      z.object({ view: sessionViewSchema }),
+      z.object({ client_id: z.string(), view: sessionViewSchema }),
     );
-    if (created) {
-      // `session.create` makes its caller the owner of the new blocks. Give
-      // them up, so the terminal follows whichever Rex client shows it.
-      await control.call(
-        "session.disown_block",
-        { session_id: sessionId },
-        z.unknown(),
-      );
-    }
     const pane = choosePane(attached.view);
     if (pane.kind === "none") {
       throw new PaneError(
@@ -116,11 +159,33 @@ export async function openPane(options: {
         `Rex session "${options.label}" has no terminal to show. ${pane.reason}`,
       );
     }
+    const block = { session_id: sessionId, block_id: pane.blockId };
+
+    const sizing = new PaneSizing({
+      mayClaim: ours,
+      clientId: attached.client_id,
+      request: (size) => void requestSize(control, block, size),
+    });
+    control.onMessage((message) => {
+      const owner = ownerChange(message, { sessionId, blockId: pane.blockId });
+      if (owner !== undefined) sizing.ownerIs(owner);
+    });
+    if (sizing.mayClaim) {
+      const owned = await control.call(
+        "session.own_block",
+        { session_id: sessionId, block_ids: [pane.blockId], mode: "take" },
+        ownedBlocksSchema,
+      );
+      sizing.ownerIs(
+        owned.blocks?.find((entry) => entry.block_id === pane.blockId)?.owner ??
+          null,
+      );
+    }
+
     const { ticket } = await control.call(
       "data.connect",
       {
-        session_id: sessionId,
-        block_id: pane.blockId,
+        ...block,
         data_ref_id: "terminal",
         subprotocol: DATA_SUBPROTOCOL,
       },
@@ -132,17 +197,72 @@ export async function openPane(options: {
       "/api/data",
       DATA_SUBPROTOCOL,
     );
-    return await relay({
-      control,
-      data,
-      hello,
+    const stream = await relay({ control, data, hello });
+    return {
+      ...stream,
+      id: randomUUID(),
       sessionLabel: options.label,
-      created,
-    });
+      fitsPanel: sizing.mayClaim,
+      input: (events) => deliver(control, block, sizing, events),
+    };
   } catch (error) {
     control.close();
     throw error;
   }
+}
+
+/** Asks Rex to resize the terminal. A refusal is not worth ending the pane. */
+async function requestSize(
+  control: RexControl,
+  block: { session_id: string; block_id: string },
+  size: GridSize,
+): Promise<void> {
+  await control
+    .call(
+      "com.superlogical.terminal.resize",
+      {
+        ...block,
+        args: {
+          columns: size.cols,
+          rows: size.rows,
+          cell_width_px: size.cellWidthPx,
+          cell_height_px: size.cellHeightPx,
+        },
+      },
+      z.unknown(),
+    )
+    .catch(() => {});
+}
+
+/**
+ * Sends a batch of input to the block. Every `block.event` is written to the
+ * control connection before any answer is awaited, in the batch's order, and
+ * Rex runs them in the order they arrive.
+ */
+async function deliver(
+  control: RexControl,
+  block: { session_id: string; block_id: string },
+  sizing: PaneSizing,
+  events: readonly PaneInput[],
+): Promise<void> {
+  const sent: Promise<unknown>[] = [];
+  for (const event of events) {
+    if (event.type === "resize") {
+      sizing.want(event.size);
+      continue;
+    }
+    sent.push(
+      control.call(
+        "block.event",
+        { ...block, event: blockEventFor(event) },
+        z.unknown(),
+      ),
+    );
+  }
+  const refused = (await Promise.allSettled(sent)).find(
+    (result) => result.status === "rejected",
+  );
+  if (refused !== undefined) throw refused.reason;
 }
 
 /** Completes the data handshake, then passes every stream byte to `body`. */
@@ -150,9 +270,7 @@ export function relay(options: {
   control: RexControl;
   data: WebSocket;
   hello: Uint8Array;
-  sessionLabel: string;
-  created: boolean;
-}): Promise<PaneStream> {
+}): Promise<Relay> {
   const { control, data } = options;
   return new Promise((resolve, reject) => {
     let phase: "handshake" | "stream" | "closed" = "handshake";
@@ -241,8 +359,6 @@ export function relay(options: {
         phase = "stream";
         resolve({
           nonce: reply.nonce,
-          sessionLabel: options.sessionLabel,
-          created: options.created,
           body,
           closed,
           close: () => finish(),

@@ -1,18 +1,37 @@
-// Draws one frame of a terminal as text.
+// Draws one frame of a terminal as text, and takes its input.
 //
 // Each row is a line of spans in a monospace font, where a column is `1ch`
 // wide. Runs marked `pinned` hold a character the font may draw at another
 // width, so they are fixed to the width of their cells. This is the simplest
 // renderer that shows text, its colors, and the cursor; it draws no images,
 // no blinking, and no selection of its own.
+//
+// The terminal takes keys only while it has focus, which a click gives it.
+// Command combinations are left to the app. Copy works on the text as the
+// browser selects it, and paste arrives as a clipboard event.
 
-import type { CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type CSSProperties,
+  type KeyboardEvent,
+} from "react";
 
+import { fitGrid } from "../lib/fit.ts";
 import type { Frame } from "../lib/frame-reader.ts";
+import { keyFromDom, terminalTakesKey } from "../lib/key-event.ts";
+import type { PaneInput } from "../lib/pane-input.ts";
 import { cssColor, runColors, STYLE, type Run } from "../lib/runs.ts";
 
 const FONT_PX = 12;
 const LINE_PX = 16;
+const PADDING_PX = 8;
+/** Characters in the hidden probe that measures how wide one column is. */
+const PROBE_COLS = 50;
+/** How long the panel must hold a size before the terminal is fitted to it. */
+const FIT_DELAY_MS = 100;
 
 interface Defaults {
   foreground: number;
@@ -48,9 +67,11 @@ function runStyle(run: Run, defaults: Defaults): CSSProperties {
 function Cursor({
   cursor,
   color,
+  focused,
 }: {
   cursor: NonNullable<Frame["cursor"]>;
   color: string;
+  focused: boolean;
 }) {
   const style: CSSProperties = {
     position: "absolute",
@@ -61,12 +82,14 @@ function Cursor({
     boxSizing: "border-box",
     pointerEvents: "none",
   };
-  if (cursor.style === "block") {
+  // An outline is how a terminal shows that typing would not reach it.
+  const shape = focused ? cursor.style : "hollow";
+  if (shape === "block") {
     style.backgroundColor = color;
     style.opacity = 0.6;
-  } else if (cursor.style === "bar") {
+  } else if (shape === "bar") {
     style.borderLeft = `2px solid ${color}`;
-  } else if (cursor.style === "underline") {
+  } else if (shape === "underline") {
     style.borderBottom = `2px solid ${color}`;
   } else {
     style.border = `1px solid ${color}`;
@@ -74,15 +97,116 @@ function Cursor({
   return <div aria-hidden style={style} />;
 }
 
-export function TerminalView({ frame }: { frame: Frame }) {
+/**
+ * Reports the grid that fits the element to `onFit`, now and whenever the
+ * element changes size. Does nothing while `onFit` is null.
+ */
+function useFit(onFit: ((grid: PaneInput) => void) | null) {
+  const container = useRef<HTMLDivElement>(null);
+  const probe = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const element = container.current;
+    const ruler = probe.current;
+    if (onFit === null || element === null || ruler === null) return;
+    let reported = "";
+    const report = () => {
+      const cellWidth = ruler.getBoundingClientRect().width / PROBE_COLS;
+      const grid = fitGrid({
+        width: element.clientWidth - 2 * PADDING_PX,
+        height: element.clientHeight - 2 * PADDING_PX,
+        cellWidth,
+        cellHeight: LINE_PX,
+      });
+      if (grid === null || `${grid.cols}x${grid.rows}` === reported) return;
+      reported = `${grid.cols}x${grid.rows}`;
+      onFit({
+        type: "resize",
+        size: {
+          ...grid,
+          cellWidthPx: Math.max(1, Math.round(cellWidth)),
+          cellHeightPx: LINE_PX,
+        },
+      });
+    };
+    let timer = setTimeout(report, 0);
+    const observer = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(report, FIT_DELAY_MS);
+    });
+    observer.observe(element);
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [onFit]);
+
+  return { container, probe };
+}
+
+export function TerminalView({
+  frame,
+  onInput,
+  fitsPanel,
+}: {
+  frame: Frame;
+  /** Null when the terminal can no longer take input. */
+  onInput: ((input: PaneInput) => void) | null;
+  /** Whether to ask for the terminal to be resized to fit this element. */
+  fitsPanel: boolean;
+}) {
+  const [focused, setFocused] = useState(false);
+  const { container, probe } = useFit(fitsPanel ? onInput : null);
   const defaults = {
     foreground: frame.foreground,
     background: frame.background,
   };
+
+  const changeFocus = (next: boolean) => {
+    setFocused(next);
+    onInput?.({ type: "focus", focused: next });
+  };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (onInput === null || !terminalTakesKey(event)) return;
+    // The key is the terminal's: keep it from scrolling the panel, moving
+    // focus, or reaching the app's own shortcuts.
+    event.preventDefault();
+    event.stopPropagation();
+    const key = keyFromDom({
+      code: event.code,
+      key: event.key,
+      shiftKey: event.shiftKey,
+      ctrlKey: event.ctrlKey,
+      altKey: event.altKey,
+      metaKey: event.metaKey,
+      repeat: event.repeat,
+      isComposing: event.nativeEvent.isComposing,
+      capsLock: event.getModifierState("CapsLock"),
+      numLock: event.getModifierState("NumLock"),
+    });
+    if (key !== null) onInput({ type: "key", key });
+  };
+  const onPaste = (event: ClipboardEvent) => {
+    if (onInput === null) return;
+    event.preventDefault();
+    const text = event.clipboardData.getData("text/plain");
+    if (text !== "") onInput({ type: "paste", text });
+  };
+
   return (
     <div
-      className="min-h-0 flex-1 overflow-auto p-2"
-      style={{ backgroundColor: cssColor(frame.background) }}
+      ref={container}
+      tabIndex={0}
+      aria-label="Rex terminal"
+      className="min-h-0 flex-1 overflow-auto outline-none focus:ring-1 focus:ring-inset focus:ring-ring"
+      style={{
+        padding: PADDING_PX,
+        backgroundColor: cssColor(frame.background),
+      }}
+      onFocus={() => changeFocus(true)}
+      onBlur={() => changeFocus(false)}
+      onKeyDown={onKeyDown}
+      onPaste={onPaste}
     >
       <div
         className="font-mono"
@@ -97,6 +221,13 @@ export function TerminalView({ frame }: { frame: Frame }) {
           color: cssColor(frame.foreground),
         }}
       >
+        <span
+          ref={probe}
+          aria-hidden
+          style={{ position: "absolute", visibility: "hidden" }}
+        >
+          {"0".repeat(PROBE_COLS)}
+        </span>
         {frame.lines.map((runs, y) => (
           <div key={y} style={{ height: LINE_PX, overflow: "hidden" }}>
             {runs.map((run, index) => (
@@ -110,6 +241,7 @@ export function TerminalView({ frame }: { frame: Frame }) {
           <Cursor
             cursor={frame.cursor}
             color={cssColor(frame.cursorColor ?? frame.foreground)}
+            focused={focused}
           />
         )}
       </div>
