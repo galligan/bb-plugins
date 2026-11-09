@@ -6,7 +6,6 @@ import {
   realpath,
   rename,
   rm,
-  rmdir,
   writeFile,
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -209,6 +208,49 @@ async function isOwnWorktree(
   return branch.code === 0 && branch.stdout.trim() === record.branchName;
 }
 
+// Written into a worktree's own git directory once it is this launch's. Git
+// makes that directory with the worktree and deletes it with the worktree, so
+// a replacement at the same path never carries the marker.
+const LAUNCH_MARKER = "wt-launch";
+
+async function launchMarkerFile(
+  path: string,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const gitDir = await git(path, ["rev-parse", "--absolute-git-dir"], signal);
+  return gitDir.code === 0 ? join(gitDir.stdout.trim(), LAUNCH_MARKER) : null;
+}
+
+async function markAsLaunch(
+  record: Pick<WorktreeRecord, "pathKey" | "path">,
+  signal?: AbortSignal,
+): Promise<void> {
+  const file = await launchMarkerFile(record.path, signal);
+  if (file === null) {
+    throw new Error(`${record.path} has no git directory to mark.`);
+  }
+  await writeFile(file, `${record.pathKey}\n`);
+}
+
+/**
+ * True when whatever is at `path` is the worktree the launch `pathKey` made.
+ * The branch is not the test: work in a worktree moves between branches.
+ */
+async function isLaunchWorktree(
+  pathKey: string,
+  path: string,
+  record: WorktreeRecord | null,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  const file = await launchMarkerFile(path, signal);
+  const marker =
+    file === null ? null : await readFile(file, "utf8").catch(() => null);
+  if (marker !== null) return marker.trim() === pathKey;
+  // No marker: a worktree from before markers existed, or one whose create was
+  // cut off before the marker was written. Its record has to vouch for it.
+  return record !== null && (await isOwnWorktree(record, signal));
+}
+
 async function readSetupPlan(path: string): Promise<SetupPlan> {
   return resolveSetupPlan({
     hasBbHook:
@@ -370,6 +412,7 @@ export async function createWorktree(
           return failed(`git worktree add failed: ${added.stderr.trim()}`);
         }
       }
+      await markAsLaunch(record, env.signal);
       record = { ...record, state: "owned" };
       await writeRecord(env, record);
     } else if (!(await isRegisteredWorktree(sourcePath, path, env.signal))) {
@@ -419,9 +462,10 @@ export type RemoveResult = { status: "removed" } | Failed;
  * Removes a launch's worktree and its record, keeping the branch.
  *
  * It fails closed. Nothing is deleted unless the folder is inside the managed
- * root, belongs to this launch, can be inspected, and every uncommitted change
- * was saved to `refs/wt-rescue/` first. Only `git worktree remove` deletes the
- * folder; if git refuses, the worktree is left in place.
+ * root, is still the worktree this launch made, can be inspected, has no git
+ * operation in progress, and every uncommitted change was saved to
+ * `refs/wt-rescue/` first. Only `git worktree remove` deletes the folder; if
+ * git refuses, the worktree is left in place.
  */
 export async function removeWorktree(
   env: HostEnvironment,
@@ -451,72 +495,82 @@ export async function removeWorktree(
     const sourcePath = record?.sourcePath ?? path;
 
     if (existsSync(path)) {
-      const entries = await readdir(path);
-      if (entries.length === 0) {
-        await rmdir(path);
-      } else {
-        // Cleanup and running processes can still write files, so both finish
-        // before the worktree is inspected and saved.
-        const plan = await readSetupPlan(path).catch((): SetupPlan => ({
-          source: "none",
-        }));
-        if (plan.source === "codex" && plan.cleanup !== null) {
-          env.report("step", `Running cleanup from ${CODEX_ENVIRONMENT}`);
-          const ran = await runRepoScript(env, path, plan.cleanup);
-          if (!ran.ok) {
-            env.report("log", `Cleanup script failed: ${ran.reason}.`);
-          }
+      // The path can outlive the worktree: removed by hand, then reused.
+      if (!(await isLaunchWorktree(input.pathKey, path, record, env.signal))) {
+        return failed(
+          `Not removing ${path}: it could not be confirmed as the worktree this launch created. If it should go, run "git worktree remove" on it (or delete the folder if it is not a worktree), then delete again.`,
+        );
+      }
+      // Cleanup and running processes can still write files, so both finish
+      // before the worktree is inspected and saved.
+      const plan = await readSetupPlan(path).catch((error: unknown) => {
+        env.report(
+          "log",
+          `Skipping cleanup: ${CODEX_ENVIRONMENT} could not be read (${messageOf(error)}).`,
+        );
+        return null;
+      });
+      if (plan?.source === "codex" && plan.cleanup !== null) {
+        env.report("step", `Running cleanup from ${CODEX_ENVIRONMENT}`);
+        const ran = await runRepoScript(env, path, plan.cleanup);
+        if (!ran.ok) {
+          env.report("log", `Cleanup script failed: ${ran.reason}.`);
         }
-        await env.killProcessesUnder?.(path);
+      }
+      await env.killProcessesUnder?.(path);
 
-        const inspection = await inspectWorktree({
+      const inspection = await inspectWorktree({
+        path,
+        sourcePath,
+        mergeBaseBranch: record?.mergeBaseBranch ?? null,
+        signal: env.signal,
+      });
+      if (inspection.conflictedFiles > 0) {
+        return failed(
+          `Not removing ${path}: ${String(inspection.conflictedFiles)} file(s) have unresolved conflicts, which cannot be saved faithfully. Resolve or abort the ${inspection.operation ?? "merge"} there, then delete again.`,
+        );
+      }
+      if (inspection.operation !== null) {
+        return failed(
+          `Not removing ${path}: a ${inspection.operation} is in progress, and its remaining steps cannot be saved. Finish or abort it there, then delete again.`,
+        );
+      }
+      if (inspection.unsavedSubmodules.length > 0) {
+        return failed(
+          `Not removing ${path}: submodule work cannot be saved automatically (${inspection.unsavedSubmodules.join(", ")}). Commit and push it there, then delete again.`,
+        );
+      }
+      if (
+        inspection.changedFiles > 0 ||
+        inspection.untrackedFiles > 0 ||
+        inspection.unreferencedHead
+      ) {
+        const ref = await saveRescueSnapshot({
           path,
-          sourcePath,
-          mergeBaseBranch: record?.mergeBaseBranch ?? null,
+          branch: inspection.branch,
+          now: env.now?.() ?? new Date(),
           signal: env.signal,
         });
-        if (inspection.conflictedFiles > 0) {
-          return failed(
-            `Not removing ${path}: ${String(inspection.conflictedFiles)} file(s) have unresolved conflicts, which cannot be saved faithfully. Resolve or abort the ${inspection.operation ?? "merge"} there, then delete again.`,
-          );
-        }
-        if (inspection.unsavedSubmodules.length > 0) {
-          return failed(
-            `Not removing ${path}: submodule work cannot be saved automatically (${inspection.unsavedSubmodules.join(", ")}). Commit and push it there, then delete again.`,
-          );
-        }
-        if (
-          inspection.changedFiles > 0 ||
-          inspection.untrackedFiles > 0 ||
-          inspection.unreferencedHead
-        ) {
-          const ref = await saveRescueSnapshot({
-            path,
-            branch: inspection.branch,
-            now: env.now?.() ?? new Date(),
-            signal: env.signal,
-          });
-          env.report("step", `Saved uncommitted work to ${ref}`);
-          env.report("log", `Restore it with: git checkout ${ref} -- .`);
-        }
-        if (inspection.editedSharedFiles.length > 0) {
-          env.report(
-            "log",
-            `Not saved (ignored by git): ${inspection.editedSharedFiles.join(", ")}`,
-          );
-        }
-
-        env.report("step", `Removing worktree at ${path}`);
-        const removed = await git(
-          path,
-          ["worktree", "remove", "--force", path],
-          env.signal,
+        env.report("step", `Saved uncommitted work to ${ref}`);
+        env.report("log", `Restore it with: git checkout ${ref} -- .`);
+      }
+      if (inspection.editedSharedFiles.length > 0) {
+        env.report(
+          "log",
+          `Not saved (ignored by git): ${inspection.editedSharedFiles.join(", ")}`,
         );
-        if (removed.code !== 0) {
-          return failed(
-            `git worktree remove failed, so ${path} was left in place: ${removed.stderr.trim()}`,
-          );
-        }
+      }
+
+      env.report("step", `Removing worktree at ${path}`);
+      const removed = await git(
+        path,
+        ["worktree", "remove", "--force", path],
+        env.signal,
+      );
+      if (removed.code !== 0) {
+        return failed(
+          `git worktree remove failed, so ${path} was left in place: ${removed.stderr.trim()}`,
+        );
       }
     }
     if (record !== null && existsSync(record.sourcePath)) {

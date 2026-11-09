@@ -351,3 +351,105 @@ test("a worktree left by a failing checkout hook is cleaned up, not forgotten", 
   const again = await provision(f, "thr_1-2");
   assert.equal(again.status, "created");
 });
+
+test("a worktree that replaced this launch's at the same path is left alone", async (t) => {
+  const f = await fixture(t);
+  const path = await provisioned(f);
+  git(f.source, "worktree", "remove", "--force", path);
+  git(f.source, "worktree", "add", "--quiet", "-b", "someone-else", path);
+  await writeFile(join(path, "theirs.txt"), "not this launch's\n");
+
+  const removed = await removeWorktree(f.env, { pathKey: KEY, path });
+  assert.equal(removed.status, "failed");
+  assert.equal(
+    await readFile(join(path, "theirs.txt"), "utf8"),
+    "not this launch's\n",
+  );
+});
+
+test("an empty folder left at the path is not deleted", async (t) => {
+  const f = await fixture(t);
+  const path = await provisioned(f);
+  git(f.source, "worktree", "remove", "--force", path);
+  await mkdir(path);
+
+  const removed = await removeWorktree(f.env, { pathKey: KEY, path });
+  assert.equal(removed.status, "failed");
+  assert.equal(existsSync(path), true);
+});
+
+test("a worktree whose work moved to another branch is still this launch's", async (t) => {
+  const f = await fixture(t);
+  const path = await provisioned(f);
+  git(path, "switch", "--quiet", "-c", "stacked-on-top");
+
+  assert.deepEqual(await removeWorktree(f.env, { pathKey: KEY, path }), {
+    status: "removed",
+  });
+  assert.equal(existsSync(path), false);
+});
+
+test("a damaged record does not stop a marked worktree being removed", async (t) => {
+  const f = await fixture(t);
+  const path = await provisioned(f);
+  await writeFile(join(f.env.dataDir, "worktrees", `${KEY}.json`), "{");
+
+  assert.deepEqual(await removeWorktree(f.env, { pathKey: KEY, path }), {
+    status: "removed",
+  });
+  assert.equal(existsSync(path), false);
+});
+
+test("a paused rebase blocks removal even with nothing in conflict", async (t) => {
+  const f = await fixture(t);
+  const path = await provisioned(f);
+  await writeFile(join(path, "a.txt"), "a\n");
+  git(path, "add", "-A");
+  git(path, "commit", "--quiet", "-m", "a");
+  await writeFile(join(path, "b.txt"), "b\n");
+  git(path, "add", "-A");
+  git(path, "commit", "--quiet", "-m", "b");
+  // Stop at the first commit, as an `edit` step does.
+  git(
+    path,
+    "-c",
+    "sequence.editor=sed -i.bak 1s/^pick/edit/",
+    "rebase",
+    "--quiet",
+    "-i",
+    "HEAD~2",
+  );
+
+  const removed = await removeWorktree(f.env, { pathKey: KEY, path });
+  assert.equal(removed.status, "failed");
+  assert.match(removed.status === "failed" ? removed.message : "", /rebase/u);
+  assert.equal(existsSync(join(path, "a.txt")), true);
+});
+
+test("shared files are not copied through a symlink out of the worktree", async (t) => {
+  const f = await fixture(t, {
+    ".gitignore": "local/\n",
+    ".worktreeinclude": "local/\n",
+  });
+  const outside = join(f.base, "outside");
+  await mkdir(outside);
+  // The base branch tracks `local` as a symlink; the checkout the files are
+  // copied from has since replaced it with a real, ignored folder.
+  await symlink(outside, join(f.source, "local"));
+  git(f.source, "add", "-f", "local");
+  git(f.source, "commit", "--quiet", "-m", "link");
+  git(f.source, "rm", "--quiet", "--cached", "local");
+  await rm(join(f.source, "local"));
+  await mkdir(join(f.source, "local"));
+  await writeFile(join(f.source, "local", "secret"), "s\n");
+
+  await resolveWorktree(f.env, {
+    pathKey: KEY,
+    sourcePath: f.source,
+    branchName: "bb/task-thr_1",
+    base: "HEAD",
+  });
+  const created = await createWorktree(f.env, { pathKey: KEY });
+  assert.equal(created.status, "created");
+  assert.equal(existsSync(join(outside, "secret")), false);
+});

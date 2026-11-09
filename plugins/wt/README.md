@@ -66,6 +66,8 @@ Removal keeps the branch and fails closed: nothing is deleted unless every uncom
 - Only `git worktree remove` deletes the folder. If the worktree cannot be inspected, the save fails, or git refuses, the worktree is left in place and the removal reports why.
 - A submodule with uncommitted changes or unpushed commits blocks removal, because its repository lives inside the worktree and cannot be saved automatically. Commit and push there, then delete again.
 - Unresolved merge conflicts block removal too: a conflicted index cannot be saved faithfully. Resolve or abort the merge, then delete again.
+- So does a git operation in progress, such as a paused rebase or cherry-pick: its remaining steps cannot be saved. Finish or abort it, then delete again.
+- If the folder is no longer the worktree the plugin created (it was removed by hand and something else now sits at that path), the plugin leaves it alone and says so.
 - Files git ignores (such as an edited `.env`) are not saved; removal names them in its log.
 - The plugin refuses to delete any path outside `~/.worktrees`, including through a symlinked folder.
 

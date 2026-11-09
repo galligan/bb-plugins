@@ -23,7 +23,9 @@
 - MUST NOT delete a path that `isContained(root, path)` rejects. It compares real locations; a lexical check is not enough.
 - MUST NOT delete a worktree folder by any means other than `git worktree remove`. If inspection, the rescue snapshot, or git fails, return `failed` and leave the folder.
 - MUST NOT touch the path of a record whose `state` is `planned`. A record becomes `owned` only after `createWorktree` created the worktree or verified the one at that path is its own. A granted claim is not ownership.
-- MUST NOT remove a worktree whose index has unresolved conflicts or whose submodules hold unsaved work. Neither can be saved; return `failed`.
+- MUST NOT remove a worktree whose index has unresolved conflicts, that has a git operation in progress (rebase, merge, cherry-pick), or whose submodules hold unsaved work. None of these can be saved; return `failed`.
+- MUST NOT remove what is at a recorded path unless `isLaunchWorktree` confirms it. The test is the `wt-launch` marker in the worktree's git directory, not the checked-out branch: work in a worktree moves between branches, and a path can be reused after a manual removal.
+- MUST NOT write a shared file through a symlink that leads out of the worktree.
 - Write records through `writeRecord` only. It replaces the file atomically.
 - A stopped script is finished when its process group is gone, not when the shell exits.
 - MUST NOT reset an existing branch (`git worktree add -B`). Removal keeps branches, so one may hold commits.

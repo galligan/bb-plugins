@@ -2,6 +2,7 @@ import { constants } from "node:fs";
 import { copyFile, lstat, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
+import { isContained } from "./paths.ts";
 import { git } from "./process.ts";
 
 export const WORKTREE_INCLUDE = ".worktreeinclude";
@@ -61,8 +62,9 @@ export async function listSharedFiles(options: {
 
 /**
  * Copies the source checkout's shared files into a new worktree. Regular files
- * only, no symlinks, and nothing the worktree already has is replaced. Returns
- * the copied paths.
+ * only, no symlinks, nothing the worktree already has is replaced, and nothing
+ * is written through a symlink that leads out of the worktree. Returns the
+ * copied paths.
  */
 export async function copySharedFiles(options: {
   sourcePath: string;
@@ -81,6 +83,9 @@ export async function copySharedFiles(options: {
   for (const relativePath of shared) {
     const from = join(sourcePath, relativePath);
     const to = join(targetPath, relativePath);
+    // A tracked symlink in the worktree can stand where the source checkout
+    // has a real folder. Following it would write outside the worktree.
+    if (!(await isContained(targetPath, to))) continue;
     await mkdir(dirname(to), { recursive: true });
     try {
       await copyFile(from, to, constants.COPYFILE_EXCL);
