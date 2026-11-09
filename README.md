@@ -12,6 +12,7 @@ from this repository without a separate distribution branch.
 | ---------------------------------------- | ------------------------------------------------------------------ |
 | [`bb-plugin-linear`](plugins/linear)     | Search and attach fresh Linear issue context from bb's prompt box. |
 | [`bb-plugin-graphite`](plugins/graphite) | Read and drive Graphite stacks from bb.                            |
+| [`bb-plugin-wt`](plugins/wt)             | Run threads in Git worktrees set up from the repo's own scripts.   |
 
 ## Install
 
@@ -21,7 +22,7 @@ Install one plugin from the repository's `main` branch:
 bb plugin install git:https://github.com/galligan/bb-plugins.git@main --plugin graphite
 ```
 
-The collection currently advertises only Graphite. The `linear` distribution
+The collection advertises Graphite and Worktree+ (`wt`). The `linear` distribution
 branch remains available for existing installs while Linear's package and
 verification are brought up to the repository standard.
 
