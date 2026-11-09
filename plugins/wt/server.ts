@@ -20,8 +20,14 @@ import {
 } from "./lib/branch-name.ts";
 import { hostContract, hostSignals } from "./lib/host-contract.ts";
 import { renderWorktree } from "./lib/render.ts";
+import {
+  DEFAULT_RETIRE_GRACE_MINUTES,
+  isValidGraceMinutes,
+  retireGraceMs,
+} from "./lib/retire.ts";
 
 export const PROVIDER_ID = "wt";
+const PLUGIN_ID = "wt";
 
 /** Setup scripts get 15 minutes; leave headroom for git and file copies. */
 const HOST_CALL_TIMEOUT_MS = 20 * 60 * 1000;
@@ -70,6 +76,39 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
         .refine(isValidBranchPrefix, "Not a valid start for a git branch name"),
       default: "",
     },
+    retireWhenArchived: {
+      type: "boolean",
+      label: "Remove worktrees after their threads are archived",
+      description:
+        "Once every thread using a worktree is archived or deleted, remove the worktree after the grace period below. The branch is kept and uncommitted work is saved first. Turn off to keep worktrees until their environment is deleted.",
+      default: true,
+    },
+    retireGraceMinutes: {
+      type: "number",
+      label: "Grace period before removal (minutes)",
+      description:
+        "How long a worktree stays after its last thread is archived. Unarchiving a thread within this time keeps the worktree.",
+      experimental_schema: z
+        .number()
+        .refine(isValidGraceMinutes, "Must be zero or more minutes"),
+      default: DEFAULT_RETIRE_GRACE_MINUTES,
+    },
+  });
+  const retirement = (values: {
+    retireWhenArchived: boolean;
+    retireGraceMinutes: number;
+  }) =>
+    retireGraceMs({
+      enabled: values.retireWhenArchived,
+      minutes: values.retireGraceMinutes,
+    });
+  const graceMs = retirement(await settings.get());
+  // bb reads a provider's policy once, at registration. Reload so a changed
+  // setting takes effect without restarting bb.
+  settings.onChange((next) => {
+    if (retirement(next) !== graceMs) {
+      void bb.sdk.plugins.reload({ pluginId: PLUGIN_ID });
+    }
   });
 
   const reports = new Map<string, PluginEnvironmentProviderProgress>();
@@ -88,9 +127,9 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
     icon: "FolderGit",
     requires: { gitCheckout: true },
     inputs: inputsSchema,
-    // Keep worktrees until their environment is deleted explicitly, so a
-    // worktree someone is still using never disappears on a timer.
-    policy: { retireGraceMs: null },
+    // A thread holds its worktree until it is archived or deleted, so one
+    // that is still in use never disappears on this timer.
+    policy: { retireGraceMs: graceMs },
 
     async create(context) {
       const hostId = context.host.id;

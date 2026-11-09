@@ -57,7 +57,11 @@ bb thread spawn --environment-provider wt --environment-inputs '{"base":"my-pare
 
 ## Retention and removal
 
-Worktrees are kept until their environment is deleted. Unlike the built-in provider, archiving the last thread does not start a removal timer.
+A worktree is kept for as long as a thread uses it. Once every thread on it is archived or deleted, bb removes it after a grace period (30 minutes by default); unarchiving a thread within that time keeps it. Deleting the environment removes it straight away.
+
+Two settings control this: **Remove worktrees after their threads are archived** (`retireWhenArchived`, on by default) and **Grace period before removal (minutes)** (`retireGraceMinutes`). Turn the first off to keep worktrees until their environment is deleted. Changing either reloads the plugin so it applies at once.
+
+A removal that is refused (see below) leaves the worktree in place, and bb shows the environment's cleanup as failed with the reason.
 
 Removal keeps the branch and fails closed: nothing is deleted unless every uncommitted change was saved first.
 
