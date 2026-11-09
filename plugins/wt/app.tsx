@@ -8,11 +8,12 @@ import { useEffect } from "react";
 import {
   definePluginApp,
   experimental_BranchPicker as BranchPicker,
-  useSdk,
+  useRpc,
   type PluginEnvironmentProviderInputsProps,
 } from "@get-bb/plugin-sdk/app";
 
 import { readBase, toInputs } from "./lib/base-input.ts";
+import type { rpcContract } from "./server.ts";
 
 const PROVIDER_ID = "wt";
 
@@ -22,29 +23,28 @@ function BaseBranchInput({
   value,
   onChange,
 }: PluginEnvironmentProviderInputsProps) {
-  const sdk = useSdk();
+  const rpc = useRpc<typeof rpcContract>();
   const hostId = target.kind === "existing-host" ? target.hostId : null;
   const base = readBase(value);
 
-  // With nothing picked, fill in the project's default base so the control
-  // shows the branch the worktree will really start from. If it cannot be
-  // read, the inputs stay empty and the host picks the default itself.
+  // With nothing picked, ask the machine which base it would use and fill it
+  // in, so the control shows the branch the worktree will really start from.
+  // If that fails, the inputs stay empty and the machine decides at launch.
   useEffect(() => {
     if (base !== null || projectId === null || hostId === null) return;
     let stale = false;
-    sdk.projects
-      .branches({ projectId, hostId })
+    rpc
+      .call("defaultBase", { projectId, hostId })
       .then((result) => {
-        const fallback = result.defaultWorktreeBaseBranch;
-        if (!stale && fallback !== null) {
-          onChange({ status: "ready", value: toInputs(fallback) });
+        if (!stale && result.base !== null) {
+          onChange({ status: "ready", value: toInputs(result.base) });
         }
       })
       .catch(() => {});
     return () => {
       stale = true;
     };
-  }, [base, projectId, hostId, sdk, onChange]);
+  }, [base, projectId, hostId, rpc, onChange]);
 
   return (
     <BranchPicker

@@ -163,6 +163,18 @@ async function resolveBase(
     : { baseRef: branch, mergeBaseBranch: branch };
 }
 
+/**
+ * The ref a worktree starts from when no base is chosen, or null when the
+ * checkout has none to offer.
+ */
+export async function defaultBase(
+  sourcePath: string,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const base = await resolveBase(sourcePath, null, signal);
+  return "status" in base ? null : base.baseRef;
+}
+
 async function isRegisteredWorktree(
   sourcePath: string,
   path: string,

@@ -13,6 +13,7 @@ import { hostContract, hostSignals } from "./lib/host-contract.ts";
 import { killAllScripts } from "./lib/process.ts";
 import {
   createWorktree,
+  defaultBase,
   listWorktrees,
   removeWorktree,
   resolveWorktree,
@@ -44,6 +45,9 @@ export default experimental_defineHostEntry({
       createWorktree(reporting(operationId, context), { pathKey }),
     remove: ({ operationId, pathKey, path }, context) =>
       removeWorktree(reporting(operationId, context), { pathKey, path }),
+    defaultBase: async ({ sourcePath }, context) => ({
+      base: await defaultBase(sourcePath, context.signal),
+    }),
     list: async (_input, context) => ({
       worktrees: await listWorktrees(quiet(context)),
     }),

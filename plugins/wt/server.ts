@@ -4,7 +4,12 @@
 // only maps core's create/remove calls onto the host entry, which does the
 // git, file and script work on the machine that owns the checkout.
 
-import { cliCommand, defineCli, type BbPluginApi } from "@get-bb/plugin-sdk";
+import {
+  cliCommand,
+  defineCli,
+  defineRpcContract,
+  type BbPluginApi,
+} from "@get-bb/plugin-sdk";
 import type { PluginEnvironmentProviderProgress } from "@get-bb/plugin-sdk/environment-provider";
 import { z } from "zod";
 
@@ -27,6 +32,18 @@ export const inputsSchema = z
     base: z.string().min(1).optional(),
   })
   .default({});
+
+/** Calls the frontend makes to this plugin's server. */
+export const rpcContract = defineRpcContract({
+  /** The base a new worktree starts from when none is picked. */
+  defaultBase: {
+    input: z.strictObject({
+      projectId: z.string().min(1),
+      hostId: z.string().min(1),
+    }),
+    output: z.strictObject({ base: z.string().min(1).nullable() }),
+  },
+});
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -152,6 +169,19 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
       } finally {
         reports.delete(operationId);
       }
+    },
+  });
+
+  bb.rpc.register(rpcContract, {
+    async defaultBase({ projectId, hostId }) {
+      const project = await bb.sdk.projects.get({ projectId });
+      const source = project.sources.find(
+        (candidate) =>
+          candidate.type === "local_path" && candidate.hostId === hostId,
+      );
+      return source === undefined
+        ? { base: null }
+        : host.call("defaultBase", { sourcePath: source.path }, { hostId });
     },
   });
 

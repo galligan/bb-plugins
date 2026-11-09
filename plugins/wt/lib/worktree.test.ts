@@ -7,6 +7,7 @@ import { test } from "node:test";
 import { fixture, git, provision } from "./fixture.ts";
 import {
   createWorktree,
+  defaultBase,
   listWorktrees,
   removeWorktree,
   resolveWorktree,
@@ -304,4 +305,15 @@ test("with no base given, the branch starts from the remote's default branch", a
   if (created.status !== "created") return;
   assert.equal(created.mergeBaseBranch, "origin/main");
   assert.equal(git(created.path, "rev-parse", "HEAD"), pushed);
+});
+
+test("defaultBase names the ref a launch without a base would use", async (t) => {
+  const f = await fixture(t);
+  assert.equal(await defaultBase(f.source), "main");
+  const remote = join(f.base, "remote.git");
+  git(f.base, "init", "--quiet", "--bare", remote);
+  git(f.source, "remote", "add", "origin", remote);
+  git(f.source, "push", "--quiet", "origin", "main");
+  git(f.source, "remote", "set-head", "origin", "main");
+  assert.equal(await defaultBase(f.source), "origin/main");
 });

@@ -89,6 +89,11 @@ export const hostContract = defineRpcContract({
       failed,
     ]),
   },
+  defaultBase: {
+    input: z.strictObject({ sourcePath: z.string().min(1) }),
+    output: z.strictObject({ base: z.string().min(1).nullable() }),
+    experimental_retryable: true,
+  },
   list: {
     input: z.strictObject({}),
     output: z.strictObject({ worktrees: z.array(listedWorktreeSchema) }),
