@@ -10,6 +10,12 @@ import { z } from "zod";
 const ESC = 0x1b;
 const TERMINATOR = Uint8Array.from([ESC, 0x5c]); // ESC \
 
+/**
+ * The most bytes one Rex message may take. Rex's messages are a few hundred
+ * bytes; a theme that changes all 256 palette colors is a few kilobytes.
+ */
+export const MAX_REX_MESSAGE_BYTES = 64 * 1024;
+
 export type StreamPart =
   { kind: "vt"; bytes: Uint8Array } | { kind: "message"; json: unknown };
 
@@ -17,7 +23,9 @@ export type StreamPart =
  * Splits live stream bytes into terminal output and Rex messages.
  *
  * Chunk boundaries have no meaning, so a message cut by one is held until the
- * rest arrives.
+ * rest arrives. A message that runs past `MAX_REX_MESSAGE_BYTES` without
+ * ending is not held any longer: `push` throws, because the stream is broken
+ * and holding on would buffer everything after it.
  */
 export class RexMessageSplitter {
   readonly #prefix: Uint8Array;
@@ -49,6 +57,11 @@ export class RexMessageSplitter {
       const jsonStart = start + this.#prefix.length;
       const jsonEnd = indexOfBytes(bytes, TERMINATOR, jsonStart);
       if (jsonEnd === -1) {
+        if (bytes.length - start > MAX_REX_MESSAGE_BYTES) {
+          throw new Error(
+            `Rex began a message and did not end it within ${MAX_REX_MESSAGE_BYTES / 1024} KiB, so the terminal stream cannot be read.`,
+          );
+        }
         this.#held = bytes.slice(start);
         return parts;
       }

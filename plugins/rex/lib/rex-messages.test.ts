@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  MAX_REX_MESSAGE_BYTES,
   parseRexMessage,
   RexMessageSplitter,
   type StreamPart,
@@ -88,6 +89,34 @@ test("keeps multi-byte text intact around a message", () => {
     { json: { type: "theme" } },
     "wörld ✓",
   ]);
+});
+
+test("gives up on a message that never ends instead of holding the stream", () => {
+  const splitter = new RexMessageSplitter(NONCE);
+  const chunk = encode("x".repeat(16 * 1024));
+  splitter.push(encode(`before\x1b_rex1;${NONCE};{"type":"`));
+  assert.throws(() => {
+    // Far more than the limit, so the test ends if nothing is ever thrown.
+    for (let sent = 0; sent < 4 * MAX_REX_MESSAGE_BYTES; sent += chunk.length) {
+      splitter.push(chunk);
+    }
+  }, /did not end it within 64 KiB/);
+});
+
+test("still reads a long message that ends within the limit", () => {
+  const padding = "x".repeat(MAX_REX_MESSAGE_BYTES - 1024);
+  const stream = `a${message(`{"type":"later","padding":"${padding}"}`)}b`;
+  const cut = Math.floor(stream.length / 2);
+  assert.deepEqual(split([stream.slice(0, cut), stream.slice(cut)]), [
+    "a",
+    { json: { type: "later", padding } },
+    "b",
+  ]);
+});
+
+test("does not limit terminal output that only looks like the start of a message", () => {
+  const forged = `\x1b_rex1;999;${"x".repeat(2 * MAX_REX_MESSAGE_BYTES)}`;
+  assert.deepEqual(split([forged, "tail"]), [`${forged}tail`]);
 });
 
 test("passes on a message whose JSON does not parse as one with no type", () => {
