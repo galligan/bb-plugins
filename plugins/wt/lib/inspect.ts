@@ -1,7 +1,14 @@
 import { existsSync } from "node:fs";
-import { mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
+import {
+  mkdtemp,
+  readdir,
+  readFile,
+  realpath,
+  rm,
+  stat,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative as relativePath } from "node:path";
 
 import { slug } from "./paths.ts";
 import { git } from "./process.ts";
@@ -142,12 +149,30 @@ async function contentIsIn(
   }
 }
 
+/** Every git repository under a `modules` directory, at any depth. */
+async function moduleRepositories(directory: string): Promise<string[]> {
+  const found: string[] = [];
+  const entries = await readdir(directory, { withFileTypes: true }).catch(
+    () => [],
+  );
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const child = join(directory, entry.name);
+    if (existsSync(join(child, "HEAD"))) {
+      found.push(child, ...(await moduleRepositories(join(child, "modules"))));
+    } else {
+      found.push(...(await moduleRepositories(child)));
+    }
+  }
+  return found;
+}
+
 /**
  * Initialized submodules, at any depth, with uncommitted changes or commits on
  * no remote. They are found from the index's gitlink entries, not from
  * `.gitmodules`, which is only a working-tree file and may be missing or
- * edited. Submodule data with no matching gitlink is reported too: it cannot
- * be inspected, and removal would delete it.
+ * edited. A submodule removed from the index is reported too when the
+ * repository git kept for it holds commits that are on no remote.
  */
 async function submodulesWithUnsavedWork(
   path: string,
@@ -163,13 +188,22 @@ async function submodulesWithUnsavedWork(
     throw new Error(`Could not list submodules: ${staged.stderr.trim()}`);
   }
   const unsaved: string[] = [];
-  let initialized = 0;
+  // Git directories of the submodules that are accounted for by a gitlink.
+  const accounted = new Set<string>();
   for (const entry of staged.stdout.split("\0")) {
     if (!entry.startsWith("160000 ")) continue;
     const relative = entry.slice(entry.indexOf("\t") + 1);
     const directory = join(path, relative);
     if (!existsSync(join(directory, ".git"))) continue;
-    initialized += 1;
+    const gitDir = await out(
+      directory,
+      ["rev-parse", "--absolute-git-dir"],
+      signal,
+    );
+    if (gitDir === null) {
+      throw new Error(`Could not inspect submodule ${prefix}${relative}.`);
+    }
+    accounted.add(await realpath(gitDir));
     const status = await git(
       directory,
       ["--no-optional-locks", "status", "--porcelain"],
@@ -196,17 +230,37 @@ async function submodulesWithUnsavedWork(
       )),
     );
   }
-  if (initialized === 0) {
-    const modules = await out(
+  // A submodule removed from the index keeps its repository in this worktree's
+  // git data, commits included. Any such repository holding commits that are on
+  // no remote would be deleted with the worktree.
+  const modules = await out(
+    path,
+    ["rev-parse", "--path-format=absolute", "--git-path", "modules"],
+    signal,
+  );
+  for (const repository of modules === null
+    ? []
+    : await moduleRepositories(modules)) {
+    if (accounted.has(await realpath(repository))) continue;
+    const local = await git(
       path,
-      ["rev-parse", "--path-format=absolute", "--git-path", "modules"],
+      [
+        "--git-dir",
+        repository,
+        "rev-list",
+        "-n",
+        "1",
+        "--all",
+        "HEAD",
+        "--not",
+        "--remotes",
+      ],
       signal,
     );
-    const orphaned =
-      modules === null ? [] : await readdir(modules).catch((): string[] => []);
-    if (orphaned.length > 0) {
+    // Fail closed: a repository that cannot be read counts as unsaved.
+    if (local.code !== 0 || local.stdout.trim() !== "") {
       unsaved.push(
-        `${prefix}(submodule data without a gitlink: ${orphaned.join(", ")})`,
+        `${prefix}(removed submodule ${relativePath(modules ?? "", repository)})`,
       );
     }
   }

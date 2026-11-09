@@ -68,8 +68,12 @@ const recordSchema = z.strictObject({
   // `owned`: this launch created the worktree at `path`, or verified that the
   // worktree there is its own. A granted claim alone is not ownership: bb's
   // claim arbitrates between launches, not what is on disk.
-  // Only an owned record authorizes touching `path`.
-  state: z.enum(["planned", "owned"]),
+  // `creating`: `git worktree add` was started for `path` and may or may not
+  // have left a worktree there (a failing checkout hook exits non-zero after
+  // creating it). Cleanup checks what git registered before deciding.
+  // Only an owned record, or a creating one whose worktree git registered,
+  // authorizes touching `path`.
+  state: z.enum(["planned", "creating", "owned"]),
   // `running` on entry means an earlier call was cut off mid-script and the
   // script's outcome is unknown; it is never replayed.
   setup: z.enum(["pending", "running", "done"]),
@@ -316,13 +320,15 @@ export async function createWorktree(
       );
     }
 
-    if (record.state === "planned") {
+    if (record.state !== "owned") {
       if (existsSync(path)) {
         if (!(await isOwnWorktree(record, env.signal))) {
           return failed(`${path} exists but is not this launch's worktree.`);
         }
       } else {
         env.report("step", `Creating worktree at ${path}`);
+        record = { ...record, state: "creating" };
+        await writeRecord(env, record);
         await mkdir(dirname(path), { recursive: true });
         // Never reset a branch that already exists: removal keeps branches, so
         // it may hold commits from an earlier attempt. Check it out as it is.
@@ -419,6 +425,14 @@ export async function removeWorktree(
     };
     // A planned record never got the path: whatever is there is someone else's.
     if (record !== null && record.state === "planned") return forget();
+    // An interrupted or failed create is ours only if git registered it.
+    if (
+      record !== null &&
+      record.state === "creating" &&
+      !(await isRegisteredWorktree(record.sourcePath, record.path, env.signal))
+    ) {
+      return forget();
+    }
     const path = record?.path ?? input.path;
     if (path === null) return forget();
     if (!(await isContained(env.root, path))) {

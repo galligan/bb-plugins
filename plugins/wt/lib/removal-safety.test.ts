@@ -2,7 +2,14 @@
 
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -291,4 +298,56 @@ test("a damaged record can still be cleaned up and is listed", async (t) => {
     status: "removed",
   });
   assert.equal(existsSync(file), false);
+});
+
+test("a removed submodule's local-only commits block removal", async (t) => {
+  const f = await fixture(t);
+  const path = await withSubmodule(f);
+  // A second submodule stays initialized while the first is removed.
+  const other = join(f.base, "other");
+  git(f.base, "init", "--quiet", "--initial-branch=main", other);
+  git(other, "config", "user.email", "test@example.com");
+  git(other, "config", "user.name", "Test");
+  await writeFile(join(other, "o.txt"), "o\n");
+  git(other, "add", "-A");
+  git(other, "commit", "--quiet", "-m", "other");
+  const allow = ["-c", "protocol.file.allow=always"];
+  git(path, ...allow, "submodule", "add", "--quiet", other, "second");
+  git(path, "commit", "--quiet", "-m", "add second");
+
+  const vendor = join(path, "vendor");
+  git(vendor, "config", "user.email", "test@example.com");
+  git(vendor, "config", "user.name", "Test");
+  await writeFile(join(vendor, "local.txt"), "only here\n");
+  git(vendor, "add", "-A");
+  git(vendor, "commit", "--quiet", "-m", "local only");
+  git(path, "rm", "-f", "--quiet", "vendor");
+  git(path, "commit", "--quiet", "-m", "drop vendor");
+
+  const removed = await removeWorktree(f.env, { pathKey: KEY, path });
+  assert.equal(removed.status, "failed");
+  assert.match(removed.status === "failed" ? removed.message : "", /vendor/u);
+  assert.equal(existsSync(path), true);
+});
+
+test("a worktree left by a failing checkout hook is cleaned up, not forgotten", async (t) => {
+  const f = await fixture(t);
+  const hook = join(f.source, ".git", "hooks", "post-checkout");
+  await mkdir(join(f.source, ".git", "hooks"), { recursive: true });
+  await writeFile(hook, "#!/bin/sh\nexit 1\n");
+  await chmod(hook, 0o755);
+
+  const created = await provision(f);
+  assert.equal(created.status, "failed");
+  const path = join(f.env.root, "_local", "repo", "bb-task-thr_1");
+  assert.equal(existsSync(path), true);
+
+  assert.deepEqual(await removeWorktree(f.env, { pathKey: KEY, path: null }), {
+    status: "removed",
+  });
+  assert.equal(existsSync(path), false);
+  // The next launch can use the destination again.
+  await rm(hook);
+  const again = await provision(f, "thr_1-2");
+  assert.equal(again.status, "created");
 });
