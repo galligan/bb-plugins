@@ -4,6 +4,15 @@ import { test } from "node:test";
 
 import { runScript } from "./process.ts";
 
+function isAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function run(script: string, overrides: { timeoutMs?: number } = {}) {
   const lines: string[] = [];
   return runScript({
@@ -48,5 +57,11 @@ test("a child that outlives the shell and ignores SIGTERM is still killed", asyn
   assert.equal(result.ok, false);
   const pid = Number.parseInt(lines[0] ?? "", 10);
   assert.ok(pid > 0);
-  assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+  // The killed child is briefly a zombie until its new parent reaps it, and a
+  // zombie still answers signal 0. Left alone it would sleep for 30 seconds.
+  const deadline = Date.now() + 2000;
+  while (isAlive(pid) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.equal(isAlive(pid), false);
 });

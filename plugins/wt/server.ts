@@ -8,6 +8,11 @@ import { cliCommand, defineCli, type BbPluginApi } from "@get-bb/plugin-sdk";
 import type { PluginEnvironmentProviderProgress } from "@get-bb/plugin-sdk/environment-provider";
 import { z } from "zod";
 
+import {
+  branchName,
+  DEFAULT_BRANCH_PREFIX,
+  isValidBranchPrefix,
+} from "./lib/branch-name.ts";
 import { hostContract, hostSignals } from "./lib/host-contract.ts";
 import { renderWorktree } from "./lib/render.ts";
 
@@ -32,6 +37,24 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
     experimental_signals: hostSignals,
   });
 
+  const settings = bb.settings.define({
+    prefixBranches: {
+      type: "boolean",
+      label: "Prefix worktree branches",
+      description: `Start every new worktree branch with a prefix: the one below, else bb's own branch prefix, else "${DEFAULT_BRANCH_PREFIX}". Turn off to use bb's suggested name unchanged.`,
+      default: true,
+    },
+    branchPrefix: {
+      type: "string",
+      label: "Branch prefix",
+      description: `Used in place of bb's branch prefix for Worktree+ branches, for example "wt/". Leave empty to use bb's, or "${DEFAULT_BRANCH_PREFIX}" when bb has none.`,
+      experimental_schema: z
+        .string()
+        .refine(isValidBranchPrefix, "Not a valid start for a git branch name"),
+      default: "",
+    },
+  });
+
   const reports = new Map<string, PluginEnvironmentProviderProgress>();
   host.experimental_onSignal("progress", ({ payload }) => {
     const report = reports.get(payload.operationId);
@@ -54,12 +77,21 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
 
     async create(context) {
       const hostId = context.host.id;
+      const [{ prefixBranches, branchPrefix }, config] = await Promise.all([
+        settings.get(),
+        bb.sdk.system.config(),
+      ]);
       const resolved = await host.call(
         "resolve",
         {
           pathKey: context.pathKey,
           sourcePath: context.projectCheckout.path,
-          branchName: context.suggestedBranchName,
+          branchName: branchName({
+            suggested: context.suggestedBranchName,
+            bbPrefix: config.generalSettings.managedBranchPrefix,
+            pluginPrefix: branchPrefix,
+            enabled: prefixBranches,
+          }),
           base: context.inputs.base ?? null,
         },
         { hostId, signal: context.signal },

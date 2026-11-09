@@ -8,7 +8,7 @@ It appears in the New Thread environment picker as **Worktree+**, beside bb's bu
 
 When a thread starts on this provider, the plugin:
 
-1. Creates a worktree at `~/.worktrees/<host>/<owner>/<repo>/<branch>` on a new branch. The branch name is the one bb suggests (it honours bb's `managedBranchPrefix` setting) and has no upstream until you push it.
+1. Creates a worktree at `~/.worktrees/<host>/<owner>/<repo>/<branch>` on a new branch. The branch has no upstream until you push it. See [Branch names](#branch-names).
 2. Copies the source checkout's untracked files that match the repo's `.worktreeinclude` (gitignore syntax). Regular files only; nothing already in the worktree is replaced.
 3. Sets the worktree up from the first of these the repo has:
    - `.bb-env-setup.sh` / `.bb-env-teardown.sh`: bb core runs these itself, so the plugin runs nothing extra.
@@ -32,6 +32,18 @@ The folder is derived from the checkout's `origin` remote, never from the bb pro
 | No `origin` remote                      | `_local/<checkout folder>/<branch>` |
 
 Slashes in the branch name become dashes, so `feat/x` and `feat/x/y` never nest. A worktree's path is recorded when it is created and does not move if the remote later changes.
+
+## Branch names
+
+A new branch is named `<prefix><slug>-thr_<thread id>`. bb supplies the slug and thread id, which ties the branch to its thread and keeps two launches from colliding.
+
+The prefix comes from the first of these that is set:
+
+1. This plugin's **Branch prefix** setting.
+2. bb's own branch prefix (Settings → General).
+3. `bb/`.
+
+So a worktree branch always has a prefix, even when bb is configured with none. Turn off **Prefix worktree branches** to use bb's suggested name unchanged. Both settings are under Settings → Installed plugins → Worktree+, or `bb plugin config wt set <key> <value>` with keys `branchPrefix` and `prefixBranches`.
 
 ## Base branch
 

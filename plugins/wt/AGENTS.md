@@ -12,6 +12,7 @@
 - `lib/remote.ts` — maps an `origin` URL to the folder segments a repo's worktrees live under.
 - `lib/inspect.ts` — what removing a worktree would lose, and the rescue snapshot taken before removal.
 - `lib/render.ts` — text for `bb wt list`.
+- `lib/branch-name.ts` — the branch prefix rule.
 - `lib/paths.ts` — worktree path layout and the containment check.
 - `lib/fixture.ts` — test support: a throwaway git repository.
 
