@@ -1,15 +1,16 @@
 # bb-plugin-rex
 
-Watch a live Rex terminal pane beside a bb thread.
+Use a live Rex terminal pane beside a bb thread.
 
-The plugin adds one tab, **Rex**, to a thread's side panel. The tab shows one terminal from the local Rex server and follows it as it changes: output produced in that terminal from anywhere, such as Rex.app or `rex send`, appears in the tab without a refresh.
+The plugin adds one tab, **Rex**, to a thread's side panel. The tab shows one terminal from the local Rex server and follows it as it changes: output produced in that terminal from anywhere, such as Rex.app or `rex send`, appears in the tab without a refresh. Click the terminal and you can type in it.
 
-This is a first slice. It is read-only and shows a single pane. See [Limits](#limits).
+This is an early slice. It shows a single pane. See [Limits](#limits).
 
 ## Use it
 
 1. Install the plugin: `bb plugin install ./plugins/rex` from a checkout of this repository, after `bun install` at its root.
 2. Open a thread, open its side panel, choose **+**, then **Rex**.
+3. Click the terminal to give it the keyboard.
 
 The Rex server must be running on the same machine as the bb server, and the `rex` command must be on the bb server's `PATH`. The plugin never starts, stops, or reconfigures a Rex server.
 
@@ -24,25 +25,44 @@ bb plugin config rex set sessionLabel main
 ```
 
 - **A session has that label.** The tab shows it. Set the label to an existing session's name, such as `main`, to watch that session.
-- **No session has that label.** The tab creates one with a single shell terminal, then shows it. The plugin gives up ownership of the new terminal at once, so it takes its size from whichever Rex client opens it next.
+- **No session has that label.** The tab creates one with a single shell terminal, then shows it. The plugin records that it created the session; see [Size and ownership](#size-and-ownership).
 - **More than one session has that label.** The tab shows an error that says so. It does not pick one.
 
 Within the session, the tab shows the focused pane of the active tab, as it was when the tab opened. It does not follow focus afterwards; reopen the tab to pick up a change.
 
 Every thread's Rex tab shows the same terminal. The setting is read each time a tab opens, so changing it needs no reload.
 
+## Typing
+
+The terminal takes keys only while it has focus, which a click gives it. The cursor is drawn as an outline until then.
+
+- **Keys** go to the terminal, including Ctrl combinations, Tab, Escape, and the arrow keys. They are sent to the pane directly, so your Rex key bindings (leader keys, split commands) do not fire from inside bb: the tab shows one pane and could not show their effect.
+- **Command combinations** stay with bb and the browser. Copy works on text you select in the terminal, and paste goes to the terminal as a paste, so a program that asked for bracketed paste gets one.
+- **Option** types the character your keyboard layout gives it, such as `å`. It does not act as Meta.
+- **Order** is kept. The tab sends one request at a time, each carrying everything typed since the last, and the backend passes each batch to Rex on one connection, where Rex runs input in the order it arrives.
+
+Click anywhere outside the terminal to give the keyboard back.
+
+## Size and ownership
+
+A Rex terminal takes its size from the client that owns it, so resizing a pane changes it for every client looking at it. The tab resizes a pane only where that is safe:
+
+- **In a session this plugin created**, the tab claims the pane and fits it to the panel, and refits when the panel changes size.
+- **In a session you pointed it at** by setting `sessionLabel` to an existing session, the tab never claims the pane and never asks for a size. It draws the pane at the size its owner gave it, scrolling if that is larger than the panel. Typing works the same.
+- **If another client takes a pane the tab had claimed**, such as when you open the session in Rex.app, the tab stops asking for sizes and draws the size Rex reports. If ownership comes back, for example when that client leaves, the tab fits the pane to its panel again.
+
+The plugin knows which sessions it created because it records each one's ID in its own storage when it creates it. The record outlives a plugin reload, and IDs of sessions that no longer exist are dropped. It does not infer this from a pane having no owner: a background pane in your own session can have no owner too.
+
+A session the plugin created before it kept this record is treated as yours. Destroy it and reopen the tab to have the plugin create a new one.
+
 ## How it works
 
-- **Backend** (`server.ts`, `lib/rex-*.ts`). A browser cannot reach the Rex server's Unix socket, so the bb server relays. `GET /stream` finds or creates the session, opens a Rex data connection to the terminal, and answers with the terminal's byte stream for as long as the tab reads it. Each open tab holds one control connection and one data connection to Rex, and both close when the tab does.
+- **Backend** (`server.ts`, `lib/rex-*.ts`). A browser cannot reach the Rex server's Unix socket, so the bb server relays. `GET /stream` finds or creates the session, opens a Rex data connection to the terminal, and answers with the terminal's byte stream for as long as the tab reads it. `POST /input` takes the tab's keys, pastes, focus changes, and panel size for an open stream and sends them to Rex with `block.event` and `com.superlogical.terminal.resize`. Each open tab holds one control connection and one data connection to Rex, and both close when the tab does.
 - **Frontend** (`app.tsx`, `components/`, `lib/pane-decoder.ts`). The stream opens with a snapshot of the terminal in Ghostty's snapshot format, followed by everything the terminal's program writes. The tab decodes both with a vendored build of libghostty-vt compiled to WebAssembly, then draws the result as text.
 
-The relay is a streamed HTTP response, because plugin routes cannot upgrade to WebSocket. It is sent as `application/octet-stream` with `Cache-Control: no-transform`, which keeps bb's response compression from holding small chunks back.
+The relay is a streamed HTTP response. It is sent as `application/octet-stream` with `Cache-Control: no-transform`, which keeps bb's response compression from holding small chunks back.
 
 The plugin follows the Rex API as the server documents it (`GET /llms.txt` on the server's socket), at API revision 11.
-
-### Read-only
-
-The plugin never claims a terminal and never asks for a size or a theme. A Rex terminal takes its size and colors from the client that owns it, so either would resize or recolor the pane in your own Rex client. The tab draws the terminal at the size the stream reports, and scrolls when that is larger than the panel.
 
 ## The vendored libghostty-vt build
 
@@ -76,9 +96,11 @@ Ghostty's own list of third-party code linked into libghostty-vt builds (`deps/l
 
 ## Limits
 
-- **No input.** No keyboard, mouse, paste, or scrolling of the terminal's own scrollback.
+- **Keyboard only.** No mouse reporting and no wheel scrolling, so the terminal's scrollback cannot be reached from the tab.
+- **No composed input.** Dead keys and input methods are not sent. Key releases and modifier keys on their own are not sent either, which matters only to programs that ask for them through the Kitty keyboard protocol.
 - **One pane.** No tabs, splits, or layout. The pane is chosen when the tab opens.
-- **No resizing.** The terminal keeps the size its owner gave it. A terminal wider than the panel scrolls sideways.
+- **An attached session keeps its size.** A pane wider than the panel scrolls sideways; the tab does not scale it down.
+- **Pastes are capped** at 128 KiB.
 - **One session label for every thread.** There is no per-thread choice.
 - **Local Rex only.** The plugin looks for Rex on the bb server's machine, over a Unix socket. It does not connect to remote Rex hosts or to a Rex server on another enrolled bb machine.
 - **A simple renderer.** It draws text, 24-bit and palette colors, bold, italic, faint, inverse, invisible, underline, strikethrough, overline, wide characters, and the cursor's position and shape. It does not draw images, hyperlinks, cursor blinking, or distinct underline styles and colors, and it reads every cell on every frame.
