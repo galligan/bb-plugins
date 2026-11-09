@@ -58,6 +58,6 @@ export const PANE_HEADERS = {
   pane: "x-rex-pane",
   nonce: "x-rex-nonce",
   sessionLabel: "x-rex-session-label",
-  /** `fit` when the tab should report the size its panel has room for. */
-  sizing: "x-rex-pane-sizing",
+  /** `claimed` when the tab should report its panel's size and colors. */
+  claim: "x-rex-pane-claim",
 } as const;

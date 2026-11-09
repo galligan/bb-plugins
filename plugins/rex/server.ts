@@ -5,8 +5,8 @@
 //
 //   - `GET /stream` opens the focused terminal of the configured Rex session
 //     and answers with its byte stream for as long as the tab reads it
-//   - `POST /input` takes the tab's keys, pastes, focus changes and panel size
-//     for an open stream and passes them to Rex in order
+//   - `POST /input` takes the tab's keys, pastes, focus changes, panel size and
+//     terminal colors for an open stream and passes them to Rex in order
 //   - `GET /ghostty-vt.wasm` serves the vendored libghostty-vt build the tab
 //     decodes the stream with
 //
@@ -109,7 +109,7 @@ export default async function plugin(bb: BbPluginApi) {
         [PANE_HEADERS.pane]: pane.id,
         [PANE_HEADERS.nonce]: pane.nonce,
         [PANE_HEADERS.sessionLabel]: encodeURIComponent(pane.sessionLabel),
-        [PANE_HEADERS.sizing]: pane.fitsPanel ? "fit" : "follow",
+        [PANE_HEADERS.claim]: pane.claimsPane ? "claimed" : "none",
       },
     });
   });

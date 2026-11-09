@@ -72,7 +72,7 @@ export function RexTab() {
         <TerminalView
           frame={pane.frame}
           onInput={pane.live ? pane.send : null}
-          fitsPanel={pane.fitsPanel}
+          claimsPane={pane.claimsPane}
         />
       )}
     </div>

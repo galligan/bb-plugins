@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { buildRuns, cssColor, runColors, STYLE, type Cell } from "./runs.ts";
+import {
+  ansiColor,
+  buildRuns,
+  cssColor,
+  runColors,
+  STYLE,
+  textAt,
+  THEME_COLOR,
+  type Cell,
+} from "./runs.ts";
 
 const RED = 0xcc0000;
 const BLUE = 0x0000cc;
@@ -130,43 +139,96 @@ test("ignores style bits the renderer does not draw", () => {
   );
 });
 
-const defaults = { foreground: 0xeeeeee, background: 0x111111 };
-
-test("draws a run in its own colors, or the defaults", () => {
-  assert.deepEqual(runColors({ fg: null, bg: null, flags: 0 }, defaults), {
-    color: 0xeeeeee,
+test("draws a run in its own colors, or the terminal's defaults", () => {
+  assert.deepEqual(runColors({ fg: null, bg: null, flags: 0 }), {
+    color: THEME_COLOR.foreground,
     background: null,
   });
-  assert.deepEqual(runColors({ fg: RED, bg: BLUE, flags: 0 }, defaults), {
+  assert.deepEqual(runColors({ fg: RED, bg: BLUE, flags: 0 }), {
     color: RED,
     background: BLUE,
   });
 });
 
 test("swaps the colors of an inverse run, filling in the defaults", () => {
-  assert.deepEqual(
-    runColors({ fg: null, bg: null, flags: STYLE.inverse }, defaults),
-    { color: 0x111111, background: 0xeeeeee },
-  );
-  assert.deepEqual(
-    runColors({ fg: RED, bg: BLUE, flags: STYLE.inverse }, defaults),
-    { color: BLUE, background: RED },
-  );
+  assert.deepEqual(runColors({ fg: null, bg: null, flags: STYLE.inverse }), {
+    color: THEME_COLOR.background,
+    background: THEME_COLOR.foreground,
+  });
+  assert.deepEqual(runColors({ fg: RED, bg: BLUE, flags: STYLE.inverse }), {
+    color: BLUE,
+    background: RED,
+  });
 });
 
 test("hides invisible text against whatever is behind it", () => {
-  assert.deepEqual(
-    runColors({ fg: RED, bg: null, flags: STYLE.invisible }, defaults),
-    { color: 0x111111, background: null },
+  assert.deepEqual(runColors({ fg: RED, bg: null, flags: STYLE.invisible }), {
+    color: THEME_COLOR.background,
+    background: null,
+  });
+  assert.deepEqual(runColors({ fg: RED, bg: BLUE, flags: STYLE.invisible }), {
+    color: BLUE,
+    background: BLUE,
+  });
+});
+
+test("draws bold text in the bright form of the first eight ANSI colors", () => {
+  assert.equal(
+    runColors({ fg: ansiColor(1), bg: null, flags: STYLE.bold }).color,
+    ansiColor(9),
   );
+  assert.equal(
+    runColors({ fg: ansiColor(7), bg: null, flags: STYLE.bold }).color,
+    ansiColor(15),
+  );
+  // Already bright, not bold, a color the program chose, or a background.
+  assert.equal(
+    runColors({ fg: ansiColor(9), bg: null, flags: STYLE.bold }).color,
+    ansiColor(9),
+  );
+  assert.equal(
+    runColors({ fg: ansiColor(1), bg: null, flags: 0 }).color,
+    ansiColor(1),
+  );
+  assert.equal(runColors({ fg: RED, bg: null, flags: STYLE.bold }).color, RED);
   assert.deepEqual(
-    runColors({ fg: RED, bg: BLUE, flags: STYLE.invisible }, defaults),
-    { color: BLUE, background: BLUE },
+    runColors({ fg: null, bg: ansiColor(1), flags: STYLE.bold }),
+    { color: THEME_COLOR.foreground, background: ansiColor(1) },
   );
 });
 
-test("writes a packed color as CSS", () => {
+test("writes a color a program chose as its own value", () => {
   assert.equal(cssColor(0x0000cc), "#0000cc");
   assert.equal(cssColor(0xffffff), "#ffffff");
   assert.equal(cssColor(0), "#000000");
+});
+
+test("writes a theme color as a reference to the app's variable", () => {
+  assert.equal(cssColor(ansiColor(0)), "var(--ansi-0)");
+  assert.equal(cssColor(ansiColor(15)), "var(--ansi-15)");
+  assert.equal(cssColor(THEME_COLOR.foreground), "var(--foreground)");
+  assert.equal(cssColor(THEME_COLOR.background), "var(--sidebar)");
+});
+
+test("keeps runs apart when one color is themed and the other is not", () => {
+  const runs = buildRuns([
+    cell("a", { fg: ansiColor(1) }),
+    cell("b", { fg: 0x000001 }),
+  ]);
+  assert.equal(runs.length, 2);
+});
+
+test("finds the text under a column", () => {
+  const runs = buildRuns([
+    ...cells("ab"),
+    cell("語", { width: 2 }),
+    cell("", { width: 0 }),
+    cell("é"),
+    ...cells("cd", { fg: RED }),
+  ]);
+  assert.deepEqual(
+    [0, 1, 2, 3, 4, 5, 6, 7, 40].map((col) => textAt(runs, col)),
+    ["a", "b", "語", "語", "é", "c", "d", "", ""],
+  );
+  assert.equal(textAt([], 0), "");
 });

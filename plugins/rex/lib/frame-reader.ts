@@ -1,10 +1,15 @@
 // Reads what a terminal shows, through libghostty-vt's render state: the
-// viewport's rows of cells, the default colors, and the cursor.
+// viewport's rows of cells and the cursor.
+//
+// A cell's color is read as the program set it, not resolved to RGB. The
+// default colors and the 16 ANSI colors stay symbolic, because the tab draws
+// those from the app's theme. Only a palette color from 16 up is looked up in
+// the terminal's palette here.
 //
 // It reads every cell on every call. That is slow for a renderer and plenty
 // for one pane; `ghostty_render_state_row_get` has a bulk form to move to.
 
-import { buildRuns, type Cell, type Run } from "./runs.ts";
+import { ansiColor, buildRuns, type Cell, type Run } from "./runs.ts";
 import { RESULT, type Wasm } from "./wasm.ts";
 
 // GhosttyRenderStateData.
@@ -18,20 +23,23 @@ const ROW_CELLS = 3;
 // GhosttyRenderStateRowCellsData.
 const CELL_RAW = 1;
 const CELL_STYLE = 2;
-const CELL_BG_COLOR = 5;
-const CELL_FG_COLOR = 6;
 const CELL_GRAPHEMES_UTF8 = 9;
-// GhosttyCellData and GhosttyCellWide.
+// GhosttyCellData, GhosttyCellWide and GhosttyCellContentTag.
+const RAW_CONTENT_TAG = 2;
 const RAW_WIDE = 3;
+const RAW_COLOR_PALETTE = 10;
+const RAW_COLOR_RGB = 11;
 const WIDE_WIDE = 1;
 const WIDE_SPACER_TAIL = 2;
+const CONTENT_BG_COLOR_PALETTE = 2;
+const CONTENT_BG_COLOR_RGB = 3;
+// GhosttyStyleColorTag.
+const COLOR_PALETTE = 1;
+const COLOR_RGB = 2;
 
 // Struct sizes and field offsets, from `ghostty_type_json()`.
 const COLORS_BYTES = 784; // GhosttyRenderStateColors
-const COLORS_BACKGROUND = 4;
-const COLORS_FOREGROUND = 7;
-const COLORS_CURSOR = 10;
-const COLORS_CURSOR_HAS_VALUE = 13;
+const COLORS_PALETTE = 14;
 const CURSOR_BYTES = 20; // GhosttyRenderStateCursor
 const CURSOR_VIEWPORT_HAS_VALUE = 4;
 const CURSOR_VIEWPORT_X = 6;
@@ -40,6 +48,8 @@ const CURSOR_WIDE_TAIL = 10;
 const CURSOR_VISIBLE = 11;
 const CURSOR_VISUAL_STYLE = 16;
 const STYLE_BYTES = 16; // GhosttyStyle
+const STYLE_FG_COLOR = 0; // GhosttyStyleColor: a tag byte, then three of value
+const STYLE_BG_COLOR = 4;
 const STYLE_FLAGS = 12;
 const BUFFER_BYTES = 12; // GhosttyBuffer: ptr, cap, len
 const TEXT_BYTES = 64;
@@ -52,11 +62,6 @@ export type CursorStyle = (typeof CURSOR_STYLES)[number];
 export interface Frame {
   cols: number;
   rows: number;
-  /** Default colors, packed 0xRRGGBB. */
-  foreground: number;
-  background: number;
-  /** Null when the terminal sets no cursor color of its own. */
-  cursorColor: number | null;
   /** Null when the cursor is hidden or outside the viewport. */
   cursor: { x: number; y: number; cols: 1 | 2; style: CursorStyle } | null;
   /** One entry per row, top to bottom. */
@@ -115,16 +120,10 @@ export class FrameReader {
     wasm.check("ghostty_render_state_get", state, STATE_ROWS, this.#out);
     const rows = wasm.view.getUint16(this.#out, true);
 
-    // Sized structs carry their own size in their first field.
+    // Sized structs carry their own size in their first field. This one is
+    // read for its palette, which cells with a palette color index into.
     wasm.view.setUint32(this.#colors, COLORS_BYTES, true);
     wasm.check("ghostty_render_state_get", state, STATE_COLORS, this.#colors);
-    const colors = wasm.bytes;
-    const foreground = readRgb(colors, this.#colors + COLORS_FOREGROUND);
-    const background = readRgb(colors, this.#colors + COLORS_BACKGROUND);
-    const cursorColor =
-      colors[this.#colors + COLORS_CURSOR_HAS_VALUE] === 0
-        ? null
-        : readRgb(colors, this.#colors + COLORS_CURSOR);
 
     // The iterator and the cells are filled through a pointer to their handle.
     wasm.view.setUint32(this.#out, this.#iterator, true);
@@ -141,15 +140,7 @@ export class FrameReader {
       lines.push(buildRuns(this.#readRow()));
     }
 
-    return {
-      cols,
-      rows,
-      foreground,
-      background,
-      cursorColor,
-      cursor: this.#readCursor(),
-      lines,
-    };
+    return { cols, rows, cursor: this.#readCursor(), lines };
   }
 
   #readCursor(): Frame["cursor"] {
@@ -209,24 +200,46 @@ export class FrameReader {
       row.push({
         text: this.#readText(),
         width: wide === WIDE_WIDE ? 2 : 1,
-        fg: this.#readCellColor(CELL_FG_COLOR),
-        bg: this.#readCellColor(CELL_BG_COLOR),
+        fg: this.#styleColor(STYLE_FG_COLOR),
+        bg: this.#contentBackground(raw) ?? this.#styleColor(STYLE_BG_COLOR),
         flags: wasm.view.getUint16(this.#style + STYLE_FLAGS, true),
       });
     }
     return row;
   }
 
-  /** A cell's own color, or null when it uses the terminal's default. */
-  #readCellColor(data: number): number | null {
+  /** A color of the current cell's style, or null for the default. */
+  #styleColor(offset: number): number | null {
+    const bytes = this.#wasm.bytes;
+    const color = this.#style + offset;
+    const tag = bytes[color];
+    if (tag === COLOR_PALETTE) return this.#paletteColor(bytes[color + 1] ?? 0);
+    return tag === COLOR_RGB ? readRgb(bytes, color + 1) : null;
+  }
+
+  /**
+   * The background a cell with no text carries in the cell itself, as an
+   * erased cell does, or null when it has none there.
+   */
+  #contentBackground(raw: bigint): number | null {
     const wasm = this.#wasm;
-    const result = wasm.call(
-      "ghostty_render_state_row_cells_get",
-      this.#cells,
-      data,
-      this.#out,
-    );
-    return result === RESULT.success ? readRgb(wasm.bytes, this.#out) : null;
+    wasm.check("ghostty_cell_get", raw, RAW_CONTENT_TAG, this.#out);
+    const tag = wasm.view.getInt32(this.#out, true);
+    if (tag === CONTENT_BG_COLOR_PALETTE) {
+      wasm.check("ghostty_cell_get", raw, RAW_COLOR_PALETTE, this.#out);
+      return this.#paletteColor(wasm.bytes[this.#out] ?? 0);
+    }
+    if (tag === CONTENT_BG_COLOR_RGB) {
+      wasm.check("ghostty_cell_get", raw, RAW_COLOR_RGB, this.#out);
+      return readRgb(wasm.bytes, this.#out);
+    }
+    return null;
+  }
+
+  /** The first 16 palette colors belong to the app's theme; the rest are RGB. */
+  #paletteColor(index: number): number {
+    if (index < 16) return ansiColor(index);
+    return readRgb(this.#wasm.bytes, this.#colors + COLORS_PALETTE + index * 3);
   }
 
   /** The current cell's grapheme as a string, or "" for a cell with no text. */

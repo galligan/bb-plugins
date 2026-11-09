@@ -25,3 +25,23 @@ export function fitGrid(space: {
   if (!(cols >= MIN_COLS) || !(rows >= MIN_ROWS)) return null;
   return { cols: Math.min(cols, MAX_COLS), rows: Math.min(rows, MAX_ROWS) };
 }
+
+/**
+ * The size of one terminal cell in CSS pixels, from the font's metrics.
+ *
+ * This is how bb's built-in terminal sizes its cells: the character's advance
+ * rounded down to a whole device pixel, and the font's height rounded up to
+ * one, with no extra line spacing.
+ */
+export function cellSize(font: {
+  /** How far one character advances, in CSS pixels. */
+  advance: number;
+  ascent: number;
+  descent: number;
+  devicePixelRatio: number;
+}): { width: number; height: number } | null {
+  const ratio = font.devicePixelRatio > 0 ? font.devicePixelRatio : 1;
+  const width = Math.floor(font.advance * ratio) / ratio;
+  const height = Math.ceil((font.ascent + font.descent) * ratio) / ratio;
+  return width > 0 && height > 0 ? { width, height } : null;
+}

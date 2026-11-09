@@ -1,5 +1,5 @@
 // What the tab sends to the plugin's backend for a pane: keys, pastes, focus
-// changes, and the size the panel has room for.
+// changes, the size the panel has room for, and the app's terminal colors.
 //
 // The tab's requests are untrusted input, so the backend parses every batch
 // with these schemas before anything reaches Rex.
@@ -39,6 +39,19 @@ const gridSizeSchema = z.strictObject({
 
 export type GridSize = z.infer<typeof gridSizeSchema>;
 
+const hexColorSchema = z.string().regex(/^[0-9a-f]{6}$/);
+
+/** bb's terminal colors, each written `rrggbb`. */
+const terminalThemeSchema = z.strictObject({
+  foreground: hexColorSchema,
+  background: hexColorSchema,
+  cursor: hexColorSchema,
+  /** The 16 ANSI colors, palette indexes 0 to 15. */
+  ansi: z.array(hexColorSchema).length(16),
+});
+
+export type TerminalTheme = z.infer<typeof terminalThemeSchema>;
+
 export const paneInputSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("key"), key: rexKeySchema }),
   z.strictObject({
@@ -47,6 +60,7 @@ export const paneInputSchema = z.discriminatedUnion("type", [
   }),
   z.strictObject({ type: z.literal("focus"), focused: z.boolean() }),
   z.strictObject({ type: z.literal("resize"), size: gridSizeSchema }),
+  z.strictObject({ type: z.literal("theme"), theme: terminalThemeSchema }),
 ]);
 
 export type PaneInput = z.infer<typeof paneInputSchema>;
@@ -66,10 +80,9 @@ export type PaneInputBatch = z.infer<typeof paneInputBatchSchema>;
  * never see it, and Rex runs these calls in the order they arrive on one
  * connection.
  */
-export function blockEventFor(input: Exclude<PaneInput, { type: "resize" }>): {
-  type: string;
-  payload: unknown;
-} {
+export function blockEventFor(
+  input: Extract<PaneInput, { type: "key" | "paste" | "focus" }>,
+): { type: string; payload: unknown } {
   if (input.type === "key") return { type: "key", payload: input.key };
   if (input.type === "paste") {
     return { type: "paste", payload: { text: input.text } };
@@ -77,5 +90,20 @@ export function blockEventFor(input: Exclude<PaneInput, { type: "resize" }>): {
   return {
     type: "focus",
     payload: { action: input.focused ? "in" : "out" },
+  };
+}
+
+/** The arguments of Rex's `com.superlogical.terminal.set_theme` for a theme. */
+export function setThemeArgsFor(theme: TerminalTheme): {
+  foreground: string;
+  background: string;
+  cursor: string;
+  palette: string[];
+} {
+  return {
+    foreground: theme.foreground,
+    background: theme.background,
+    cursor: theme.cursor,
+    palette: theme.ansi.map((color, index) => `${index}=${color}`),
   };
 }

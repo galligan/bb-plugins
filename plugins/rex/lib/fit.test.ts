@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { fitGrid } from "./fit.ts";
+import { cellSize, fitGrid } from "./fit.ts";
 
 const cell = { cellWidth: 7.2, cellHeight: 16 };
 
@@ -43,4 +43,38 @@ test("caps a very large panel", () => {
     cols: 500,
     rows: 200,
   });
+});
+
+test("sizes a cell the way bb's terminal does", () => {
+  // Measured in bb for its terminal font at 12px.
+  const font = { advance: 7.41796875, ascent: 10, descent: 2 };
+  assert.deepEqual(cellSize({ ...font, devicePixelRatio: 1 }), {
+    width: 7,
+    height: 12,
+  });
+  // On a 2x display the cell can end on a half CSS pixel.
+  assert.deepEqual(cellSize({ ...font, devicePixelRatio: 2 }), {
+    width: 7,
+    height: 12,
+  });
+  assert.deepEqual(
+    cellSize({ advance: 7.8, ascent: 10.3, descent: 2.4, devicePixelRatio: 2 }),
+    { width: 7.5, height: 13 },
+  );
+});
+
+test("reports no cell size for a font that could not be measured", () => {
+  assert.equal(
+    cellSize({ advance: 0, ascent: 0, descent: 0, devicePixelRatio: 1 }),
+    null,
+  );
+  assert.equal(
+    cellSize({
+      advance: Number.NaN,
+      ascent: 10,
+      descent: 2,
+      devicePixelRatio: 1,
+    }),
+    null,
+  );
 });

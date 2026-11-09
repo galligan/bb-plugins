@@ -6,9 +6,10 @@
 // goes out on that same control connection, which is what keeps it in order.
 //
 // Typing goes to whichever pane the tab shows. Claiming a pane and asking for
-// a size do not: a terminal follows its owner, so those would resize the pane
-// in the user's own Rex client. pane-sizing.ts holds the rule for when the
-// tab may, and it only ever applies to a session this plugin created.
+// a size or colors do not: a terminal follows its owner, so those would
+// change the pane in the user's own Rex client. pane-claim.ts holds the rule
+// for when the tab may, and it only ever applies to a session this plugin
+// created.
 
 import { randomUUID } from "node:crypto";
 
@@ -25,8 +26,12 @@ import {
   parseDataHandshakeReply,
 } from "./data-handshake.ts";
 import { PaneError } from "./pane-error.ts";
-import { blockEventFor, type GridSize, type PaneInput } from "./pane-input.ts";
-import { ownerChange, PaneSizing } from "./pane-sizing.ts";
+import { ownerChange, PaneClaim } from "./pane-claim.ts";
+import {
+  blockEventFor,
+  setThemeArgsFor,
+  type PaneInput,
+} from "./pane-input.ts";
 import { openRexSocket, RexControl, toBuffer } from "./rex-control.ts";
 import {
   choosePane,
@@ -61,8 +66,8 @@ export interface PaneStream extends Relay {
   /** Names this open pane to the tab, which sends it back with its input. */
   readonly id: string;
   readonly sessionLabel: string;
-  /** Whether the tab should report the size its panel has room for. */
-  readonly fitsPanel: boolean;
+  /** Whether the tab should report its panel's size and the app's colors. */
+  readonly claimsPane: boolean;
   /**
    * Delivers the tab's input to the pane, in order. Resolves once Rex has
    * taken all of it.
@@ -161,22 +166,38 @@ export async function openPane(options: {
     }
     const block = { session_id: sessionId, block_id: pane.blockId };
 
-    const sizing = new PaneSizing({
+    // A refused size or theme is not worth ending the pane over.
+    const ask = (method: string, args: unknown) =>
+      void control
+        .call(
+          `com.superlogical.terminal.${method}`,
+          { ...block, args },
+          z.unknown(),
+        )
+        .catch(() => {});
+    const claim = new PaneClaim({
       mayClaim: ours,
       clientId: attached.client_id,
-      request: (size) => void requestSize(control, block, size),
+      resize: (size) =>
+        ask("resize", {
+          columns: size.cols,
+          rows: size.rows,
+          cell_width_px: size.cellWidthPx,
+          cell_height_px: size.cellHeightPx,
+        }),
+      recolor: (theme) => ask("set_theme", setThemeArgsFor(theme)),
     });
     control.onMessage((message) => {
       const owner = ownerChange(message, { sessionId, blockId: pane.blockId });
-      if (owner !== undefined) sizing.ownerIs(owner);
+      if (owner !== undefined) claim.ownerIs(owner);
     });
-    if (sizing.mayClaim) {
+    if (claim.mayClaim) {
       const owned = await control.call(
         "session.own_block",
         { session_id: sessionId, block_ids: [pane.blockId], mode: "take" },
         ownedBlocksSchema,
       );
-      sizing.ownerIs(
+      claim.ownerIs(
         owned.blocks?.find((entry) => entry.block_id === pane.blockId)?.owner ??
           null,
       );
@@ -202,36 +223,13 @@ export async function openPane(options: {
       ...stream,
       id: randomUUID(),
       sessionLabel: options.label,
-      fitsPanel: sizing.mayClaim,
-      input: (events) => deliver(control, block, sizing, events),
+      claimsPane: claim.mayClaim,
+      input: (events) => deliver(control, block, claim, events),
     };
   } catch (error) {
     control.close();
     throw error;
   }
-}
-
-/** Asks Rex to resize the terminal. A refusal is not worth ending the pane. */
-async function requestSize(
-  control: RexControl,
-  block: { session_id: string; block_id: string },
-  size: GridSize,
-): Promise<void> {
-  await control
-    .call(
-      "com.superlogical.terminal.resize",
-      {
-        ...block,
-        args: {
-          columns: size.cols,
-          rows: size.rows,
-          cell_width_px: size.cellWidthPx,
-          cell_height_px: size.cellHeightPx,
-        },
-      },
-      z.unknown(),
-    )
-    .catch(() => {});
 }
 
 /**
@@ -242,13 +240,17 @@ async function requestSize(
 async function deliver(
   control: RexControl,
   block: { session_id: string; block_id: string },
-  sizing: PaneSizing,
+  claim: PaneClaim,
   events: readonly PaneInput[],
 ): Promise<void> {
   const sent: Promise<unknown>[] = [];
   for (const event of events) {
     if (event.type === "resize") {
-      sizing.want(event.size);
+      claim.wantSize(event.size);
+      continue;
+    }
+    if (event.type === "theme") {
+      claim.wantTheme(event.theme);
       continue;
     }
     sent.push(

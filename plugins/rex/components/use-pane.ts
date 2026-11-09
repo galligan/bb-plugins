@@ -22,8 +22,8 @@ export type PaneState =
   | {
       phase: "open";
       sessionLabel: string;
-      /** Whether the tab reports the size its panel has room for. */
-      fitsPanel: boolean;
+      /** Whether the tab fits the pane to its panel and gives it bb's colors. */
+      claimsPane: boolean;
       /** Null until the snapshot that opens the stream has arrived. */
       frame: Frame | null;
       /** False once the stream has ended; the last frame stays. */
@@ -80,7 +80,7 @@ async function watchPane(
     sessionLabel: decodeURIComponent(
       response.headers.get(PANE_HEADERS.sessionLabel) ?? "",
     ),
-    fitsPanel: response.headers.get(PANE_HEADERS.sizing) === "fit",
+    claimsPane: response.headers.get(PANE_HEADERS.claim) === "claimed",
   };
 
   const vt = await GhosttyVt.instantiate(module);
