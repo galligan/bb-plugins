@@ -45,19 +45,32 @@ Click anywhere outside the terminal to give the keyboard back.
 
 ## Size and ownership
 
-A Rex terminal takes its size from the client that owns it, so resizing a pane changes it for every client looking at it. The tab resizes a pane only where that is safe:
+A Rex terminal takes its size and its default colors from the client that owns it, so changing either changes the pane for every client looking at it. The tab changes a pane only where that is safe:
 
-- **In a session this plugin created**, the tab claims the pane and fits it to the panel, and refits when the panel changes size.
-- **In a session you pointed it at** by setting `sessionLabel` to an existing session, the tab never claims the pane and never asks for a size. It draws the pane at the size its owner gave it, scrolling if that is larger than the panel. Typing works the same.
-- **If another client takes a pane the tab had claimed**, such as when you open the session in Rex.app, the tab stops asking for sizes and draws the size Rex reports. If ownership comes back, for example when that client leaves, the tab fits the pane to its panel again.
+- **In a session this plugin created**, the tab claims the pane, fits it to the panel, and gives it bb's terminal colors. It refits when the panel changes size and sends the colors again when the app's theme changes.
+- **In a session you pointed it at** by setting `sessionLabel` to an existing session, the tab never claims the pane and never asks for a size or sets a theme. It draws the pane at the size its owner gave it, scrolling if that is larger than the panel. Typing works the same.
+- **If another client takes a pane the tab had claimed**, such as when you open the session in Rex.app, the tab stops asking and draws the size Rex reports. If ownership comes back, for example when that client leaves, the tab fits the pane to its panel and gives it bb's colors again.
 
 The plugin knows which sessions it created because it records each one's ID in its own storage when it creates it. The record outlives a plugin reload, and IDs of sessions that no longer exist are dropped. It does not infer this from a pane having no owner: a background pane in your own session can have no owner too.
 
 A session the plugin created before it kept this record is treated as yours. Destroy it and reopen the tab to have the plugin create a new one.
 
+## Appearance
+
+The tab is drawn to look like bb's built-in terminal, and follows the app's theme when it changes, without reopening.
+
+- **Colors** come from the same theme variables bb's terminal reads: `--sidebar` behind the text, `--foreground` for text and the cursor, `--muted` for selected text, and `--ansi-0` to `--ansi-15` for the 16 ANSI colors. Bold text in one of the first eight is drawn in its bright form, as bb draws it.
+- **Colors a program chooses outright** are drawn as it asked: 24-bit colors, and palette colors 16 to 255.
+- **Font** is bb's terminal font, `--font-terminal`, at 12 pixels, in cells sized from the font the way bb sizes them.
+- **Cursor** is a block that blinks while the terminal has focus and an outline when it does not.
+
+In a pane the tab has claimed, Rex is given the same colors, so a program that asks the terminal for its colors gets the ones on screen.
+
+In a pane it has not claimed, the tab still draws with bb's colors, but Rex keeps the colors its owner gave it and the tab ignores them. The two can disagree. A program that picked light or dark output from the background Rex.app reported can look wrong in the tab when bb's theme is the opposite: dark text meant for a light background, drawn on bb's dark one. The same applies to a program that redefines the default colors or the first 16 palette colors itself; the tab draws bb's.
+
 ## How it works
 
-- **Backend** (`server.ts`, `lib/rex-*.ts`). A browser cannot reach the Rex server's Unix socket, so the bb server relays. `GET /stream` finds or creates the session, opens a Rex data connection to the terminal, and answers with the terminal's byte stream for as long as the tab reads it. `POST /input` takes the tab's keys, pastes, focus changes, and panel size for an open stream and sends them to Rex with `block.event` and `com.superlogical.terminal.resize`. Each open tab holds one control connection and one data connection to Rex, and both close when the tab does.
+- **Backend** (`server.ts`, `lib/rex-*.ts`). A browser cannot reach the Rex server's Unix socket, so the bb server relays. `GET /stream` finds or creates the session, opens a Rex data connection to the terminal, and answers with the terminal's byte stream for as long as the tab reads it. `POST /input` takes the tab's keys, pastes, focus changes, panel size, and terminal colors for an open stream and sends them to Rex with `block.event`, `com.superlogical.terminal.resize`, and `com.superlogical.terminal.set_theme`. Each open tab holds one control connection and one data connection to Rex, and both close when the tab does.
 - **Frontend** (`app.tsx`, `components/`, `lib/pane-decoder.ts`). The stream opens with a snapshot of the terminal in Ghostty's snapshot format, followed by everything the terminal's program writes. The tab decodes both with a vendored build of libghostty-vt compiled to WebAssembly, then draws the result as text.
 
 The relay is a streamed HTTP response. It is sent as `application/octet-stream` with `Cache-Control: no-transform`, which keeps bb's response compression from holding small chunks back.
@@ -103,7 +116,7 @@ Ghostty's own list of third-party code linked into libghostty-vt builds (`deps/l
 - **Pastes are capped** at 128 KiB.
 - **One session label for every thread.** There is no per-thread choice.
 - **Local Rex only.** The plugin looks for Rex on the bb server's machine, over a Unix socket. It does not connect to remote Rex hosts or to a Rex server on another enrolled bb machine.
-- **A simple renderer.** It draws text, 24-bit and palette colors, bold, italic, faint, inverse, invisible, underline, strikethrough, overline, wide characters, and the cursor's position and shape. It does not draw images, hyperlinks, cursor blinking, or distinct underline styles and colors, and it reads every cell on every frame.
+- **A simple renderer.** It draws text, 24-bit and palette colors, bold, italic, faint, inverse, invisible, underline, strikethrough, overline, wide characters, and the cursor. It does not draw images, hyperlinks, or distinct underline styles and colors, and it reads every cell on every frame. It draws text with the browser, where bb's terminal paints a canvas, so glyph edges can differ slightly.
 - **No resume.** When the stream ends, the tab keeps the last frame and offers **Reconnect**, which starts a new stream from a fresh snapshot.
 
 ## Develop
