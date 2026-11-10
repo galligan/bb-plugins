@@ -14,3 +14,7 @@ This directory records development patterns and lessons shared by the plugins in
 The initial guidance was checked against this repository and the installed `bb-plugin-authoring` references on 2026-11-10. Package SDK versions differ: an example demonstrates a pattern, not a guarantee that its API names work with every plugin's pin. Use the current public SDK declarations and [BB Plugin Guide](https://getbb.app/plugin-guide) when implementing an API change.
 
 When adding a lesson, include its trigger, the behavior to preserve, and a source or regression test. Keep temporary investigation notes and unverified hypotheses out of the defaults. Mark historical verification as historical rather than turning an old test result into a current guarantee.
+
+## Upstream BB documentation
+
+Run `bun run docs:bb` before plugin work. [The local BB reference](../bb/README.md) provides stable paths to current upstream authoring, CLI, skill-writing, and marketplace guidance. Keep repository procedures here and link to that generated reference from our own skills rather than duplicating BB documentation.

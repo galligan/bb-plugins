@@ -14,7 +14,8 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "verify": "bun scripts/verify.mjs",
-    "lint:workflows": "bun scripts/lint-workflows.mjs"
+    "lint:workflows": "bun scripts/lint-workflows.mjs",
+    "docs:bb": "bun scripts/bb-docs.mjs"
   },
   "devDependencies": {
     "oxlint": "1.85.0",

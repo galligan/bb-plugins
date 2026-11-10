@@ -4,3 +4,6 @@ node_modules/
 plugins/*/types/*.d.ts
 plugins/linear/
 /repos/
+
+/docs/bb/upstream/
+/docs/bb/.sync/

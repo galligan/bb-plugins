@@ -15,6 +15,7 @@ This repository contains independently versioned plugins for [bb](https://github
 - Use Bun; the pinned version is in the root `package.json`.
 - Run `bun install` once at the repository root.
 - Run `bun run format:check`, `bun run lint`, `bun run check`, `bun run test`, and `bun run build` before pushing. Linear is excluded from these root checks; a green root run does not verify Linear. See [verification](docs/dev/verification.md) for package checks and CI parity.
+- Before plugin development, run `bun run docs:bb` to refresh the upstream reference snapshot in `docs/bb/upstream/`. See [BB documentation](docs/bb/README.md) for stable skill reference paths, provenance, and offline behavior.
 - Before adding or migrating an SDK call, inspect the affected package's SDK pin and the current public contract. Use the available `bb-plugin-authoring` skill for the relevant surface. Do not copy deprecated calls from an older plugin as the pattern for new work.
 - Run checkout-specific filesystem and process operations on the environment's host, not the bb server. See [plugin patterns](docs/dev/plugin-patterns.md).
 - Plugins are full-trust code. Keep permissions and network access narrow, never log secrets, and bound external calls and prompt context.

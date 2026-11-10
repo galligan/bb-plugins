@@ -4,3 +4,6 @@ dist/
 *.log
 coverage/
 /repos/
+
+/docs/bb/upstream/
+/docs/bb/.sync/
