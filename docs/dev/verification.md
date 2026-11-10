@@ -2,19 +2,26 @@
 
 ## Repository checks
 
-Use the Bun version pinned in the root [`package.json`](../../package.json). [CI](../../.github/workflows/ci.yml) also uses Node 24 because the plugin tests exercise `node:sqlite` and run TypeScript through Node's test runner. CI installs with `bun install --frozen-lockfile --ignore-scripts` and then runs:
+Use Bun **1.3.14**, pinned by `packageManager` in the root [`package.json`](../../package.json), and real Node **24.x**, declared in [`.node-version`](../../.node-version). Node's major version is the supported policy; patch updates within 24 are allowed. [CI](../../.github/workflows/ci.yml) reads those same files. Node is required because plugin suites exercise `node:sqlite` and run TypeScript through Node's test runner.
+
+Install dependencies once with `bun install --frozen-lockfile --ignore-scripts`, then run the same entry point locally and in CI:
 
 ```sh
-bun run format:check
-bun run lint
-bun run check
-bun run test
-bun run build
+bun run verify
 ```
 
-The root test command runs the included plugin suites plus explicit `./scripts/*.test.mjs` paths. Keep that path boundary: Bun treats a bare `scripts/` argument as a filter and can also discover tests inside ignored reference clones. Graphite and Worktree+ use `node --test`; repository scripts use `bun test`. Linear uses its own Vitest suite and is excluded from root formatting, lint, type checks, tests, and builds. If changing Linear, run its package checks and report their results separately; a green root pipeline does not cover it.
+The preflight prints the actual Bun and Node executable paths and versions. It rejects a mismatched Bun version, a Node major other than 24, missing Node, or Bun masquerading as Node before any gate runs. Select the required runtimes with your preferred runtime manager and put them on `PATH`; for example, if using mise:
 
-Use focused checks during iteration, such as `bun test scripts/autolabel.test.mjs` or `bun run test` from the affected plugin directory. For workflow changes, run `actionlint` when available. Complete the root gates before pushing. If a tool version differs from the pin or a check cannot run, record that limit instead of claiming CI parity.
+```sh
+mise install bun@1.3.14 node@24
+env PATH="$(mise where bun@1.3.14)/bin:$(mise where node@24)/bin:$PATH" bun run verify
+```
+
+Verification never installs or upgrades runtimes. It invokes the existing `format:check`, `lint`, `check`, `test`, and `build` scripts in order, stops at the first failure, preserves its exit code, and summarizes passed, failed, and not-run gates. Nested package scripts inherit the validated runtime paths. Do not use `bun --bun` to substitute Bun for Node.
+
+The root test command runs the included plugin suites plus explicit `./scripts/*.test.mjs` paths. Keep that path boundary: Bun treats a bare `scripts/` argument as a filter and can also discover tests inside ignored reference clones. Graphite and Worktree+ use `node --test`; repository scripts use `bun test`. Linear uses its own Vitest suite and is excluded from root formatting, lint, type checks, tests, and builds. Verification explicitly reports that exclusion. If changing Linear, run its package checks and report their results separately; a green root pipeline does not cover it.
+
+Use focused checks during iteration, such as `bun test scripts/autolabel.test.mjs` or `bun run test` from the affected plugin directory. Complete `bun run verify` before pushing. For workflow changes, run `actionlint` when available. If a check cannot run, record the limitation instead of claiming CI parity. Runtime preflight and failure propagation are covered by injected process execution in [`scripts/verify.test.mjs`](../../scripts/verify.test.mjs), without rerunning expensive gates in unit tests.
 
 ## Choose the test boundary
 
