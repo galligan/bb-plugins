@@ -173,8 +173,8 @@ const providerResponseSchema = z.strictObject({
   answers: answersSchema,
   usage: z
     .strictObject({
-      input_tokens: z.number().int().nonnegative(),
-      output_tokens: z.number().int().nonnegative().optional(),
+      input_tokens: z.number().int().nonnegative().nullable().optional(),
+      output_tokens: z.number().int().nonnegative().nullable().optional(),
     })
     .nullable()
     .optional(),

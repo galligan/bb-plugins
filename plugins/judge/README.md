@@ -22,6 +22,10 @@ Use the repository's pinned Bun 1.3.14. Install dependencies once at the reposit
 
 Before pushing, run the root formatting, lint, check, test, and build commands documented in [CONTRIBUTING.md](../../CONTRIBUTING.md). `bun run test` runs the deterministic Node suite; storage tests use the public SDK fake host with its real SQLite peer. No inference requests run in tests. The package also checks that its imports use the public SDK surface.
 
+## Transport implementation
+
+The offline Jev/System One adapter now validates complete typed batches, retains the returned provider model, bounds UTF-8 request/response bytes, disables redirects/retries, and shares caller/disposal/budget cancellation. Compatible custom endpoints use the same contract with optional auth. See [transport evidence and primary references](docs/TRANSPORTS.md). Fixture success does not establish live provider or arbitrary local-server compatibility. Public CLI/RPC asks remain the next usable milestone; tests do not make paid calls.
+
 ## Connection setup and privacy
 
 Development installs expose **Settings → Installed plugins → Judge [Experimental] → the settings button**. The live BB 0.49.0 form was verified with dummy data: secret inputs show `[set]` after save/reload and `[not set]` after native unset, without reading stored values. Leaving a secret field blank preserves its value; remove it with BB's native `bb plugin config judge unset <setting-key>` command. The fields are Jev / TypeSafe API key, Cloudflare account ID and Workers AI token, and a custom System One URL with optional key. Keys use BB-native secret descriptors; BB owns server-side mode-0600 secret files. This does not guarantee OS-keychain storage or encryption. Saving a key never starts inference. The dedicated Jev checkpoint follows the usable ask flow; no real key is needed at this stage.

@@ -63,6 +63,27 @@ test("all typed primitives preserve structured instructions, fractional scores a
     parsed.questions.yes?.instructions,
     request.questions.yes.instructions,
   );
+  for (const usage of [
+    null,
+    {},
+    { output_tokens: 3 },
+    { input_tokens: null, output_tokens: null },
+    { input_tokens: 12, output_tokens: null },
+  ]) {
+    assert.equal(
+      parseResponse({ ...response, usage }, parsed.questions).inputTokens,
+      usage?.input_tokens ?? null,
+    );
+  }
+  for (const usage of [
+    { input_tokens: -1 },
+    { output_tokens: -1 },
+    { input_tokens: 1.5 },
+    { output_tokens: "3" },
+  ])
+    assert.throws(() =>
+      parseResponse({ ...response, usage }, parsed.questions),
+    );
 });
 
 test("responses must match every submitted ID, type, option, rubric and valid distribution", () => {
