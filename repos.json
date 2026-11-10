@@ -2,6 +2,8 @@
   "yusuf8834/bb-sidebar",
   "tobi/bb-bots-sidebar",
   "vburojevic/bb-plugin-handoff",
+  "Dummy-pixel-hash/bb-plugin-auto-compact",
+  "entin-hun/bb-plugin-auto-compact",
   "prismatic7/bb-plugin-progressive-skill",
   "vburojevic/bb-plugin-linear"
 ]
