@@ -3,7 +3,7 @@ import type { Database } from "./contracts.ts";
 import type { RadioStore } from "./storage.ts";
 import type { AddressScope } from "./address-resolution.ts";
 import type { TransmissionContext } from "./transmission-contracts.ts";
-import { requireAuthor } from "./transmission-access.ts";
+import { requireAuthor, requireOwnTarget } from "./transmission-access.ts";
 import { RadioError } from "./errors.ts";
 import {
   responseSchema,
@@ -31,17 +31,11 @@ export class ResponseEvents {
   record(context: TransmissionContext, input: unknown) {
     const request = parseProtocol(responseSchema, input);
     const callerKey = requireAuthor(this.store.identities, context);
-    const target = this.store.identities.get(request.targetId);
-    if (target.id !== context.authorId && target.id !== context.sessionId)
-      throw new RadioError(
-        "forbidden",
-        "Respond only for the invoking actor or exact acting session.",
-      );
-    if (target.actorId && target.actorId !== context.authorId)
-      throw new RadioError(
-        "forbidden",
-        "Response target belongs to another actor.",
-      );
+    const target = requireOwnTarget(
+      this.store.identities,
+      context,
+      request.targetId,
+    );
     if (
       request.kind === "received" &&
       !context.sessionId &&

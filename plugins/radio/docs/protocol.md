@@ -1,6 +1,6 @@
 # Communication protocol
 
-The internal transmission/reply store described below is implemented. Explicit recipient confirmation, ack, standby and squelch facts are also implemented internally. Commitments/claims are implemented internally; subscriptions and delivery remain planned; no public communication APIs are available yet. [Open decisions](decisions.md) identify semantics that still need agreement.
+The internal transmission/reply store described below is implemented. Explicit recipient confirmation, ack, standby and squelch facts are also implemented internally. Commitments/claims are implemented internally; subscriptions and broadcast snapshots are also implemented internally; attention digest and delivery remain planned; no public communication APIs are available yet. [Open decisions](decisions.md) identify semantics that still need agreement.
 
 ## Transmissions
 
@@ -12,7 +12,7 @@ Replies are new txs linked to an existing accessible parent. Repeated replies us
 
 ## Implemented transmission limits and access
 
-The first store uses a 1–400 Unicode-code-point body budget with no inline exemptions and a 2000 UTF-16-code-unit raw cap. References live outside the body: at most 16 HTTP(S) URLs without embedded credentials or canonical local transmission/participant/channel/dispatch refs. At most 100 direct recipients are accepted after deduplication, with an independent cap of 1000 raw recipient-ID entries. A quoted/code/escaped mention stays literal. `ch:` freezes a channel reference only; `@ch:` is rejected until the subscription layer can create the listener snapshot. A dispatch ref with no revision selects latest at acceptance and stores the resulting pinned revision; retry replays the original pin. Dispatch reads still enforce project access. No URL fetch or delivery happens on acceptance.
+The first store uses a 1–400 Unicode-code-point body budget with no inline exemptions and a 2000 UTF-16-code-unit raw cap. References live outside the body: at most 16 HTTP(S) URLs without embedded credentials or canonical local transmission/participant/channel/dispatch refs. At most 100 direct recipients are accepted after deduplication, with an independent cap of 1000 raw recipient-ID entries. A quoted/code/escaped mention stays literal. `ch:` freezes a channel reference only; `@ch:` snapshots unmuted listeners of the exact referenced channel. Main/subchannel hierarchy does not expand selection. A dispatch ref with no revision selects latest at acceptance and stores the resulting pinned revision; retry replays the original pin. Dispatch reads still enforce project access. No URL fetch or delivery happens on acceptance.
 
 Adapters supply authenticated caller, author, optional acting session and authorized project IDs separately from request fields. The author must belong to that caller and the session to that author. Project scope controls channel/history access; recipients are attention targets, not a private-message ACL. Structured local refs and reply parents must be accessible at creation. Participant IDs supplied explicitly require a handle in an accessible project (or their owning actor's handle); the station human remains globally addressable. A reference does not confer access to its target content on a future reader.
 
@@ -74,9 +74,9 @@ A subscription binds a canonical participant/session ID to a canonical channel I
 - `unlisten`: remove the subscription.
 - `listening`: list current subscriptions and mute state.
 
-A direct participant mention is separate from a muted channel. Muting/unlistening does not remove recipients from existing broadcasts, waive required acks/replies, or abandon commitments. Previously selected audience records remain inspectable. Exact mute duration controls are deferred.
+Listening checks authenticated actor/exact-session ownership and trusted project access. Owners may mute/unlisten after access loss, without acquiring any content access. Credential adapters must invalidate eligibility on revocation before exposing those flows. A direct participant mention is separate from a muted channel. Muting/unlistening does not remove recipients from existing broadcasts, waive required acks/replies, or abandon commitments. Previously selected audience records remain inspectable. Exact mute duration controls are deferred.
 
-Proposed default: a BB thread listens to its project's main channel; subchannels are explicit. A subchannel subscription does not implicitly subscribe to siblings. Whether a project-wide broadcast includes descendant-channel listeners needs a precise selection rule before implementation. Show the resolved audience rather than assuming hierarchy implies inclusion.
+Proposed default: a BB thread listens to its project's main channel; subchannels are explicit. A subchannel subscription does not implicitly subscribe to siblings. The implemented selection rule is exact channel only: a main-channel mention does not include descendant listeners, and a subchannel does not include its parent or siblings. Mention multiple channels to combine them. The internal store currently uses explicit subscriptions; automatic main-channel registration remains a later proposed adapter default. Show the resolved audience rather than assuming hierarchy implies inclusion.
 
 Listening grants relevance, not permission to wake a session. A listener may be idle, stopped, disconnected or lacking hooks. See [delivery](delivery.md).
 
@@ -91,7 +91,7 @@ Recipient mode matters:
 
 An actor and its session are not interchangeable IDs. Mixed actor/session targeting and coverage rules remain open; never silently count one session response as satisfying both without a defined rule.
 
-A broadcast fan-out is not a guarantee of simultaneous execution. Each recipient has independent receipt/response evidence and adapter outcome. Failures for one do not erase the tx or other responses. An empty audience must be reported explicitly rather than presented as successful delivery to listeners. Large fan-outs need bounded audience previews/limits; thresholds remain open.
+A broadcast fan-out is not a guarantee of simultaneous execution. Each recipient has independent receipt/response evidence and adapter outcome. Failures for one do not erase the tx or other responses. An empty audience must be reported explicitly rather than presented as successful delivery to listeners. The implemented cap is 100 distinct recipients across direct and channel mentions. An oversized channel or combined audience rejects the entire request before acceptance; there is no silently partial fanout. Each selected channel stores its eligible count, including zero, alongside the global deduplicated recipient snapshot. Per-channel counts can overlap and must not be summed as a unique denominator.
 
 `--over` is the proposed reply expectation; `--require-ack` is the proposed acknowledgment expectation. These are distinct from a work request. Defaults and whether wilco/done satisfy an ack request need a formal coverage rule. An acknowledgment is not a substantive answer to a question.
 

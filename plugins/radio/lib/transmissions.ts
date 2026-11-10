@@ -20,13 +20,23 @@ export class Transmissions {
   private db: Database;
   private store: Pick<
     RadioStore,
-    "stationId" | "identities" | "projects" | "handles" | "dispatches"
+    | "stationId"
+    | "identities"
+    | "projects"
+    | "handles"
+    | "dispatches"
+    | "subscriptions"
   >;
   constructor(
     db: Database,
     store: Pick<
       RadioStore,
-      "stationId" | "identities" | "projects" | "handles" | "dispatches"
+      | "stationId"
+      | "identities"
+      | "projects"
+      | "handles"
+      | "dispatches"
+      | "subscriptions"
     >,
   ) {
     this.db = db;
@@ -80,6 +90,7 @@ export class Transmissions {
             );
         }
         const recipients = new Set(request.recipientIds);
+        const audiences = new Map<string, number>();
         for (const id of recipients) this.requireParticipant(id, context.scope);
         const tokens: Transmission["tokens"] = parseBody(request.body).map(
           (token) => {
@@ -88,11 +99,17 @@ export class Transmissions {
               ...context.scope,
               currentProjectId: channel.projectId,
             });
-            if (token.kind === "channel-audience")
-              throw new RadioError(
-                "invalid_input",
-                "Channel broadcasts require the subscription snapshot layer; use explicit participants for now.",
+            if (
+              token.kind === "channel-audience" &&
+              !audiences.has(resolved.targetId)
+            ) {
+              const listeners = this.store.subscriptions.eligible(
+                context.scope,
+                resolved.targetId,
               );
+              audiences.set(resolved.targetId, listeners.length);
+              for (const targetId of listeners) recipients.add(targetId);
+            }
             if (resolved.targetKind !== "channel")
               recipients.add(resolved.targetId);
             return {
@@ -127,8 +144,8 @@ export class Transmissions {
           .prepare(
             `INSERT INTO transmissions
         (id, author_id, session_id, channel_id, body, created_at, reply_to_id, refs_json, tags_json,
-         tokens_json, caller_key, idempotency_key, request_json, request_mode, require_ack, expect_reply)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         tokens_json, caller_key, idempotency_key, request_json, request_mode, require_ack, expect_reply, audiences_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .run(
             id,
@@ -155,6 +172,12 @@ export class Transmissions {
             requestMode,
             requireAck ? 1 : 0,
             expectReply ? 1 : 0,
+            JSON.stringify(
+              [...audiences].map(([channelId, eligibleCount]) => ({
+                channelId,
+                eligibleCount,
+              })),
+            ),
           );
         if (requestMode === "exclusive")
           this.db

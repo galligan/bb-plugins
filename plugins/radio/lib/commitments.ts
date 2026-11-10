@@ -7,7 +7,7 @@ import type {
   Transmission,
 } from "./transmission-contracts.ts";
 import type { AddressScope } from "./address-resolution.ts";
-import { requireAuthor } from "./transmission-access.ts";
+import { requireAuthor, requireOwnTarget } from "./transmission-access.ts";
 import { parseProtocol, eventPageSchema } from "./protocol-contracts.ts";
 import {
   commitmentActionSchema,
@@ -56,7 +56,8 @@ export class Commitments {
               "Only the original request author may reopen an abandoned exclusive claim.",
             );
         } else
-          this.requireTarget(
+          requireOwnTarget(
+            this.store.identities,
             context,
             request.kind === "wilco" ? request.targetId : previous!.targetId,
           );
@@ -199,16 +200,6 @@ export class Commitments {
     };
   }
 
-  private requireTarget(context: TransmissionContext, targetId: string) {
-    const target = this.store.identities.get(targetId);
-    if (target.id !== context.authorId && target.id !== context.sessionId)
-      throw new RadioError(
-        "forbidden",
-        "Act only for the invoking actor or exact acting session; obligations are not transferred.",
-      );
-    if (target.actorId && target.actorId !== context.authorId)
-      throw new RadioError("forbidden", "Commitment belongs to another actor.");
-  }
   private claim(txId: string): Claim {
     const row = this.db
       .prepare<[string], Claim>(
