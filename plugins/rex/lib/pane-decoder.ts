@@ -1,22 +1,25 @@
 // Applies a Rex terminal stream to a libghostty terminal.
 //
-// The stream opens with a snapshot, which libghostty can only decode whole,
-// so bytes are held until the snapshot's own framing says it is complete.
-// Everything after it is terminal output with Rex's messages mixed in.
+// The stream opens with a snapshot, which libghostty needs whole before it
+// restores the screen, so bytes are held until the snapshot's own framing says
+// it is complete. Everything after it is terminal output with Rex's messages
+// mixed in. The snapshot's history is restored later, as the view nears it.
 //
 // Rex's `theme` messages are skipped on purpose: the tab draws the terminal's
 // default and ANSI colors from the app's theme, whoever owns the pane.
 
 import type { GhosttyVt, Terminal } from "./ghostty.ts";
+import { PaneView } from "./pane-view.ts";
 import { parseRexMessage, RexMessageSplitter } from "./rex-messages.ts";
 import { findSnapshotEnd, newSnapshotScan } from "./snapshot.ts";
 
 /**
- * How many rows of history the tab keeps, the same as bb's built-in
- * terminal. It applies to the history a snapshot arrives with and to what
- * builds up afterwards.
+ * The most rows of history the tab keeps, counting what a snapshot arrives
+ * with and what builds up afterwards. Memory is the reason for a limit:
+ * history costs most of a MiB for each 1,000 rows at 80 columns, and the
+ * module's memory never shrinks once it has grown.
  */
-export const SCROLLBACK_ROWS = 10_000;
+export const MAX_HISTORY_ROWS = 100_000;
 
 /** A snapshot grows with scrollback and images. Past this, give up. */
 const MAX_SNAPSHOT_BYTES = 64 * 1024 * 1024;
@@ -24,20 +27,28 @@ const MAX_SNAPSHOT_BYTES = 64 * 1024 * 1024;
 export class PaneDecoder {
   readonly #vt: GhosttyVt;
   readonly #splitter: RexMessageSplitter;
+  readonly #maxHistoryRows: number;
   readonly #scan = newSnapshotScan();
   #pending = new Uint8Array(64 * 1024);
   #pendingLength = 0;
   #terminal: Terminal | null = null;
+  #view: PaneView | null = null;
   #exit: { code: number | null } | null = null;
 
-  constructor(vt: GhosttyVt, nonce: string) {
+  constructor(vt: GhosttyVt, nonce: string, maxHistoryRows = MAX_HISTORY_ROWS) {
     this.#vt = vt;
     this.#splitter = new RexMessageSplitter(nonce);
+    this.#maxHistoryRows = maxHistoryRows;
   }
 
   /** The terminal, once the snapshot has been decoded. */
   get terminal(): Terminal | null {
     return this.#terminal;
+  }
+
+  /** What to draw and how to scroll it, once the snapshot has been decoded. */
+  get view(): PaneView | null {
+    return this.#view;
   }
 
   /** Set once Rex reports that the terminal's program exited. */
@@ -60,11 +71,12 @@ export class PaneDecoder {
     const received = this.#pending.subarray(0, this.#pendingLength);
     const end = findSnapshotEnd(received, this.#scan);
     if (end === null) return;
-    const terminal = this.#vt.decodeSnapshot(
+    const { terminal, history } = this.#vt.openSnapshot(
       received.subarray(0, end),
-      SCROLLBACK_ROWS,
+      this.#maxHistoryRows,
     );
     this.#terminal = terminal;
+    this.#view = new PaneView(this.#vt, terminal, history);
     const live = received.slice(end);
     this.#pending = new Uint8Array(0);
     this.#applyLive(terminal, live);

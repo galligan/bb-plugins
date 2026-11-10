@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 
-import type { Frame, FrameReader } from "../lib/frame-reader.ts";
+import type { Frame } from "../lib/frame-reader.ts";
 import { GhosttyVt, type ScrollTo } from "../lib/ghostty.ts";
 import { InputQueue } from "../lib/input-queue.ts";
 import { PaneDecoder } from "../lib/pane-decoder.ts";
@@ -35,8 +35,9 @@ export type PaneState =
       /** Sends input to the pane. Input is delivered in the order sent. */
       send: (input: PaneInput) => void;
       /**
-       * Moves the tab's own view through the terminal's history. Nothing is
-       * sent to Rex, so no other client's view changes.
+       * Moves the tab's own view through the terminal's history, in the rows
+       * `frame.scroll` counts. Nothing is sent to Rex, so no other client's
+       * view changes.
        */
       scroll: (to: ScrollTo) => void;
     };
@@ -90,16 +91,13 @@ async function watchPane(
 
   const vt = await GhosttyVt.instantiate(module);
   const decoder = new PaneDecoder(vt, nonce);
-  let frames: FrameReader | null = null;
   let live = true;
   let inputProblem: string | null = null;
   const draw = () => {
-    if (decoder.terminal !== null)
-      frames ??= vt.newFrameReader(decoder.terminal);
     publish({
       phase: "open",
       ...pane,
-      frame: frames?.read() ?? null,
+      frame: decoder.view?.read() ?? null,
       live,
       exit: decoder.exit,
       inputProblem,
@@ -126,8 +124,7 @@ async function watchPane(
   signal.addEventListener("abort", unschedule);
 
   const scroll = (to: ScrollTo) => {
-    if (decoder.terminal === null) return;
-    vt.scrollViewport(decoder.terminal, to);
+    decoder.view?.scroll(to);
     schedule();
   };
   const report = (problem: string | null) => {
