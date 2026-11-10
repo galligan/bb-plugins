@@ -83,3 +83,13 @@ If you are not comfortable with that coupling, do not install this plugin.
 ## License
 
 MIT
+
+## SDK contract tests
+
+Run `bun run test` in this package (Node 24), or the repository's root test gate. [`lib/server.test.ts`](lib/server.test.ts) loads the real server factory through the public `@get-bb/plugin-sdk/testing` harness shipped by the pinned SDK `0.4.87`. It checks CLI/RPC/tool registration, invalid CLI and RPC inputs before host work, environment-host routing, malformed host and RPC outputs, the unsafe-write guard, CLI cancellation forwarding, and replacement/stale registrations after reload and disposal. SDK calls and host responses are offline fixtures; these tests never invoke `gt`, connect to a daemon, or need credentials. The plugin declares no settings, background services, watches, or custom disposal hook, so no synthetic settings/resource behavior is added to its tests.
+
+The initial consumer inventory found existing fake-host tests in Judge and Worktree+ (SDK `0.6.132`), helper tests but no SDK harness coverage in Graphite, and vendored declarations without a public SDK dependency in Linear. Graphite's `0.4.87` package exports all three testing entrypoints, so server adoption needs no dependency change and runs through the existing `lib/**/*.test.ts` command.
+
+Host-entry coverage remains blocked separately: importing the real `host.ts` under Node `24.22.2` fails inside the pinned SDK's public `host` bundle with `Dynamic require of "child_process" is not supported` (bundled `cross-spawn`). Reproduce from this package with `node --input-type=module -e 'await import("./host.ts")'`. Resolve that SDK packaging compatibility in a scoped prerequisite before adding `testing/host` coverage; do not substitute Bun for the Node runner, import SDK internals, or silently upgrade the pin. Existing temporary-repository reader tests still cover metadata behavior.
+
+This coverage establishes in-process registration and contract behavior only. Cancellation asserts delivery to the fake host driver, not termination of a real `gt` process. Reload checks stale API handles and replacement registrations, not daemon worker startup/reconnect or process cleanup. No frontend layout, loading/empty/error UI, live install/reload, or host integration claim follows from these tests or a successful build.
