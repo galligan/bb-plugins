@@ -38,9 +38,14 @@ export class Transmissions {
     const callerKey = requireAuthor(this.store.identities, context);
     // Bind exact source input before mutable handle resolution. A lost response
     // must replay the original targets even after an alias is reclaimed.
+    // Keep the shipped default request encoding byte-for-byte replayable.
+    const { requestMode, requireAck, expectReply, ...core } = request;
     const requestJson = JSON.stringify({
       sessionId: context.sessionId ?? null,
-      ...request,
+      ...core,
+      ...(requestMode === "exclusive" ? { requestMode } : {}),
+      ...(requireAck ? { requireAck } : {}),
+      ...(expectReply ? { expectReply } : {}),
     });
     return this.db
       .transaction(() => {
@@ -122,7 +127,8 @@ export class Transmissions {
           .prepare(
             `INSERT INTO transmissions
         (id, author_id, session_id, channel_id, body, created_at, reply_to_id, refs_json, tags_json,
-         tokens_json, caller_key, idempotency_key, request_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         tokens_json, caller_key, idempotency_key, request_json, request_mode, require_ack, expect_reply)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .run(
             id,
@@ -146,7 +152,16 @@ export class Transmissions {
             callerKey,
             request.idempotencyKey,
             requestJson,
+            requestMode,
+            requireAck ? 1 : 0,
+            expectReply ? 1 : 0,
           );
+        if (requestMode === "exclusive")
+          this.db
+            .prepare(
+              "INSERT INTO exclusive_claims(tx_id, generation, commitment_id) VALUES (?, 1, NULL)",
+            )
+            .run(id);
         const insertRecipient = this.db.prepare(
           "INSERT INTO transmission_recipients(tx_id, target_id) VALUES (?, ?)",
         );
