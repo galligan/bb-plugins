@@ -4,9 +4,9 @@
 // owns it, so asking for either changes the pane for every other client
 // looking at it. The rule:
 //
-//   - In a session this plugin created, the tab claims the pane, asks for the
+//   - In a window this plugin created, the tab claims the pane, asks for the
 //     size that fits its panel, and gives it the app's terminal colors.
-//   - In any other session it never asks. The pane keeps what its owner gave
+//   - In any other window it never asks. The pane keeps what its owner gave
 //     it. The tab draws that size, and draws in the app's colors regardless.
 //   - While another client owns a pane the tab had claimed, the tab asks for
 //     nothing. It remembers what it wants and asks again only if ownership
@@ -64,7 +64,7 @@ export class PaneClaim {
   #theme: TerminalTheme | null = null;
 
   /**
-   * `mayClaim` is whether the plugin created the pane's session. `resize` and
+   * `mayClaim` is whether the plugin created the pane's window. `resize` and
    * `recolor` ask Rex on the connection whose client is `clientId`.
    */
   constructor(options: {

@@ -1,7 +1,8 @@
-// Which session, and which pane in it, the tab shows.
+// Which session a thread's window goes in, and which pane of a window the
+// tab shows.
 //
 // The session is the one whose label matches the plugin's `sessionLabel`
-// setting. The pane is the focused block of that session's active window.
+// setting. The pane is the focused block of the thread's window.
 
 import { z } from "zod";
 
@@ -24,6 +25,7 @@ export const sessionViewSchema = z.object({
     .array(
       z.object({
         window_id: z.string().nullable(),
+        label: z.string().optional(),
         focused_block_id: z.string().nullish(),
         layers: z
           .array(
@@ -66,19 +68,20 @@ export function chooseSession(list: SessionList, label: string): SessionChoice {
 export type PaneChoice =
   { kind: "terminal"; blockId: string } | { kind: "none"; reason: string };
 
-/** Finds the focused block of the session's active window. */
-export function choosePane(view: SessionView): PaneChoice {
+/** Finds the focused block of the window `windowId`, if it is a terminal. */
+export function chooseWindowPane(
+  view: SessionView,
+  windowId: string,
+): PaneChoice {
   const window = (view.windows ?? []).find(
-    (candidate) =>
-      candidate.window_id !== null &&
-      candidate.window_id === view.active_window_id,
+    (candidate) => candidate.window_id === windowId,
   );
   if (window === undefined) {
-    return { kind: "none", reason: "The session has no active window." };
+    return { kind: "none", reason: "The window is no longer there." };
   }
   const blockId = window.focused_block_id;
   if (blockId == null) {
-    return { kind: "none", reason: "The active window has no focused pane." };
+    return { kind: "none", reason: "The window has no focused pane." };
   }
   const block = (window.layers ?? [])
     .flatMap((layer) => layer.blocks ?? [])
