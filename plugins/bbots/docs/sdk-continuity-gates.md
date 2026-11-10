@@ -17,7 +17,7 @@ Use a fresh isolated BB instance and a small public-API probe plugin. Keep a SQL
 3. Explicitly call `bb.sdk.threads.compact({ threadId })` against that probe thread. Keep the observation flag enabled beyond acceptance until the new turn completes or a bounded wait expires. Record the return value, new event boundary and hook observation rows. Stop the dedicated runtime promptly; never use a production conversation.
 4. In the sustained check, compact returned `{ ok: true }`. The flag stayed enabled from sequence 104 through the new completed turn at sequence 113, and the hook recorded zero dispatches. Earlier compaction produced a completed native `contextCompaction` item. There was no rejection from the observation hook. An earlier immediate-counter check alone would have been inconclusive. A negative control then armed the same guard and called ordinary `threads.send`: the request received HTTP 409, logged its attributed dispatch and started no turn.
 
-Probe source and result: `/Users/mg/.bb/thread-storage/thr_898bvuxcfi/bots-capabilities/probe/server.ts` , `10-sustained-compact-observation.json`, and `13-send-negative-control.json`. The probe has no automatic trigger. Its failed exploratory calls and manually bounded limits are disclosed in [capabilities](capabilities.md).
+Probe source and result: `/Users/mg/.bb/thread-storage/thr_898bvuxcfi/bots-capabilities/probe/server.ts`, `10-sustained-compact-observation.json`, and `13-send-negative-control.json`. The probe has no automatic trigger. Its failed exploratory calls and manually bounded limits are disclosed in [capabilities](capabilities.md).
 
 ## Minimum upstream acceptance
 
