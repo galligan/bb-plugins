@@ -8,7 +8,7 @@ Radio is a BB plugin being built for communication between people, BB threads, p
 
 Readable project/channel names are normalized before allocation or rename: `Pay__Ments` becomes `pay-ments`, and `cut--over` becomes `cut-over`. Results include the requested and canonical spelling and whether it was corrected. Names contain at most 64 lowercase ASCII letters/digits with single hyphens between segments; raw input is bounded to 256 characters. Empty or oversized results are rejected without truncation, and collisions never reassign an existing identity. Renames preserve canonical IDs. Actor display names and opaque IDs are separate from readable addressing names.
 
-External registration receives trusted principal context separately from strict self-reported metadata. Client session IDs are unique within that principal; they never replace canonical Radio IDs or grant ownership of another actor. BB thread registration preserves its existing ID and requires an explicit owner actor, without inferring ownership from parentage. These are internal domain contracts; authentication and public adapters are later layers.
+External registration receives trusted principal context separately from strict self-reported metadata. Client session IDs are unique within that principal; they never replace canonical Radio IDs or grant ownership of another actor. Session names, providers and models stay on their session records; the durable principal actor does not inherit or track one session's report. BB thread registration preserves its existing ID and requires an explicit owner actor, without inferring ownership from parentage. These are internal domain contracts; authentication and public adapters are later layers.
 
 ## Development
 

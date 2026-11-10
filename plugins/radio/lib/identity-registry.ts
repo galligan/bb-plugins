@@ -106,10 +106,14 @@ export class IdentityRegistry {
           .get(principalId);
         const actorId =
           actor?.id ??
-          this.insert("actor", metadata, {
-            principalId,
-            provenance: "self-reported",
-          }).id;
+          this.insert(
+            "actor",
+            {},
+            {
+              principalId,
+              provenance: "station",
+            },
+          ).id;
         if (sessionId) {
           const prior = this.db
             .prepare<[string, string], { id: string }>(

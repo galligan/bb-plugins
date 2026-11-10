@@ -49,6 +49,8 @@ test("external client session IDs are principal-scoped and metadata never convey
     assert.notEqual(first.actorId, identities.human().id);
     assert.equal(first.principalId, "trusted-one");
     assert.equal(first.provenance, "self-reported");
+    assert.deepEqual(identities.get(first.actorId!).metadata, {});
+    assert.equal(identities.get(first.actorId!).provenance, "station");
     const again = identities.registerExternal(
       { principalId: "trusted-one" },
       { sessionId: "thr_first", model: "new-report" },
@@ -56,6 +58,7 @@ test("external client session IDs are principal-scoped and metadata never convey
     assert.equal(again.id, first.id);
     assert.equal(again.actorId, first.actorId);
     assert.deepEqual(again.metadata, { model: "new-report" });
+    assert.deepEqual(identities.get(first.actorId!).metadata, {});
     for (const extra of [
       { actorId: other.actorId },
       { principalId: "trusted-two" },
@@ -78,6 +81,7 @@ test("external client session IDs are principal-scoped and metadata never convey
     );
     assert.notEqual(anonymous.id, nextAnonymous.id);
     assert.equal(anonymous.actorId, first.actorId);
+    assert.deepEqual(identities.get(anonymous.actorId!).metadata, {});
   } finally {
     await harness.lifecycle.dispose();
   }
