@@ -34,6 +34,8 @@ export const provenanceSchema = z.strictObject({
     count: z.number().int().nonnegative().optional(),
     beforeSeq: z.number().int().nonnegative().optional(),
     target: z.enum(["uncommitted", "branch"]).optional(),
+    environmentId: idSchema.optional(),
+    base: z.string().min(1).max(256).optional(),
     truncated: z.boolean().optional(),
   }),
   sequence: z.number().int().nonnegative().optional(),

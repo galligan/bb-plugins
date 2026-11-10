@@ -20,6 +20,7 @@ export type NormalizedEvent = z.infer<typeof normalizedEventSchema>;
 export type SourceContext = {
   threadId?: string;
   projectId?: string;
+  environmentId?: string;
   idle?: { lastAssistantText: string | null };
   event?: NormalizedEvent;
   signal?: AbortSignal;

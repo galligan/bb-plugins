@@ -3,6 +3,7 @@ import { Deadline, OperationAborted } from "../deadline.ts";
 import { sourceSchema } from "../sets-schema.ts";
 import { idSchema } from "../contracts.ts";
 import { commands, goal, recentUsers } from "./history.ts";
+import { readGit } from "./git.ts";
 import {
   normalizedEventSchema,
   SourceFailure,
@@ -26,6 +27,8 @@ export class SourceService {
     const definition = sourceSchema.parse(value);
     if (context.threadId !== undefined) idSchema.parse(context.threadId);
     if (context.projectId !== undefined) idSchema.parse(context.projectId);
+    if (context.environmentId !== undefined)
+      idSchema.parse(context.environmentId);
     const event =
       context.event === undefined
         ? undefined
@@ -59,7 +62,12 @@ export class SourceService {
           return sourceValue(projected, definition, field === "error");
         }
         if (definition.from.startsWith("git."))
-          throw new SourceFailure("git_source_unavailable");
+          return readGit(
+            this.sdk,
+            definition,
+            context.environmentId,
+            scope.signal,
+          );
         if (
           definition.from === "project.name" &&
           context.projectId &&
