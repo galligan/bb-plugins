@@ -20,7 +20,9 @@
     },
     "server": "./server.ts",
     "app": "./app.tsx",
-    "skills": []
+    "skills": [
+      "skills"
+    ]
   },
   "scripts": {
     "check": "tsc --noEmit",

@@ -24,7 +24,7 @@ Each thread has its own Rex window, which Rex.app shows as a tab. The first time
 Fix the login redirect [thr_abc123]
 ```
 
-- **Opening the Rex tab is what uses Rex.** A thread whose Rex tab is never opened gets no window.
+- **Opening the Rex tab uses Rex, and so does an agent asking for the thread's terminal** with `bb rex target`. Both find or create the same window. A thread that does neither gets no window.
 - **The shell starts in the thread's workspace**, when that is a directory on the machine the Rex server runs on. Otherwise it starts where Rex starts any shell.
 - **The label follows the title.** If the thread's title has changed, the window is relabelled the next time the tab opens. A long title is shortened to fit Rex's limit; the ID never is. The plugin finds the window by the IDs it recorded when it created it, not by the label, so relabelling the window yourself does not lose it.
 - **Closing the window in Rex is fine.** The next time the thread's tab opens, the plugin creates a new one.
@@ -55,6 +55,16 @@ The line above the terminal names the Rex session and window the thread shows. I
 The pick is kept for the thread and survives a reload of bb and of the plugin. A picked window is yours, not the plugin's: the tab types into it but never claims or resizes its panes, never relabels it, and archiving the thread does not close it. The thread's own window, if it has one, stays as it is until the thread is archived, and none is made while another is picked. If a picked window is closed, the thread goes back to its own.
 
 The list is read when the menu opens, without attaching to any session: the plugin joins a session only once you pick a window in it.
+
+## Agents
+
+The thread's terminal is meant to be shared: an agent working in the thread can run its commands there, where you can watch them from bb or from Rex and take over.
+
+- **`bb rex target`** prints the Rex session, window, and block of a thread's terminal, with `--json` for the IDs alone. Run from a thread, it answers for that thread; `--thread <id>` names another. It uses the same lookup as the Rex tab, so it creates the thread's window if the thread has none, and it answers with the window you picked for the thread if you picked one.
+- **The `rex-thread-terminal` skill** ships with the plugin. It tells an agent when the shared terminal is the right place for a command and when its own shell is, how to get the target, and how to work there with the `rex` CLI. It holds the agent to that one pane: no other session or window, and no splitting or closing, unless you ask.
+- **A thread that already has a Rex window** gets one line added to its agent's instructions, pointing at the skill. A thread that has never used Rex gets nothing.
+
+The skill and the instruction line reach an agent when its session next starts, not in the middle of one.
 
 ## Typing
 
@@ -108,7 +118,7 @@ In a pane it has not claimed, the tab still draws with bb's colors, but Rex keep
 
 ## How it works
 
-- **Backend** (`server.ts`, `lib/rex-*.ts`). A browser cannot reach the Rex server's Unix socket, so the bb server relays. `GET /stream?thread=<id>` finds or creates the thread's window (`lib/thread-window.ts`), opens a Rex data connection to its terminal, and answers with the terminal's byte stream for as long as the tab reads it. It reads from Rex no faster than the tab takes the bytes, so a snapshot of tens of megabytes is passed through without being held in memory. `POST /input` takes the tab's keys, pastes, focus changes, panel size, and terminal colors for an open stream and sends them to Rex with `block.event`, `com.superlogical.terminal.resize`, and `com.superlogical.terminal.set_theme`. Each open tab holds one control connection and one data connection to Rex, and both close when the tab does. `GET /targets` lists the windows a thread could show, read with Rex's `target.complete`, and `POST /target` stores a pick. The backend also listens for a thread being archived or deleted, and closes its window. When the plugin loads, it closes the windows of recorded threads that were archived while it was not running.
+- **Backend** (`server.ts`, `lib/rex-*.ts`). A browser cannot reach the Rex server's Unix socket, so the bb server relays. `GET /stream?thread=<id>` finds or creates the thread's window (`lib/thread-window.ts`), opens a Rex data connection to its terminal, and answers with the terminal's byte stream for as long as the tab reads it. It reads from Rex no faster than the tab takes the bytes, so a snapshot of tens of megabytes is passed through without being held in memory. `POST /input` takes the tab's keys, pastes, focus changes, panel size, and terminal colors for an open stream and sends them to Rex with `block.event`, `com.superlogical.terminal.resize`, and `com.superlogical.terminal.set_theme`. Each open tab holds one control connection and one data connection to Rex, and both close when the tab does. `bb rex target` (`lib/target-command.ts`) runs that same find-or-create for an agent. `GET /targets` lists the windows a thread could show, read with Rex's `target.complete`, and `POST /target` stores a pick. The backend also listens for a thread being archived or deleted, and closes its window. When the plugin loads, it closes the windows of recorded threads that were archived while it was not running.
 - **Frontend** (`app.tsx`, `components/`, `lib/pane-decoder.ts`). The stream opens with a snapshot of the terminal in Ghostty's snapshot format, followed by everything the terminal's program writes. The tab decodes both with a vendored build of libghostty-vt compiled to WebAssembly, then draws the result as text.
 
 The relay is a streamed HTTP response. It is sent as `application/octet-stream` with `Cache-Control: no-transform`, which keeps bb's response compression from holding small chunks back.
