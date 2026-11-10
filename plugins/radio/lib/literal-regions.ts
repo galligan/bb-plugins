@@ -18,7 +18,7 @@ export function skipLiteral(body: string, index: number): number | null {
       while (cursor < body.length) {
         const end = body.indexOf("\n", cursor);
         const next = body.slice(cursor, end < 0 ? body.length : end);
-        const closing = /^ {0,3}(`+|~+)[ \t]*$/.exec(next);
+        const closing = /^ {0,3}(`+|~+)[ \t\r]*$/.exec(next);
         if (closing && closing[1]![0] === marker && closing[1]!.length >= size)
           return end < 0 ? body.length : end + 1;
         cursor = end < 0 ? body.length : end + 1;

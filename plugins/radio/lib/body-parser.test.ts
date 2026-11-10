@@ -43,6 +43,12 @@ test("quotes, code, blockquotes and backslash escapes do not expand recipients",
   assert.deepEqual(parseBody("`unclosed @literal"), []);
   assert.deepEqual(parseBody("```\n@unclosed-fence"), []);
   assert.deepEqual(
+    parseBody("~~~\r\n@hidden\r\n~~~\r\n@visible").map(
+      (token) => token.canonical,
+    ),
+    ["@visible"],
+  );
+  assert.deepEqual(
     parseBody("'don't address @hidden' ‘It’s @also-hidden’ @visible").map(
       (token) => token.canonical,
     ),
