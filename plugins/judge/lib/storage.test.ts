@@ -189,10 +189,10 @@ test("package imports only public SDK and declared runtime dependencies", async 
       allow: [
         /^zod$/,
         /^yaml$/,
-        /^react(?:\/.*)?$/,
+        /^react(?:-dom)?(?:\/.*)?$/,
         /^jsdom$/,
         /^@testing-library\/react$/,
-        /^@radix-ui\/react-(?:checkbox|radio-group|slot)$/,
+        /^@radix-ui\/react-(?:checkbox|select|slot)$/,
         /^class-variance-authority$/,
         /^clsx$/,
         /^tailwind-merge$/,

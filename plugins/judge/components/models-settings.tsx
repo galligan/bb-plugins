@@ -1,4 +1,4 @@
-import { Button, Input, Checkbox, Choice } from "./controls.tsx";
+import { Button, Input, Switch, Checkbox, Choice } from "./controls.tsx";
 import { useCallback, useState } from "react";
 import type { ModelConfig } from "../lib/contracts.ts";
 import { useJudgeRpc, useRead, useAction } from "./hooks.ts";
@@ -36,45 +36,53 @@ export function ModelsSettings() {
     setTimeout(value?.timeoutMs ?? 2000);
   }
   return (
-    <Group title="Models and private-data policy">
-      <p>
-        Saving a model never runs inference or enables a binding. Allow private
-        data only for a connection you explicitly trust.
-      </p>
+    <Group
+      title="Models"
+      description="Configure the models Judge can use. Only allow private data for a connection you trust."
+    >
       <Feedback error={read.error ?? action.error} notice={action.notice} />
       {!read.data ? (
         !read.error && <p>Loading models…</p>
       ) : (
         <>
           {read.data.models.length === 0 && <p>No models configured.</p>}
-          <div className="judge-actions">
-            {read.data.models.map((m) => (
-              <Button type="button" key={m.id} onClick={() => edit(m)}>
-                {m.id} · {m.connection}/{m.model} ·{" "}
-                {m.allowPrivate ? "private allowed" : "public only"}
-              </Button>
-            ))}
-          </div>
+          <Choice
+            label="Saved model"
+            value={selected ? `model:${selected.id}` : "new"}
+            disabled={action.pending}
+            onChange={(value) =>
+              edit(read.data?.models.find((m) => `model:${m.id}` === value))
+            }
+            options={[
+              { value: "new", label: "New model" },
+              ...read.data.models.map((m) => ({
+                value: `model:${m.id}`,
+                label: `${m.id} · ${m.connection}/${m.model} · ${m.allowPrivate ? "private allowed" : "public only"}`,
+              })),
+            ]}
+          />
           <p>
             Default: {read.data.defaults.defaultId ?? "none"}; private fallback:{" "}
             {read.data.defaults.privateId ?? "none"}.
           </p>
-          <div className="judge-actions">
-            <Button
-              type="button"
-              onClick={() => setAfter(undefined)}
-              disabled={!after}
-            >
-              First models
-            </Button>
-            <Button
-              type="button"
-              onClick={() => setAfter(read.data?.next ?? undefined)}
-              disabled={!read.data.next}
-            >
-              Next models
-            </Button>
-          </div>
+          {(after || read.data.next) && (
+            <div className="judge-actions">
+              <Button
+                type="button"
+                onClick={() => setAfter(undefined)}
+                disabled={!after}
+              >
+                First models
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setAfter(read.data?.next ?? undefined)}
+                disabled={!read.data.next}
+              >
+                Next models
+              </Button>
+            </div>
+          )}
         </>
       )}
       <Button type="button" onClick={read.refresh}>
@@ -107,6 +115,7 @@ export function ModelsSettings() {
             />
           </Field>
           <Choice
+            disabled={action.pending}
             label="Connection"
             value={connection}
             onChange={(value) =>
@@ -140,14 +149,16 @@ export function ModelsSettings() {
               onChange={(e) => setTimeout(e.target.valueAsNumber)}
             />
           </Field>
-          <Field label="Allow private data">
-            <Checkbox
-              checked={allowPrivate}
-              onCheckedChange={(value) => setAllowPrivate(value === true)}
-            />
+          <Field
+            label="Allow private data"
+            description="Permit this model to receive private source content."
+          >
+            <Switch checked={allowPrivate} onCheckedChange={setAllowPrivate} />
           </Field>
           <div className="judge-actions">
-            <Button type="submit">Save model</Button>
+            <Button type="submit" variant="default">
+              {action.pending ? "Saving…" : "Save model"}
+            </Button>
             <Button type="button" onClick={() => edit()}>
               New model
             </Button>
@@ -179,7 +190,11 @@ export function ModelsSettings() {
 }
 export function DefaultSettings() {
   const rpc = useJudgeRpc();
-  const load = useCallback(() => rpc.call("models.list", { limit: 1 }), [rpc]);
+  const [after, setAfter] = useState<string>();
+  const load = useCallback(
+    () => rpc.call("models.list", { limit: 100, ...(after ? { after } : {}) }),
+    [rpc, after],
+  );
   const read = useRead("defaults", load);
   const action = useAction(read.refresh);
   const [id, setId] = useState("");
@@ -215,13 +230,43 @@ export function DefaultSettings() {
         }}
       >
         <fieldset disabled={action.pending}>
-          <Field label="Saved model ID (empty clears)">
-            <Input
-              value={id}
-              maxLength={128}
-              onChange={(e) => setId(e.target.value)}
-            />
-          </Field>
+          <Choice
+            label="Default model"
+            value={id ? `model:${id}` : "clear"}
+            disabled={action.pending || !read.data}
+            onChange={(value) => setId(value === "clear" ? "" : value.slice(6))}
+            options={[
+              { value: "clear", label: "None" },
+              ...(read.data?.models ?? []).map((m) => ({
+                value: `model:${m.id}`,
+                label: m.id,
+              })),
+            ]}
+          />
+          {(after || read.data?.next) && (
+            <div className="judge-actions">
+              <Button
+                type="button"
+                disabled={!after}
+                onClick={() => {
+                  setId("");
+                  setAfter(undefined);
+                }}
+              >
+                First models
+              </Button>
+              <Button
+                type="button"
+                disabled={!read.data?.next}
+                onClick={() => {
+                  setId("");
+                  setAfter(read.data?.next ?? undefined);
+                }}
+              >
+                Next models
+              </Button>
+            </div>
+          )}
           <Field label="Set private fallback">
             <Checkbox
               checked={privateDefault}

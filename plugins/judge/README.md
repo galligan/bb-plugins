@@ -118,3 +118,7 @@ Ordinary asks reuse complete validated whole-request responses for at most 60 se
 Admission permits two runs globally and one per thread, records busy/duplicate events and never queues inference. Separate idle/failure adapters preserve absent evidence and verify current request/context. `triggers log` exposes bounded admission/publication diagnostics. Metadata is a compact untrusted display cache capped at 20 summaries/32 KiB per thread; database runs remain authoritative and keyed reads reject forged/stale data. See [event, publication and lifecycle contracts](docs/TRIGGERS.md). All current trigger verification is offline; live delivery, the Info/sidebar UI and remote-host behavior remain later gates.
 
 Judge now includes a Models and verdicts settings section, an independent thread Info row and opt-in sidebar labels. Connection secrets stay in BB’s native fields. All settings actions remain inference-free; binding enablement is explicit. See [UI controls and display limits](docs/UI.md). Live UI verification evidence is recorded separately.
+
+### Settings layout
+
+Judge uses BB registry controls and aligned settings rows. Choose a saved model to edit it, or choose New model; model defaults use a saved-model selector. Project applicability, calibration review, and event bindings are expandable sections. Saving configuration does not probe a provider or enable a binding; enabling a binding still requires its separate acknowledgment and action.

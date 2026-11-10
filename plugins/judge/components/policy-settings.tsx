@@ -16,7 +16,11 @@ export function ProjectSettings() {
   const read = useRead(`project:${projectId}`, load);
   const action = useAction(read.refresh);
   return (
-    <Group title="Project applicability">
+    <Group
+      title="Project applicability"
+      collapsed
+      description="Choose which projects can use Judge."
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -104,7 +108,11 @@ export function CalibrationSettings() {
   const action = useAction(read.refresh);
   const report = read.data;
   return (
-    <Group title="Review and accept calibration">
+    <Group
+      title="Review and accept calibration"
+      collapsed
+      description="Review test results before publishing automated verdicts."
+    >
       <p>
         Run explicit case tests with{" "}
         <code>bb judge test &lt;set-id&gt; --json</code>, then load its report

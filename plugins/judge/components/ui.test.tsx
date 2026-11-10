@@ -12,6 +12,9 @@ for (const [key, value] of Object.entries({
   navigator: dom.window.navigator,
   HTMLElement: dom.window.HTMLElement,
   Element: dom.window.Element,
+  Node: dom.window.Node,
+  DocumentFragment: dom.window.DocumentFragment,
+  HTMLSelectElement: dom.window.HTMLSelectElement,
   HTMLInputElement: dom.window.HTMLInputElement,
   HTMLFormElement: dom.window.HTMLFormElement,
   getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
@@ -40,6 +43,10 @@ for (const [key, value] of Object.entries({
     configurable: true,
     writable: true,
   });
+dom.window.HTMLElement.prototype.scrollIntoView = function () {};
+dom.window.HTMLElement.prototype.hasPointerCapture = function () {
+  return false;
+};
 const css = registerHooks({
   load(url, context, next) {
     return url.endsWith(".css")
@@ -217,7 +224,7 @@ test("model save refreshes persisted policy without probes or trigger activation
     target: { value: "jev-test" },
   });
   fireEvent.click(slot.getByText("Save model"));
-  await slot.findByText(/saved · typesafe\/jev-test · public only/);
+  await waitFor(() => assert.equal(models.length, 1));
   assert.equal(models[0]?.allowPrivate, false);
   invalid = true;
   fireEvent.click(slot.getByText("Save model"));
@@ -264,6 +271,7 @@ test("binding saves remain disabled and enabling requires separate acknowledged 
       },
     },
   );
+  slot.container.querySelector("details")?.setAttribute("open", "");
   await slot.findByText("No event bindings configured.");
   fireEvent.change(slot.getByLabelText("Binding ID"), {
     target: { value: "binding" },
@@ -436,9 +444,21 @@ test("actual backend refusals reach calibration, private-default and binding UI 
         },
       },
     );
-    fireEvent.change(defaults.getByLabelText("Saved model ID (empty clears)"), {
-      target: { value: "public" },
-    });
+    await waitFor(() =>
+      assert.equal(
+        (
+          defaults.getByRole("combobox", {
+            name: "Default model",
+          }) as HTMLButtonElement
+        ).disabled,
+        false,
+      ),
+    );
+    fireEvent.keyDown(
+      defaults.getByRole("combobox", { name: "Default model" }),
+      { key: "ArrowDown" },
+    );
+    fireEvent.click(await defaults.findByRole("option", { name: "public" }));
     fireEvent.click(defaults.getByLabelText("Set private fallback"));
     fireEvent.click(defaults.getByText("Save default"));
     await defaults.findByText(/explicitly permits private data/);
@@ -507,6 +527,7 @@ test("project and case-report Load controls retry an unchanged ID after a failed
       kind === "project" ? "Load project policy" : "Load case report";
     fireEvent.change(slot.getByLabelText(label), { target: { value: "same" } });
     fireEvent.click(slot.getByText(button));
+    slot.container.querySelector("details")?.setAttribute("open", "");
     await slot.findByRole("alert");
     assert.equal(calls, 1);
     fireEvent.click(slot.getByText(button));
@@ -519,7 +540,7 @@ test("project and case-report Load controls retry an unchanged ID after a failed
   }
 });
 
-test("BB registry connection choices keep labeled radio and keyboard selection behavior", async () => {
+test("BB registry connection select opens by keyboard and changes the model hint", async () => {
   const { act } = await import("@testing-library/react");
   const slot = renderSlot(
     { component: ModelsSettings },
@@ -535,20 +556,19 @@ test("BB registry connection choices keep labeled radio and keyboard selection b
     },
   );
   await slot.findByText("No models configured.");
-  const first = slot.getByRole("radio", { name: "Jev / TypeSafe" });
-  const second = slot.getByRole("radio", { name: "Cloudflare Workers AI" });
-  assert.equal(first.getAttribute("aria-checked"), "true");
+  const trigger = slot.getByRole("combobox", { name: "Connection" });
   await act(async () => {
-    first.focus();
+    trigger.focus();
   });
-  fireEvent.keyDown(first, { key: "ArrowDown" });
+  fireEvent.keyDown(trigger, { key: "ArrowDown" });
+  const second = await slot.findByRole("option", {
+    name: "Cloudflare Workers AI",
+  });
+  fireEvent.click(second);
   await waitFor(() =>
-    assert.equal(second.getAttribute("aria-checked"), "true"),
+    assert.ok(trigger.textContent?.includes("Cloudflare Workers AI")),
   );
-  assert.equal(document.activeElement, second);
   assert.ok(slot.getByPlaceholderText("clef or clef-flash"));
-  assert.ok(slot.getByRole("radiogroup", { name: "Connection" }));
-  assert.equal(slot.container.querySelector("select"), null);
   assert.ok(
     slot.inspection.rpcCalls.every((call) => call.method === "models.list"),
   );
@@ -583,6 +603,7 @@ test("first-load settings failures retain visible read-only retry controls", asy
         rpc: { [kind === "bindings" ? "triggers.list" : "models.list"]: load },
       },
     );
+    slot.container.querySelector("details")?.setAttribute("open", "");
     await slot.findByRole("alert");
     fireEvent.click(slot.getByText(`Refresh ${kind}`));
     await slot.findByText(
@@ -629,7 +650,11 @@ test("connection readiness failure can be retried without a synthetic probe", as
       },
     },
   );
-  fireEvent.click(await slot.findByText(/saved · typesafe\/jev-test/));
+  const saved = await slot.findByRole("combobox", { name: "Saved model" });
+  fireEvent.keyDown(saved, { key: "ArrowDown" });
+  fireEvent.click(
+    await slot.findByRole("option", { name: /saved · typesafe\/jev-test/ }),
+  );
   await slot.findByRole("alert");
   fireEvent.click(slot.getByText("Refresh connection readiness"));
   await slot.findByText(/readiness \(saved\): configured/);

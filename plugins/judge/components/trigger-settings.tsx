@@ -32,7 +32,11 @@ export function TriggerSettings() {
     setBadges(JSON.stringify(value?.definition.badges ?? {}));
   }
   return (
-    <Group title="Event bindings">
+    <Group
+      title="Event bindings"
+      collapsed
+      description="Run saved question sets when a thread becomes idle or a turn fails."
+    >
       <p>
         New and edited bindings are disabled. Saving settings never activates a
         binding. Enabling may make paid calls on matching events, subject to
@@ -157,6 +161,7 @@ export function TriggerSettings() {
             />
           </Field>
           <Choice
+            disabled={action.pending}
             label="Event"
             value={event}
             onChange={(value) => setEvent(value as typeof event)}

@@ -4,36 +4,77 @@
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
+/* Container queries follow the settings panel, including split panes. */
+.judge-ui {
+  container-type: inline-size;
+}
 .judge-ui .judge-group {
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-block: 1rem;
+  margin-block: 1.5rem;
+  min-width: 0;
+}
+.judge-ui .judge-group > summary {
+  display: list-item;
+}
+.judge-ui .judge-group > summary > div {
+  display: inline-block;
+  vertical-align: top;
+}
+.judge-ui .judge-group-body {
+  margin-top: 0.75rem;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  min-width: 0;
-  gap: 0.75rem;
+  gap: 1rem;
+  box-shadow: none;
 }
-.judge-ui h3 {
-  font-size: 1rem;
-  font-weight: 600;
-}
-.judge-ui p {
-  margin-block: 0.25rem;
+.judge-ui .judge-group-body > button {
+  justify-self: end;
 }
 .judge-ui .judge-field {
-  display: grid;
-  gap: 0.25rem;
-}
-.judge-ui .judge-radio-label {
   display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-width: 0;
+}
+.judge-ui .judge-control {
+  min-width: 0;
+}
+.judge-ui .judge-field:has([role="checkbox"], [role="switch"]) {
+  flex-direction: row;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+}
+.judge-ui .judge-field:has([role="checkbox"], [role="switch"]) .judge-control {
+  width: auto;
+  flex: none;
+}
+.judge-ui form {
+  display: grid;
+  gap: 1rem;
+}
+.judge-ui form > button {
+  justify-self: end;
+}
+.judge-ui p {
+  margin-block: 0;
+}
+@container (min-width: 36rem) {
+  .judge-ui .judge-field {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1.25rem;
+  }
+  .judge-ui .judge-control {
+    flex: 0 1 55%;
+    width: 20rem;
+    max-width: 55%;
+  }
 }
 .judge-ui .judge-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  justify-content: flex-end;
 }
 .judge-ui .judge-actions > button {
   max-width: 100%;
@@ -55,7 +96,8 @@
 }
 .judge-ui small {
   display: block;
-  opacity: 0.75;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
 }
 .judge-ui fieldset {
   border: 0;
