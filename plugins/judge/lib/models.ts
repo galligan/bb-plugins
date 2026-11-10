@@ -201,9 +201,17 @@ export class ModelService {
     probe: (
       prepared: Resolved & { connection: ReturnType<typeof runtimeConnection> },
     ) => Promise<ProbeStatus>,
+    signal?: AbortSignal,
   ): Promise<ModelCheck> {
     const ready = await this.readiness(id);
     if (ready.status !== "configured") return ready;
+    if (signal?.aborted)
+      return {
+        ...ready,
+        status: "cancelled",
+        code: "cancelled",
+        nextAction: "Probe cancelled; retry explicitly when ready.",
+      };
     const start = performance.now();
     let status: ProbeStatus = "error";
     let attempted = false;
@@ -211,6 +219,7 @@ export class ModelService {
       const result = await this.usingModel(
         { override: id, sensitive: false },
         async (prepared) => {
+          if (signal?.aborted) return "cancelled";
           attempted = true;
           return probe(prepared);
         },
@@ -230,6 +239,7 @@ export class ModelService {
     } catch {
       /* A raw upstream error must never become a model-check diagnostic. */
     }
+    if (signal?.aborted) status = "cancelled";
     return {
       modelId: id,
       status,
@@ -237,9 +247,11 @@ export class ModelService {
       tested: attempted,
       latencyMs: attempted ? performance.now() - start : null,
       nextAction:
-        status === "reachable"
-          ? "Connectivity verified for this explicit test."
-          : "Check the connection credentials and supported model in Judge settings.",
+        status === "cancelled"
+          ? "Probe cancelled; retry explicitly when ready."
+          : status === "reachable"
+            ? "Connectivity verified for this explicit test."
+            : "Check the connection credentials and supported model in Judge settings.",
     };
   }
 

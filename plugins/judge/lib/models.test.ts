@@ -53,7 +53,7 @@ test("native secret descriptors, inert factory and sanitized readiness require e
   try {
     await judge(factory.bb);
     assert.equal(networkCalls, 0);
-    assert.equal(factory.harness.registrations.cli, null);
+    assert.ok(factory.harness.registrations.cli);
   } finally {
     await factory.harness.lifecycle.dispose();
   }

@@ -1,10 +1,16 @@
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { modelConfigSchema, type ModelConfig } from "./contracts.ts";
 import { LIMITS } from "./json.ts";
-import { parseVerdict, type Verdict } from "./results.ts";
+import { parseVerdict, runSummarySchema, type Verdict } from "./results.ts";
 
 type Storage = BbPluginApi["storage"];
 type Database = ReturnType<Storage["database"]>;
+type RunListOptions = {
+  setId?: string;
+  threadId?: string;
+  limit?: number;
+  before?: { startedAt: number; runId: string };
+};
 
 // Statement positions and contents become immutable once delivered.
 export const MIGRATIONS = [
@@ -86,6 +92,23 @@ export class JudgeRepository {
         .get(id) as { config_json: string } | undefined;
       return row ? modelConfigSchema.parse(JSON.parse(row.config_json)) : null;
     });
+  }
+
+  pageModels(limit: number, after = ""): ModelConfig[] {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 101)
+      throw new RangeError("invalid_pagination");
+    return persist(() =>
+      this.db
+        .prepare(
+          "SELECT config_json FROM models WHERE id > ? ORDER BY id LIMIT ?",
+        )
+        .all(after, limit)
+        .map((row) =>
+          modelConfigSchema.parse(
+            JSON.parse((row as { config_json: string }).config_json),
+          ),
+        ),
+    );
   }
 
   removeModel(id: string): void {
@@ -188,14 +211,22 @@ export class JudgeRepository {
     });
   }
 
-  listRuns(
-    options: {
-      setId?: string;
-      threadId?: string;
-      limit?: number;
-      before?: { startedAt: number; runId: string };
-    } = {},
-  ): Verdict[] {
+  listRuns(options: RunListOptions = {}): Verdict[] {
+    return this.runRows(options).map((row) => this.getRun(row.id)!);
+  }
+
+  listRunSummaries(options: RunListOptions = {}) {
+    return persist(() =>
+      this.runRows(options, true).map((row) =>
+        runSummarySchema.strip().parse(JSON.parse(row.summary_json)),
+      ),
+    );
+  }
+
+  private runRows(
+    options: RunListOptions,
+    lookahead = false,
+  ): { id: string; summary_json: string }[] {
     const { setId = null, threadId = null, limit = 20, before } = options;
     if (
       !Number.isInteger(limit) ||
@@ -211,7 +242,7 @@ export class JudgeRepository {
       const timestamp = before?.startedAt ?? Number.MAX_SAFE_INTEGER;
       const rows = this.db
         .prepare(
-          "SELECT id FROM runs WHERE (? IS NULL OR set_id = ?) AND (? IS NULL OR thread_id = ?) AND (started_at < ? OR (started_at = ? AND id < ?)) ORDER BY started_at DESC, id DESC LIMIT ?",
+          "SELECT id, summary_json FROM runs WHERE (? IS NULL OR set_id = ?) AND (? IS NULL OR thread_id = ?) AND (started_at < ? OR (started_at = ? AND id < ?)) ORDER BY started_at DESC, id DESC LIMIT ?",
         )
         .all(
           setId,
@@ -221,9 +252,9 @@ export class JudgeRepository {
           timestamp,
           timestamp,
           before?.runId ?? "",
-          limit,
-        ) as { id: string }[];
-      return rows.map((row) => this.getRun(row.id)!);
+          limit + (lookahead ? 1 : 0),
+        ) as { id: string; summary_json: string }[];
+      return rows;
     });
   }
 
