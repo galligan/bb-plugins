@@ -75,7 +75,7 @@ export function managementHandlers(
       const [hosts, rawEnvs, projects] = await Promise.all([
         connectedHosts(),
         environments(),
-        bb.sdk.projects.list(),
+        bb.sdk.projects.list({ includePersonal: true }),
       ]);
       const envs = z.array(environmentSchema).parse(rawEnvs);
       const [machines, threadLists] = await Promise.all([
@@ -192,7 +192,7 @@ export function managementHandlers(
     async rescues() {
       const [hosts, projects] = await Promise.all([
         connectedHosts(),
-        bb.sdk.projects.list(),
+        bb.sdk.projects.list({ includePersonal: true }),
       ]);
       return {
         projects: (

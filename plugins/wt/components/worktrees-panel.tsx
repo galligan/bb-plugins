@@ -139,10 +139,10 @@ export function WorktreesPanel() {
             .map((rescue) => (
               <section key={rescue.hostId} className="space-y-2">
                 <h3 className="font-semibold">
-                  Rescued work
-                  {multipleMachines
-                    ? ` · ${data?.machines.find((machine) => machine.hostId === rescue.hostId)?.name ?? rescue.hostId}`
-                    : ""}
+                  Rescued work ·{" "}
+                  {data?.machines.find(
+                    (machine) => machine.hostId === rescue.hostId,
+                  )?.name ?? rescue.hostId}
                 </h3>
                 {rescue.error && <p role="alert">{rescue.error}</p>}
                 <ul>
