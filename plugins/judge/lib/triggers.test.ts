@@ -60,7 +60,12 @@ test("trigger saves are inert, edits/toggles retire revisions, and strict manage
     assert.equal(h.triggers.list({ limit: 1, after: page.next }).next, null);
     h.triggers.remove("b");
     assert.equal(h.triggers.get("b"), null);
+    h.triggers.enable("attention", true);
+    assert.equal(h.triggers.get("attention")?.enabled, true);
     h.api.sets.save(JSON.stringify(definition()));
+    assert.equal(h.triggers.get("attention")?.enabled, false);
+    h.triggers.enable("attention", true);
+    h.api.sets.project("project", true);
     assert.equal(h.triggers.get("attention")?.enabled, false);
     h.api.sets.remove("synthetic");
     assert.throws(() => h.triggers.enable("attention", true));

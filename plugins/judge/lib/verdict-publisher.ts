@@ -238,7 +238,9 @@ export class VerdictPublisher {
         stale ? "stale" : "failed",
         stale ? "publication_stale" : "metadata_write_failed",
       );
-      this.repository.publications.acknowledge(run.threadId, []);
+      // New/replaced references already start unacknowledged. Preserve unrelated
+      // acknowledgements; keyed readers still require the exact current raw summary.
+      // This also handles uncertain writes without hiding an unchanged badge.
       if (stale) {
         this.repository.publications.invalidateRun(
           run.threadId,

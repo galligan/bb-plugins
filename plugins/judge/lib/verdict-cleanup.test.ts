@@ -4,7 +4,11 @@ import {
   createFakePluginHost,
   makeThreadResponse,
 } from "@get-bb/plugin-sdk/testing";
-import { setupTriggers, triggerHostOptions } from "./trigger-fixtures.ts";
+import {
+  setupTriggers,
+  triggerHostOptions,
+  triggerDefinition,
+} from "./trigger-fixtures.ts";
 import { parseMetadata } from "./verdict-metadata.ts";
 import { LIMITS } from "./json.ts";
 import { Deadline } from "./deadline.ts";
@@ -183,6 +187,74 @@ test("evaluation retention retires linked badges through a post-commit notificat
     assert.ok(h.repository.evaluations.getReport("retention-fixture"));
     assert.equal(h.api.models.configurationGeneration(), generation);
     assert.equal(h.bodies.length, 1);
+  } finally {
+    await h.harness.lifecycle.dispose();
+  }
+});
+
+test("a failed publication preserves another set's acknowledged current badge", async () => {
+  const h = await setup();
+  try {
+    h.api.sets.save(JSON.stringify({ ...triggerDefinition, id: "second-set" }));
+    for (const id of ["event-set", "second-set"]) {
+      const report = await h.api.evaluations.test({ id });
+      await h.api.calibration.accept(id, report.id);
+    }
+    h.enable();
+    const second = h.triggers.save({
+      id: "second-binding",
+      setId: "second-set",
+      event: "thread.idle",
+      badges: { accepted: "Second badge" },
+    });
+    h.triggers.enable(second.definition.id, true);
+    const firstTrigger = h.triggers.get("binding")!;
+    const scope = new Deadline({ deadlineAt: performance.now() + 5000 });
+    const observed = await snapshot(h.bb.sdk, idleEvent(h.idle()), scope);
+    scope.close();
+    const run = async (id: string, triggerId: string) => {
+      const value = await h.api.runner.run({ id, threadId: "thread" });
+      assert.equal(value.calibrated, true);
+      h.repository.triggerAttempts.save({
+        runId: value.runId,
+        triggerId,
+        event: "thread.idle",
+        eventHash: "a".repeat(64),
+        startedAt: value.startedAt,
+        decision: "ran",
+        publication: "none",
+        code: null,
+      });
+      return value;
+    };
+    const firstRun = await run("event-set", "binding");
+    await h.publisher.publish(firstRun, firstTrigger, observed.snapshot);
+    assert.equal(
+      h.repository.publications.forThread("thread")[0]?.published,
+      true,
+    );
+    h.setWriteFailure(true);
+    const secondRun = await run("second-set", "second-binding");
+    await h.publisher.publish(
+      secondRun,
+      h.triggers.get("second-binding")!,
+      observed.snapshot,
+    );
+    assert.equal(
+      h.repository.triggerAttempts.get(secondRun.runId)?.code,
+      "metadata_write_failed",
+    );
+    const read = await h.api.verdicts.keyed({ threadIds: ["thread"] });
+    assert.deepEqual(
+      read.threads[0]?.summaries.map((s) => s.runId),
+      [firstRun.runId],
+    );
+    assert.equal(
+      h.repository.publications
+        .forThread("thread")
+        .find((r) => r.setId === "second-set")?.published,
+      false,
+    );
   } finally {
     await h.harness.lifecycle.dispose();
   }
