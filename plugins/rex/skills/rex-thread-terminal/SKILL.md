@@ -61,13 +61,21 @@ bb rex target --json
 
 Set `S` and `B` to `session.id` and `block.id`.
 
+The pane runs the user's login shell. That shell can be fish or another shell that does not read `sh` syntax.
+
 1. Read the pane: `rex capture -s "$S" -b "$B" --trim | tail -n 40`.
 2. If a program is running in the foreground, or text is typed at the prompt and not sent, do not type. Tell the user what the pane shows and ask how to proceed.
-3. Type the command: `rex send -s "$S" -b "$B" 'npm test'`. `rex send` types the text and does not press Enter.
+3. Type the command with `rex send`, which types the text and does not press Enter.
+   - If the command is one program and its arguments, type it as it is: `rex send -s "$S" -b "$B" 'npm test'`.
+   - If the command uses shell syntax, such as a loop, a pipe, `&&`, `$(…)`, a redirect, or a variable, type it as `sh -c 'COMMAND'`, so that `sh` reads it and not the user's shell: `rex send -s "$S" -b "$B" "sh -c 'for i in 1 2 3; do echo \$i; done'"`. Your own shell reads the text first. Escape each `$` that `sh` in the pane must see.
 4. Press Enter: `rex send-key -s "$S" -b "$B" enter`.
-5. Read the pane again to see the result. A command is finished when the shell prompt is back below its output. If the prompt is not back, the command is still running: read again later, or tell the user that the command is still running.
+5. Read the pane again to see the result. A command is finished when the shell prompt is back below its output.
+   - If the prompt is not back and the command is printing, the command is still running. Read again later, or tell the user that the command is still running.
+   - If the prompt is not back and nothing was printed, the shell is waiting for the rest of a command it read as unfinished. Clear the text you typed with `rex send-key -s "$S" -b "$B" ctrl+c`, then type the command again as `sh -c 'COMMAND'`.
 6. If you need the exit status, type the command as `sh -c 'COMMAND; echo "exit status: $?"'`. The screen does not show an exit status otherwise.
 7. Tell the user which command you ran in the Rex terminal.
+
+MUST NOT leave text that you typed and did not run at the prompt. Clear it with `ctrl+c`.
 
 To stop a command you started, run `rex send-key -s "$S" -b "$B" ctrl+c`. Do not interrupt a program the user started.
 
