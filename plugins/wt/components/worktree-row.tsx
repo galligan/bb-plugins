@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   useBbNavigate,
   experimental_ThreadTitleText as ThreadTitleText,
@@ -26,6 +26,7 @@ export function WorktreeRow({
   remove: () => Promise<void>;
 }) {
   const navigate = useBbNavigate();
+  const removeButton = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,7 +137,7 @@ export function WorktreeRow({
                 key={thread.id}
                 variant="ghost"
                 size="sm"
-                className="h-6 min-w-0 max-w-full justify-start gap-1.5 px-1 text-xs font-normal text-muted-foreground"
+                className="h-6 max-md:pointer-coarse:h-9 min-w-0 max-w-full justify-start gap-1.5 px-1 text-xs font-normal text-muted-foreground"
                 onClick={() => navigate.toThread(thread.id)}
                 aria-label={`Open thread: ${thread.title}`}
               >
@@ -157,16 +158,17 @@ export function WorktreeRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2"
+            className="h-7 px-2 max-md:pointer-coarse:h-9"
             onClick={() => navigate.toThread(row.threads[0]!.id)}
           >
             Open thread
           </Button>
         )}
         <Button
+          ref={removeButton}
           variant="destructive"
           size="sm"
-          className="h-7 px-2"
+          className="h-7 px-2 max-md:pointer-coarse:h-9"
           disabled={busy}
           onClick={() => {
             setError(null);
@@ -184,6 +186,7 @@ export function WorktreeRow({
         error={error}
         retry={retry}
         confirm={confirm}
+        restoreFocus={() => removeButton.current?.focus()}
       />
     </li>
   );

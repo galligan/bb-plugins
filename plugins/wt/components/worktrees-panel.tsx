@@ -9,7 +9,7 @@ import type { rpcContract } from "../server.ts";
 import { toast } from "sonner";
 import { EmptyState, EmptyStatePanel } from "@/components/ui/empty-state";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { WorktreesHeader } from "./worktrees-header.tsx";
+import { beginRefresh, connectRefresh } from "./worktrees-refresh.ts";
 import { Loading } from "./loading.tsx";
 import { RescuedWork } from "./rescued-work.tsx";
 import { sortRows } from "../lib/overview.ts";
@@ -25,6 +25,7 @@ export function WorktreesPanel() {
   const [loading, setLoading] = useState(false);
   const sequence = useRef(0);
   const refresh = useCallback(async () => {
+    const endRefresh = beginRefresh();
     const request = ++sequence.current;
     setLoading(true);
     try {
@@ -49,9 +50,11 @@ export function WorktreesPanel() {
         toast.error(message, { id: "wt-overview-error" });
       }
     } finally {
+      endRefresh();
       if (request === sequence.current) setLoading(false);
     }
   }, [rpc]);
+  useEffect(() => connectRefresh(refresh), [refresh]);
   useEffect(() => {
     void refresh();
     const whenVisible = () => {
@@ -86,7 +89,6 @@ export function WorktreesPanel() {
   return (
     <TooltipProvider>
       <main className="mx-auto w-full max-w-4xl space-y-6 p-4 text-foreground sm:p-6">
-        <WorktreesHeader loading={loading} refresh={refresh} />
         {loading && data === null && <Loading label="Loading worktrees…" />}
         {error && (
           <EmptyStatePanel>

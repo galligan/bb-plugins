@@ -43,9 +43,13 @@ export function BranchSettings({
         >
           <SelectTrigger
             id="wt-branch-mode"
-            className="h-7 w-full text-xs @min-[36rem]/settings:w-64"
+            className="h-7 max-md:pointer-coarse:h-9 w-full text-xs @min-[36rem]/settings:w-64"
           >
-            <SelectValue />
+            <SelectValue>
+              {current.custom
+                ? "Custom for this project"
+                : "Use global setting"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="global">Use global setting</SelectItem>
@@ -78,7 +82,7 @@ export function BranchSettings({
               id="wt-project-prefix"
               disabled={busy}
               value={current.branchPrefix}
-              className="h-7 w-full font-mono text-xs @min-[36rem]/settings:w-64"
+              className="h-7 max-md:pointer-coarse:h-9 w-full font-mono text-xs @min-[36rem]/settings:w-64"
               onChange={(event) =>
                 onChange({ ...current, branchPrefix: event.target.value })
               }

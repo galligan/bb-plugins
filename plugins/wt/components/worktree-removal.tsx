@@ -19,6 +19,7 @@ export function WorktreeRemoval({
   error,
   retry,
   confirm,
+  restoreFocus,
 }: {
   row: OverviewRow;
   open: boolean;
@@ -27,6 +28,7 @@ export function WorktreeRemoval({
   error: string | null;
   retry: boolean;
   confirm: () => Promise<void>;
+  restoreFocus: () => void;
 }) {
   const inspection = row.status === "present" ? row.inspection : null;
   const path = row.status === "present" ? row.inspection.path : row.path;
@@ -39,7 +41,13 @@ export function WorktreeRemoval({
         if (!busy) onOpenChange(next);
       }}
     >
-      <AlertDialogContent className="max-h-[85dvh] w-[calc(100%_-_2rem)] overflow-y-auto rounded-lg">
+      <AlertDialogContent
+        className="max-h-[85dvh] w-[calc(100%_-_2rem)] overflow-y-auto rounded-lg"
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          restoreFocus();
+        }}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>
             {retry ? "Retry removal?" : "Remove worktree?"}

@@ -1,29 +1,31 @@
+import { useSyncExternalStore } from "react";
+import { COARSE_POINTER_HEADER_ICON_BUTTON_CLASS } from "@/components/ui/coarse-pointer-sizing";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  TooltipProvider,
 } from "@/components/ui/tooltip";
-export function WorktreesHeader({
-  loading,
-  refresh,
-}: {
-  loading: boolean;
-  refresh: () => Promise<void>;
-}) {
+import {
+  isRefreshing,
+  refreshWorktrees,
+  subscribeRefresh,
+} from "./worktrees-refresh.ts";
+export function WorktreesHeader() {
+  const loading = useSyncExternalStore(subscribeRefresh, isRefreshing);
   return (
-    <header className="flex items-center justify-between gap-3">
-      <h1 className="text-sm font-medium">Worktrees</h1>
+    <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
             variant="ghost"
             size="icon"
-            className="size-7"
+            className={COARSE_POINTER_HEADER_ICON_BUTTON_CLASS}
             aria-label="Refresh worktrees"
             disabled={loading}
-            onClick={() => void refresh()}
+            onClick={() => void refreshWorktrees()}
           >
             <Icon
               name="RotateCcw"
@@ -33,6 +35,6 @@ export function WorktreesHeader({
         </TooltipTrigger>
         <TooltipContent>Refresh worktrees</TooltipContent>
       </Tooltip>
-    </header>
+    </TooltipProvider>
   );
 }

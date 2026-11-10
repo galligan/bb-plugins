@@ -87,9 +87,13 @@ export function ProjectsSettings() {
               >
                 <SelectTrigger
                   id="wt-project"
-                  className="h-7 w-full text-xs @min-[36rem]/settings:w-64"
+                  className="h-7 max-md:pointer-coarse:h-9 w-full text-xs @min-[36rem]/settings:w-64"
                 >
-                  <SelectValue />
+                  <SelectValue>
+                    {project
+                      ? `${project.name} · ${project.hostName}`
+                      : "Choose a project"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {projects.map((project) => (

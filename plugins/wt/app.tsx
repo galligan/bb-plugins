@@ -10,6 +10,7 @@ import {
 
 import { ProjectsSettings } from "./components/projects-settings.tsx";
 import { WorktreesPanel } from "./components/worktrees-panel.tsx";
+import { WorktreesHeader } from "./components/worktrees-header.tsx";
 
 import { readBase, toInputs } from "./lib/base-input.ts";
 import type { rpcContract } from "./server.ts";
@@ -70,6 +71,7 @@ export default definePluginApp((app) => {
     icon: "FolderGit",
     path: "worktrees",
     component: WorktreesPanel,
+    headerContent: WorktreesHeader,
   });
   app.slots.experimental_environmentProviderInputs({
     environmentProviderId: PROVIDER_ID,

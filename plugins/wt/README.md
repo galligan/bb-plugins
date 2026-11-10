@@ -133,3 +133,7 @@ bun run check        # tsc
 bun run build        # bb plugin build
 bb plugin install .  # install this checkout into the running bb
 ```
+
+The root dev dependency on `@get-bb/plugin-sdk` also supplies `bb-app`’s offline build shim. Keep it aligned with Worktree+’s SDK pin: the CLI resolves its ambient SDK, which Bun may otherwise hoist from another plugin. To verify the published CLI independently of a running app, use `env -u BB_CLI bun run --cwd plugins/wt build` from the root.
+
+For live UI regression checks, first create a disposable Worktree+ fixture whose path key starts with `bbp25-ui-qa-`. Run `bb browser-automation run SESSION --script-file ABSOLUTE_PATH_TO_plugins/wt/tests/bb-ui.browser.js --script-host HOST` against the local app on port 38886. The script checks compact project and branch selection, Escape/focus return, the native header, and confirmation cancellation on that fixture. It changes unsaved drafts and the remembered project selection; it never saves settings or requests removal. Remove your disposable fixture afterward through the normal fail-closed path.

@@ -1,5 +1,6 @@
 import { experimental_copyToClipboard } from "@get-bb/plugin-sdk/app";
 import { toast } from "sonner";
+import { COARSE_POINTER_COMPACT_ICON_BUTTON_CLASS } from "@/components/ui/coarse-pointer-sizing";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import {
@@ -14,7 +15,7 @@ export function CopyButton({ text, label }: { text: string; label: string }) {
         <Button
           variant="ghost"
           size="icon"
-          className="size-6 shrink-0 text-muted-foreground"
+          className={`${COARSE_POINTER_COMPACT_ICON_BUTTON_CLASS} shrink-0 text-muted-foreground`}
           aria-label={label}
           onClick={async () => {
             if (await experimental_copyToClipboard({ text }))
