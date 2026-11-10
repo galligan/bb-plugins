@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  arrowKey,
   keyFromDom,
   rexKeyName,
   terminalTakesKey,
@@ -200,4 +201,9 @@ test("still sends text from a key Rex has no name for", () => {
 test("leaves Command combinations to the app and takes everything else", () => {
   assert.equal(terminalTakesKey({ metaKey: true }), false);
   assert.equal(terminalTakesKey({ metaKey: false }), true);
+});
+
+test("makes the plain arrow key the wheel sends a full-screen program", () => {
+  assert.deepEqual(arrowKey("up"), keyFromDom(dom("ArrowUp", "ArrowUp")));
+  assert.deepEqual(arrowKey("down"), keyFromDom(dom("ArrowDown", "ArrowDown")));
 });
