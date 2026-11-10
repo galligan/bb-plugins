@@ -1,6 +1,6 @@
 # Communication protocol
 
-The internal transmission/reply store described below is implemented. Explicit recipient confirmation, ack, standby and squelch facts are also implemented internally. Commitments/claims, subscriptions and delivery remain planned; no public communication APIs are available yet. [Open decisions](decisions.md) identify semantics that still need agreement.
+The internal transmission/reply store described below is implemented. Explicit recipient confirmation, ack, standby and squelch facts are also implemented internally. Commitments/claims are implemented internally; subscriptions and delivery remain planned; no public communication APIs are available yet. [Open decisions](decisions.md) identify semantics that still need agreement.
 
 ## Transmissions
 
@@ -45,7 +45,7 @@ Keep receipt evidence per session/endpoint, even when addressing an actor. A bot
 
 `responses.record` accepts one explicit `received`, `ack`, `standby` (optional reason) or `squelch` fact, with tx ID, canonical target ID and scoped idempotency key. The authenticated invoking actor can act for itself or its exact acting session; another session owned by that actor remains a separate target. Actor receipt requires a concrete owned session, while human confirmation may use the human endpoint. Received events carry `recipient-confirmation` provenance, never a client-supplied claim of transport evidence. Reconfirming the same tx/target/endpoint returns its original event without inflating the count. Changed key input conflicts and failed writes roll back event, receipt and key together.
 
-Ordinary reads and summary/history calls never confirm receipt; ack also never synthesizes receipt. Authorized channel participants may record facts for themselves even outside the frozen audience; that does not add a recipient or change its denominator. Summaries cover the exact frozen target IDs. Actor/session responses cover only their exact target; there is no implicit mixed-target coverage. Standby records waiting with no commitment, and squelch never closes responsibility or waives required responses. Events retain actor/session/timestamp provenance through reopen and are available in project-authorized cursor pages of at most 50. Commitment operations follow in the next layer; no execution/wake is implied.
+Ordinary reads and summary/history calls never confirm receipt; ack also never synthesizes receipt. Authorized channel participants may record facts for themselves even outside the frozen audience; that does not add a recipient or change its denominator. Summaries cover the exact frozen target IDs. Actor/session responses cover only their exact target; there is no implicit mixed-target coverage. Standby records waiting with no commitment, and squelch never closes responsibility or waives required responses. Events retain actor/session/timestamp provenance through reopen and are available in project-authorized cursor pages of at most 50. Commitment operations are separate from these response facts; no execution/wake is implied.
 
 ## Commitments and claims
 
@@ -56,6 +56,14 @@ Matt resolved `standby` as waiting/not ready to accept, with a reason or checkpo
 Distinguish ordinary discussion from explicitly exclusive work requests. Multiple participants may independently commit to discussion or nonexclusive work. For an exclusive unassigned request, `wilco` can atomically claim the request and open the commitment; concurrent callers yield one winner, with idempotent replay for that winner. Matt resolved abandonment to leave an exclusive request closed to new claims until its original author explicitly reopens it; no automatic reopening is allowed.
 
 No automatic lease expiry, silent takeover or stale-success inference. Stalled responsibilities stay visible. Explicit delegation/waiver records who changed the owner or required response; actor aliases alone do not grant authority. General task scheduling belongs outside Radio.
+
+## Implemented commitments and claims
+
+`commitments.act` accepts `wilco` for the invoking actor or exact acting session, `done` with a 1–400 UTF-16-unit result, `abandon` with a bounded nonblank reason, and original-author `reopen` with the expected abandoned commitment ID. Actor ownership and acting sessions are authenticated separately from request input. Ordinary discussion allows one commitment per tx/target, independently of others. For an exclusive request, one immediate SQLite transaction claims the current generation; overlapping callers yield one winner. Explicitly addressed exclusive requests restrict claims to those exact frozen target IDs. An unassigned request allows any authenticated participant with channel access to claim for its own actor/session. Claims do not expand the frozen recipient denominator.
+
+Abandon retains the closed exclusive claim until the original tx author explicitly reopens it. Reopen requires the expected current abandoned commitment, increments generation and records an immutable event; a new claimant receives a new commitment, preserving old closures. A completed exclusive request cannot reopen. A closed discussion commitment needs a new tx for new work. Every action records actor/session provenance and atomically binds its exact replay result with its state change/event. Replaying an old wilco after closure returns the original open-operation snapshot; a separate authorized read returns current state. Changed key payload conflicts. Failed writes roll back ownership, generation, commitment and event together.
+
+Actor-owned commitments remain available to a later owned session. Session-specific commitments require that exact session, with no automatic transfer on session end. Bounded owner/project-scoped open lists have no recent-message cutoff; event history uses monotonic cursors. Standby/squelch never close responsibility, and neither wilco nor done synthesizes ack/receipt. `requireAck` and `expectReply` are distinct explicit transmission expectations, defaulting to false. New request fields omit default values from the canonical replay encoding so already-stored requests still replay through the appended schema upgrade. Broader delegation/waiver policy remains deferred.
 
 ## Listening and muting
 

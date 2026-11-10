@@ -37,6 +37,9 @@ export const sendSchema = z
     recipientIds: z.array(idSchema).max(TX_RECIPIENT_INPUT_MAX).default([]),
     replyToId: idSchema.optional(),
     idempotencyKey: z.string().min(1).max(128),
+    requestMode: z.enum(["discussion", "exclusive"]).default("discussion"),
+    requireAck: z.boolean().default(false),
+    expectReply: z.boolean().default(false),
   })
   .strict();
 
@@ -48,6 +51,9 @@ export interface TransmissionContext {
   scope: AddressScope;
 }
 export interface Transmission {
+  requestMode: "discussion" | "exclusive";
+  requireAck: boolean;
+  expectReply: boolean;
   stationId: string;
   id: string;
   cursor: number;

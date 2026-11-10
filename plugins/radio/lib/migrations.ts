@@ -132,4 +132,48 @@ export const MIGRATIONS = [
     event_id TEXT NOT NULL REFERENCES response_events(id),
     PRIMARY KEY(caller_key, idempotency_key)
   ) STRICT`,
+  `ALTER TABLE transmissions ADD COLUMN request_mode TEXT NOT NULL DEFAULT 'discussion' CHECK(request_mode IN ('discussion', 'exclusive'))`,
+  `ALTER TABLE transmissions ADD COLUMN require_ack INTEGER NOT NULL DEFAULT 0 CHECK(require_ack IN (0, 1))`,
+  `ALTER TABLE transmissions ADD COLUMN expect_reply INTEGER NOT NULL DEFAULT 0 CHECK(expect_reply IN (0, 1))`,
+  `CREATE TABLE commitments (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    id TEXT NOT NULL UNIQUE,
+    tx_id TEXT NOT NULL REFERENCES transmissions(id),
+    target_id TEXT NOT NULL REFERENCES participants(id),
+    owner_actor_id TEXT NOT NULL REFERENCES participants(id),
+    opening_session_id TEXT REFERENCES participants(id),
+    generation INTEGER NOT NULL CHECK(generation >= 0),
+    status TEXT NOT NULL CHECK(status IN ('open', 'done', 'abandoned')),
+    opened_at TEXT NOT NULL,
+    closed_at TEXT,
+    result TEXT,
+    reason TEXT,
+    UNIQUE(tx_id, target_id, generation)
+  ) STRICT`,
+  `CREATE TABLE exclusive_claims (
+    tx_id TEXT PRIMARY KEY NOT NULL REFERENCES transmissions(id),
+    generation INTEGER NOT NULL CHECK(generation > 0),
+    commitment_id TEXT UNIQUE REFERENCES commitments(id)
+  ) STRICT`,
+  `CREATE TABLE commitment_events (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    id TEXT NOT NULL UNIQUE,
+    tx_id TEXT NOT NULL REFERENCES transmissions(id),
+    commitment_id TEXT NOT NULL REFERENCES commitments(id),
+    actor_id TEXT NOT NULL REFERENCES participants(id),
+    session_id TEXT REFERENCES participants(id),
+    kind TEXT NOT NULL CHECK(kind IN ('wilco', 'done', 'abandon', 'reopen')),
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  ) STRICT`,
+  `CREATE TABLE commitment_requests (
+    caller_key TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    request_json TEXT NOT NULL,
+    event_id TEXT NOT NULL REFERENCES commitment_events(id),
+    result_json TEXT NOT NULL,
+    PRIMARY KEY(caller_key, idempotency_key)
+  ) STRICT`,
+  `CREATE INDEX commitment_owner_cursor ON commitments(owner_actor_id, status, seq)`,
+  `CREATE INDEX commitment_tx_events ON commitment_events(tx_id, seq)`,
 ];

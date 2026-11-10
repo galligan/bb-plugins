@@ -4,8 +4,20 @@ import { RadioError } from "./errors.ts";
 
 type Row = Omit<
   Transmission,
-  "stationId" | "refs" | "tags" | "tokens" | "recipientIds"
-> & { refsJson: string; tagsJson: string; tokensJson: string };
+  | "stationId"
+  | "refs"
+  | "tags"
+  | "tokens"
+  | "recipientIds"
+  | "requireAck"
+  | "expectReply"
+> & {
+  refsJson: string;
+  tagsJson: string;
+  tokensJson: string;
+  requireAck: number;
+  expectReply: number;
+};
 export function readTransmission(
   db: Database,
   stationId: string,
@@ -15,7 +27,8 @@ export function readTransmission(
     .prepare<[string], Row>(
       `SELECT seq AS cursor, id, author_id AS authorId,
     session_id AS sessionId, channel_id AS channelId, body, created_at AS createdAt,
-    reply_to_id AS replyToId, refs_json AS refsJson, tags_json AS tagsJson, tokens_json AS tokensJson
+    reply_to_id AS replyToId, refs_json AS refsJson, tags_json AS tagsJson, tokens_json AS tokensJson,
+    request_mode AS requestMode, require_ack AS requireAck, expect_reply AS expectReply
     FROM transmissions WHERE id = ?`,
     )
     .get(id);
@@ -29,6 +42,8 @@ export function readTransmission(
     .all(id);
   return {
     ...value,
+    requireAck: value.requireAck === 1,
+    expectReply: value.expectReply === 1,
     stationId,
     refs: JSON.parse(refsJson),
     tags: JSON.parse(tagsJson),
