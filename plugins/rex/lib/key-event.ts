@@ -184,3 +184,19 @@ function unshiftedCodepoint(
   }
   return base?.codePointAt(0) ?? 0;
 }
+
+/**
+ * An unmodified arrow key press. The wheel sends one to a full-screen
+ * program, which has no history for it to scroll.
+ */
+export function arrowKey(direction: "up" | "down"): RexKey {
+  return {
+    key: `arrow_${direction}`,
+    mods: "",
+    consumed_mods: "",
+    text: "",
+    unshifted_codepoint: 0,
+    composing: false,
+    action: "press",
+  };
+}

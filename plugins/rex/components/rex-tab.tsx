@@ -72,6 +72,7 @@ export function RexTab() {
         <TerminalView
           frame={pane.frame}
           onInput={pane.live ? pane.send : null}
+          onScroll={pane.scroll}
           claimsPane={pane.claimsPane}
         />
       )}

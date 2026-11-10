@@ -11,6 +11,13 @@ import type { GhosttyVt, Terminal } from "./ghostty.ts";
 import { parseRexMessage, RexMessageSplitter } from "./rex-messages.ts";
 import { findSnapshotEnd, newSnapshotScan } from "./snapshot.ts";
 
+/**
+ * How many rows of history the tab keeps, the same as bb's built-in
+ * terminal. It applies to the history a snapshot arrives with and to what
+ * builds up afterwards.
+ */
+export const SCROLLBACK_ROWS = 10_000;
+
 /** A snapshot grows with scrollback and images. Past this, give up. */
 const MAX_SNAPSHOT_BYTES = 64 * 1024 * 1024;
 
@@ -53,7 +60,10 @@ export class PaneDecoder {
     const received = this.#pending.subarray(0, this.#pendingLength);
     const end = findSnapshotEnd(received, this.#scan);
     if (end === null) return;
-    const terminal = this.#vt.decodeSnapshot(received.subarray(0, end));
+    const terminal = this.#vt.decodeSnapshot(
+      received.subarray(0, end),
+      SCROLLBACK_ROWS,
+    );
     this.#terminal = terminal;
     const live = received.slice(end);
     this.#pending = new Uint8Array(0);
