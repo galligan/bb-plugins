@@ -32,7 +32,15 @@ Reserve `@ch:` and `@user` so ordinary handle allocation cannot capture them. Th
 
 Resolve a bare participant handle inside the current project when one exists. A failed local lookup must not silently target another project. Without project context, resolve only a unique accessible match; otherwise return qualified choices. Qualified addresses resolve only in their named project.
 
-Resolve addressed participants and channels at send time and store their canonical IDs along with the original token for historical display. Unknown addressing mentions fail with useful diagnostics. Quoted text and code should not accidentally expand audiences; exact parsing/escaping rules need to be settled before implementing the parser. Literal prose must remain expressible.
+Resolve addressed participants and channels at send time and store their canonical IDs along with the original token for historical display. The implemented internal parser returns original text/offsets, canonical token spelling and correction information; it does not rewrite prose. Unknown addressing mentions fail with useful diagnostics. Public send adapters remain a later layer.
+
+The parser ignores backslash-escaped characters, matching straight/curly quotes, matching backtick spans, backtick/tilde fenced blocks, Markdown blockquote lines and four-space indented code. Apostrophes within words remain prose, including contractions inside a quoted region. An unmatched opening quote requires closure or an explicit backslash escape; an unclosed code span/fence keeps the remaining content literal. These conservative rules prevent partial resolution of malformed input. Parsing accepts at most 16384 raw characters; this is an internal resource bound, not the proposed transmission prose budget.
+
+Names inside tokens also report repairs, so `@Agent__Name` resolves through canonical `@agent-name` while preserving the original token. Address structure itself is strict: participant addresses have at most one project qualifier, and channels at most one subchannel. Dot-separated or otherwise malformed participant paths fail rather than silently resolving a valid prefix. `@user` is the human alias; `user` and `ch` cannot be allocated as participant handles, and `ch` cannot be a project qualifier because `@ch:` owns that prefix.
+
+A colon after an unqualified token may be prose punctuation when followed by whitespace, as in `@here: useful`. An extra colon after a qualified participant/channel address, or a colon at the end of input, is rejected rather than resolving a valid prefix.
+
+The resolver receives an explicit list of adapter-authorized project IDs, capped at 100, and optional current project context. It does not derive access from a claimed handle, metadata or parentage. Public adapters must construct this scope and the handle mutation caller context from authenticated authority, not from a request body. No public authentication or transport is implemented by this domain layer.
 
 Channel references and tags do not notify. Posting in a channel is not itself a broadcast. Explicit audience expansion uses `@ch:...`.
 
@@ -43,6 +51,8 @@ Handles are project-scoped, assignable readable names. A handle can identify a s
 A rename changes address metadata, not identity, messages, receipts, commitments or subscriptions. Channel/subchannel IDs remain stable through name changes. Ordinary participant renames retain aliases; an alias reserves its old name until explicitly removed or reclaimed.
 
 Matt can explicitly reclaim a handle for a durable identity. Atomically rename the displaced holder to an available fallback, release any conflicting alias, and assign the desired handle. Show affected identities and record the reassignment. Reclamation changes future address lookups only. It does not change the BB thread title unless separately requested, migrate messages, or transfer commitments.
+
+Reclaiming a primary name chooses the first free bounded numeric suffix, skipping aliases as well as primary names. Reclaiming an alias reuses its prior holder's existing primary as the fallback instead of needlessly renaming that identity. All handle changes and the reassignment audit commit together; a failure rolls back the complete operation. Owner mutations and human reclaim receive trusted caller context separately from self-reported session fields.
 
 Historical displays may show the handle used when sent, but their links resolve by canonical ID. A reclaimed handle cannot remain an alias for its former holder.
 

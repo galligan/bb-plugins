@@ -39,3 +39,16 @@ export interface Channel {
   parentId: string | null;
   name: string;
 }
+
+/** Adapter-authenticated context, never copied from a self-report or request body. */
+export type TrustedCaller =
+  | { kind: "human"; actorId: string }
+  | { kind: "actor"; actorId: string }
+  | { kind: "principal"; principalId: string };
+
+export interface Handle {
+  projectId: string;
+  name: string;
+  targetId: string;
+  isPrimary: boolean;
+}
