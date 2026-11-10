@@ -192,6 +192,10 @@ test("package imports only public SDK and declared runtime dependencies", async 
         /^react(?:\/.*)?$/,
         /^jsdom$/,
         /^@testing-library\/react$/,
+        /^@radix-ui\/react-(?:checkbox|radio-group|slot)$/,
+        /^class-variance-authority$/,
+        /^clsx$/,
+        /^tailwind-merge$/,
       ],
     },
   );

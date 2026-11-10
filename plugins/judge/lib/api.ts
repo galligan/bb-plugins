@@ -21,6 +21,7 @@ import { VerdictPublisher } from "./verdict-publisher.ts";
 import { VerdictReader } from "./verdict-reader.ts";
 import { CalibrationService } from "./calibration.ts";
 
+import { PUBLIC_DOMAIN_ERRORS } from "./ui-errors.ts";
 import { displayBadges, displayThread } from "./ui.ts";
 
 export function publicError(error: unknown): string {
@@ -167,6 +168,14 @@ export function registerRpc(bb: BbPluginApi, api: JudgeApi): void {
     try {
       return await operation();
     } catch (error) {
+      if (
+        error instanceof ValidationError &&
+        PUBLIC_DOMAIN_ERRORS.has(error.message)
+      )
+        throw new experimental_PluginRpcRefusal({
+          code: "invalid",
+          message: error.message,
+        });
       const code = publicError(error);
       if (code === "invalid_input")
         throw new experimental_PluginRpcRefusal({

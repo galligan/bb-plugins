@@ -1,3 +1,4 @@
+import { Button } from "./controls.tsx";
 import { useCallback } from "react";
 import {
   experimental_DetailRow as DetailRow,
@@ -85,9 +86,9 @@ export function VerdictInfo({ threadId }: ExperimentalThreadInfoProps) {
             )}
           </>
         )}
-        <button type="button" onClick={read.refresh}>
+        <Button type="button" onClick={read.refresh}>
           Refresh Judge
-        </button>
+        </Button>
         <small>Model judgments are evidence, not authorization.</small>
       </div>
     </DetailRow>

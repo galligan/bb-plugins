@@ -45,7 +45,13 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "zod": "4.6.7",
-    "yaml": "2.9.0"
+    "@radix-ui/react-checkbox": "^1.4.1",
+    "@radix-ui/react-radio-group": "^1.5.1",
+    "@radix-ui/react-slot": "^1.5.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.7.0",
+    "yaml": "2.9.0",
+    "zod": "4.6.7"
   }
 }

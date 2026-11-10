@@ -1,3 +1,4 @@
+import { Button, Input, Checkbox, Choice } from "./controls.tsx";
 import { useCallback, useState } from "react";
 import type { ModelConfig } from "../lib/contracts.ts";
 import { useJudgeRpc, useRead, useAction } from "./hooks.ts";
@@ -48,10 +49,10 @@ export function ModelsSettings() {
           {read.data.models.length === 0 && <p>No models configured.</p>}
           <div className="judge-actions">
             {read.data.models.map((m) => (
-              <button type="button" key={m.id} onClick={() => edit(m)}>
+              <Button type="button" key={m.id} onClick={() => edit(m)}>
                 {m.id} · {m.connection}/{m.model} ·{" "}
                 {m.allowPrivate ? "private allowed" : "public only"}
-              </button>
+              </Button>
             ))}
           </div>
           <p>
@@ -59,26 +60,26 @@ export function ModelsSettings() {
             {read.data.defaults.privateId ?? "none"}.
           </p>
           <div className="judge-actions">
-            <button
+            <Button
               type="button"
               onClick={() => setAfter(undefined)}
               disabled={!after}
             >
               First models
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => setAfter(read.data?.next ?? undefined)}
               disabled={!read.data.next}
             >
               Next models
-            </button>
-            <button type="button" onClick={read.refresh}>
-              Refresh models
-            </button>
+            </Button>
           </div>
         </>
       )}
+      <Button type="button" onClick={read.refresh}>
+        Refresh models
+      </Button>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -98,27 +99,27 @@ export function ModelsSettings() {
       >
         <fieldset disabled={action.pending}>
           <Field label="Model ID">
-            <input
+            <Input
               value={id}
               required
               maxLength={128}
               onChange={(e) => setId(e.target.value)}
             />
           </Field>
-          <Field label="Connection">
-            <select
-              value={connection}
-              onChange={(e) =>
-                setConnection(e.target.value as ModelConfig["connection"])
-              }
-            >
-              <option value="typesafe">Jev / TypeSafe</option>
-              <option value="cloudflare">Cloudflare Workers AI</option>
-              <option value="custom">Custom System One</option>
-            </select>
-          </Field>
+          <Choice
+            label="Connection"
+            value={connection}
+            onChange={(value) =>
+              setConnection(value as ModelConfig["connection"])
+            }
+            options={[
+              { value: "typesafe", label: "Jev / TypeSafe" },
+              { value: "cloudflare", label: "Cloudflare Workers AI" },
+              { value: "custom", label: "Custom System One" },
+            ]}
+          />
           <Field label="Provider model selector">
-            <input
+            <Input
               value={model}
               required
               maxLength={256}
@@ -131,7 +132,7 @@ export function ModelsSettings() {
             />
           </Field>
           <Field label="Timeout (milliseconds)">
-            <input
+            <Input
               type="number"
               min={1}
               max={30000}
@@ -140,17 +141,16 @@ export function ModelsSettings() {
             />
           </Field>
           <Field label="Allow private data">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={allowPrivate}
-              onChange={(e) => setAllowPrivate(e.target.checked)}
+              onCheckedChange={(value) => setAllowPrivate(value === true)}
             />
           </Field>
           <div className="judge-actions">
-            <button type="submit">Save model</button>
-            <button type="button" onClick={() => edit()}>
+            <Button type="submit">Save model</Button>
+            <Button type="button" onClick={() => edit()}>
               New model
-            </button>
+            </Button>
           </div>
         </fieldset>
       </form>
@@ -158,10 +158,16 @@ export function ModelsSettings() {
         <div>
           <p>
             Saved connection readiness ({selected.id}):{" "}
-            {readiness.data?.status ?? "checking"}.
+            {readiness.error
+              ? "unavailable"
+              : (readiness.data?.status ?? "checking")}
+            .
           </p>
           {readiness.data && <p>{readiness.data.nextAction}</p>}
           <Feedback error={readiness.error} />
+          <Button type="button" onClick={readiness.refresh}>
+            Refresh connection readiness
+          </Button>
           <small>
             Readiness checks do not call the provider. Use an explicit CLI
             synthetic probe when wanted; configured does not mean live-verified.
@@ -180,10 +186,21 @@ export function DefaultSettings() {
   const [privateDefault, setPrivate] = useState(false);
   return (
     <Group title="Model defaults">
-      <p>
-        Current default: {read.data?.defaults.defaultId ?? "none"}; private
-        fallback: {read.data?.defaults.privateId ?? "none"}.
-      </p>
+      {read.data ? (
+        <p>
+          Current default: {read.data.defaults.defaultId ?? "none"}; private
+          fallback: {read.data.defaults.privateId ?? "none"}.
+        </p>
+      ) : (
+        <p>
+          {read.error
+            ? "Model defaults unavailable."
+            : "Loading model defaults…"}
+        </p>
+      )}
+      <Button type="button" onClick={read.refresh}>
+        Refresh defaults
+      </Button>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -199,20 +216,19 @@ export function DefaultSettings() {
       >
         <fieldset disabled={action.pending}>
           <Field label="Saved model ID (empty clears)">
-            <input
+            <Input
               value={id}
               maxLength={128}
               onChange={(e) => setId(e.target.value)}
             />
           </Field>
           <Field label="Set private fallback">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={privateDefault}
-              onChange={(e) => setPrivate(e.target.checked)}
+              onCheckedChange={(value) => setPrivate(value === true)}
             />
           </Field>
-          <button type="submit">Save default</button>
+          <Button type="submit">Save default</Button>
         </fieldset>
       </form>
       <Feedback error={read.error ?? action.error} notice={action.notice} />

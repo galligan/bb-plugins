@@ -1,3 +1,4 @@
+import { Button, Input, Checkbox, Textarea, Choice } from "./controls.tsx";
 import { useCallback, useState } from "react";
 import type { TriggerRecord } from "../lib/triggers-contract.ts";
 import { useJudgeRpc, useRead, useAction } from "./hooks.ts";
@@ -39,10 +40,9 @@ export function TriggerSettings() {
         publish badges.
       </p>
       <Field label="I understand enabling bindings can make paid requests">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={confirmEnable}
-          onChange={(e) => setConfirmEnable(e.target.checked)}
+          onCheckedChange={(value) => setConfirmEnable(value === true)}
         />
       </Field>
       <Feedback error={read.error ?? action.error} notice={action.notice} />
@@ -60,14 +60,14 @@ export function TriggerSettings() {
                 {t.definition.event} · {t.enabled ? "Enabled" : "Disabled"}
               </p>
               <div className="judge-actions">
-                <button
+                <Button
                   type="button"
                   disabled={action.pending}
                   onClick={() => edit(t)}
                 >
                   Edit {t.definition.id}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   disabled={action.pending || (!t.enabled && !confirmEnable)}
                   onClick={() => {
@@ -84,8 +84,8 @@ export function TriggerSettings() {
                   }}
                 >
                   {t.enabled ? "Disable" : "Enable"} {t.definition.id}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   disabled={action.pending}
                   onClick={() => {
@@ -97,31 +97,31 @@ export function TriggerSettings() {
                   }}
                 >
                   Remove {t.definition.id}
-                </button>
+                </Button>
               </div>
             </div>
           ))}
           <div className="judge-actions">
-            <button
+            <Button
               type="button"
               disabled={!after}
               onClick={() => setAfter(undefined)}
             >
               First bindings
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               disabled={!read.data.next}
               onClick={() => setAfter(read.data?.next ?? undefined)}
             >
               Next bindings
-            </button>
-            <button type="button" onClick={read.refresh}>
-              Refresh bindings
-            </button>
+            </Button>
           </div>
         </>
       )}
+      <Button type="button" onClick={read.refresh}>
+        Refresh bindings
+      </Button>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -141,7 +141,7 @@ export function TriggerSettings() {
       >
         <fieldset disabled={action.pending}>
           <Field label="Binding ID">
-            <input
+            <Input
               value={id}
               required
               maxLength={128}
@@ -149,31 +149,31 @@ export function TriggerSettings() {
             />
           </Field>
           <Field label="Saved set ID">
-            <input
+            <Input
               value={setId}
               required
               maxLength={128}
               onChange={(e) => setSetId(e.target.value)}
             />
           </Field>
-          <Field label="Event">
-            <select
-              value={event}
-              onChange={(e) => setEvent(e.target.value as typeof event)}
-            >
-              <option value="thread.idle">Thread idle</option>
-              <option value="turn.failed">Turn failed</option>
-            </select>
-          </Field>
+          <Choice
+            label="Event"
+            value={event}
+            onChange={(value) => setEvent(value as typeof event)}
+            options={[
+              { value: "thread.idle", label: "Thread idle" },
+              { value: "turn.failed", label: "Turn failed" },
+            ]}
+          />
           <Field label="Projects: all or JSON ID array">
-            <input
+            <Input
               value={projects}
               maxLength={14000}
               onChange={(e) => setProjects(e.target.value)}
             />
           </Field>
           <Field label="Badge labels: JSON outcome-to-label map">
-            <textarea
+            <Textarea
               value={badges}
               maxLength={20000}
               onChange={(e) => setBadges(e.target.value)}
@@ -184,10 +184,10 @@ export function TriggerSettings() {
             other action is available.
           </small>
           <div className="judge-actions">
-            <button type="submit">Save disabled binding</button>
-            <button type="button" onClick={() => edit()}>
+            <Button type="submit">Save disabled binding</Button>
+            <Button type="button" onClick={() => edit()}>
               New binding
-            </button>
+            </Button>
           </div>
         </fieldset>
       </form>

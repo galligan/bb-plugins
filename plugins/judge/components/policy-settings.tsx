@@ -1,3 +1,4 @@
+import { Button, Input, Checkbox } from "./controls.tsx";
 import { useCallback, useState } from "react";
 import { useJudgeRpc, useRead, useAction } from "./hooks.ts";
 import { Group, Field, Feedback } from "./controls.tsx";
@@ -19,18 +20,19 @@ export function ProjectSettings() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          setProject(draft);
+          if (draft === projectId) read.refresh();
+          else setProject(draft);
         }}
       >
         <Field label="Project ID">
-          <input
+          <Input
             value={draft}
             maxLength={128}
             required
             onChange={(e) => setDraft(e.target.value)}
           />
         </Field>
-        <button type="submit">Load project policy</button>
+        <Button type="submit">Load project policy</Button>
       </form>
       {read.data && (
         <>
@@ -39,7 +41,7 @@ export function ProjectSettings() {
             {read.data.enabled ? "Judge allowed" : "Judge disabled"}. Saved-set
             and binding project filters also apply.
           </p>
-          <button
+          <Button
             type="button"
             disabled={action.pending}
             onClick={() => {
@@ -56,7 +58,7 @@ export function ProjectSettings() {
             {read.data.enabled
               ? "Disable Judge for project"
               : "Allow Judge for project"}
-          </button>
+          </Button>
         </>
       )}
       <small>
@@ -81,7 +83,9 @@ function AcceptedCalibration({ id }: { id: string }) {
           ? `Current acceptance: ${read.data.testRunId}`
           : read.data === null
             ? "No current calibration acceptance."
-            : "Checking current acceptance…"}
+            : read.error
+              ? "Current calibration unavailable."
+              : "Checking current acceptance…"}
       </p>
       <Feedback error={read.error} />
     </>
@@ -109,19 +113,20 @@ export function CalibrationSettings() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          setRun(draft);
+          if (draft === run) read.refresh();
+          else setRun(draft);
           setAcknowledged(false);
         }}
       >
         <Field label="Case report ID">
-          <input
+          <Input
             required
             maxLength={128}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
           />
         </Field>
-        <button type="submit">Load case report</button>
+        <Button type="submit">Load case report</Button>
       </form>
       {run && read.data === null && <p>No case report found.</p>}
       {report && (
@@ -165,13 +170,12 @@ export function CalibrationSettings() {
           ))}
           <p>{report.modelLabelLimitation}</p>
           <Field label="I reviewed the primary outcomes and mismatch counts; accept this evidence">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={acknowledged}
-              onChange={(e) => setAcknowledged(e.target.checked)}
+              onCheckedChange={(value) => setAcknowledged(value === true)}
             />
           </Field>
-          <button
+          <Button
             type="button"
             disabled={
               action.pending ||
@@ -191,7 +195,7 @@ export function CalibrationSettings() {
             }}
           >
             Accept primary calibration
-          </button>
+          </Button>
           <small>
             Only exact complete current evidence can be accepted. Server
             validation rechecks set and model fingerprints. Comparison results

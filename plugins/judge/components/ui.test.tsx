@@ -4,12 +4,34 @@ import { JSDOM } from "jsdom";
 import { registerHooks } from "node:module";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "http://localhost",
+  pretendToBeVisual: true,
 });
 for (const [key, value] of Object.entries({
   window: dom.window,
   document: dom.window.document,
   navigator: dom.window.navigator,
   HTMLElement: dom.window.HTMLElement,
+  Element: dom.window.Element,
+  HTMLInputElement: dom.window.HTMLInputElement,
+  HTMLFormElement: dom.window.HTMLFormElement,
+  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
+  Event: dom.window.Event,
+  CustomEvent: dom.window.CustomEvent,
+  requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window),
+  cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window),
+  // JSDOM does not perform layout; live host checks cover sizing. Radix's
+  // form-control observer still needs its browser interface for behavior tests.
+  ResizeObserver: class {
+    observe() {
+      /* No layout in JSDOM. */
+    }
+    unobserve() {
+      /* No layout in JSDOM. */
+    }
+    disconnect() {
+      /* No layout in JSDOM. */
+    }
+  },
   MutationObserver: dom.window.MutationObserver,
   IS_REACT_ACT_ENVIRONMENT: true,
 }))
@@ -364,5 +386,259 @@ test("unrelated thread events do not refetch Info, while matching/config changes
     threadIds: [],
   });
   await waitFor(() => assert.equal(calls, 3));
+  slot.lifecycle.unmount();
+});
+
+test("actual backend refusals reach calibration, private-default and binding UI recovery paths", async () => {
+  const { createFakePluginHost } = await import("@get-bb/plugin-sdk/testing");
+  const { setupEvaluation, evaluationDefinition } =
+    await import("../lib/evaluation-fixtures.ts");
+  const { fixtureHostOptions } = await import("../lib/runner-fixtures.ts");
+  const { DefaultSettings } = await import("./models-settings.tsx");
+  const h = await setupEvaluation(createFakePluginHost(fixtureHostOptions));
+  try {
+    const def = evaluationDefinition();
+    def.cases = def.cases.slice(0, 1);
+    h.api.sets.save(JSON.stringify(def));
+    const report = await h.api.evaluations.test({ id: "synthetic" });
+    h.api.models.save({ ...h.repository.getModel("public")!, timeoutMs: 2500 });
+    const calls = h.bodies.length;
+    const defaultsBefore = h.repository.getDefaults();
+    const call = (method: string) => (value: unknown) =>
+      h.harness.behavior.callRpc(method, value);
+    const calibration = renderSlot(
+      { component: CalibrationSettings },
+      {},
+      {
+        rpc: {
+          "tests.get": call("tests.get"),
+          "calibration.get": call("calibration.get"),
+          "calibration.accept": call("calibration.accept"),
+        },
+      },
+    );
+    fireEvent.change(calibration.getByLabelText("Case report ID"), {
+      target: { value: report.id },
+    });
+    fireEvent.click(calibration.getByText("Load case report"));
+    await calibration.findByText("Accept primary calibration");
+    fireEvent.click(calibration.getByLabelText(/I reviewed the primary/));
+    fireEvent.click(calibration.getByText("Accept primary calibration"));
+    await calibration.findByText(/fresh complete case report/);
+    calibration.lifecycle.unmount();
+    const defaults = renderSlot(
+      { component: DefaultSettings },
+      {},
+      {
+        rpc: {
+          "models.list": call("models.list"),
+          "models.default": call("models.default"),
+        },
+      },
+    );
+    fireEvent.change(defaults.getByLabelText("Saved model ID (empty clears)"), {
+      target: { value: "public" },
+    });
+    fireEvent.click(defaults.getByLabelText("Set private fallback"));
+    fireEvent.click(defaults.getByText("Save default"));
+    await defaults.findByText(/explicitly permits private data/);
+    defaults.lifecycle.unmount();
+    const binding = renderSlot(
+      { component: TriggerSettings },
+      {},
+      {
+        rpc: {
+          "triggers.list": call("triggers.list"),
+          "triggers.save": call("triggers.save"),
+        },
+      },
+    );
+    await binding.findByText("No event bindings configured.");
+    fireEvent.change(binding.getByLabelText("Binding ID"), {
+      target: { value: "binding" },
+    });
+    fireEvent.change(binding.getByLabelText("Saved set ID"), {
+      target: { value: "missing" },
+    });
+    fireEvent.click(binding.getByText("Save disabled binding"));
+    await binding.findByText(/Choose an existing saved set/);
+    fireEvent.change(binding.getByLabelText("Saved set ID"), {
+      target: { value: "synthetic" },
+    });
+    fireEvent.change(
+      binding.getByLabelText("Badge labels: JSON outcome-to-label map"),
+      { target: { value: '{"unknown":"Label"}' } },
+    );
+    fireEvent.click(binding.getByText("Save disabled binding"));
+    await binding.findByText(/saved set's final outcomes/);
+    binding.lifecycle.unmount();
+    assert.equal(h.bodies.length, calls);
+    assert.deepEqual(h.repository.getDefaults(), defaultsBefore);
+    assert.equal(h.repository.evaluations.getAcceptance("synthetic"), null);
+    assert.equal(h.repository.triggers.get("binding"), null);
+  } finally {
+    await h.harness.lifecycle.dispose();
+  }
+});
+
+test("project and case-report Load controls retry an unchanged ID after a failed read", async () => {
+  const { ProjectSettings } = await import("./policy-settings.tsx");
+  for (const kind of ["project", "report"] as const) {
+    let calls = 0;
+    const load = () => {
+      calls++;
+      if (calls === 1) throw new Error("temporary_read_failure");
+      return kind === "project" ? { projectId: "same", enabled: true } : null;
+    };
+    const slot =
+      kind === "project"
+        ? renderSlot(
+            { component: ProjectSettings },
+            {},
+            { rpc: { "projects.get": load } },
+          )
+        : renderSlot(
+            { component: CalibrationSettings },
+            {},
+            { rpc: { "tests.get": load } },
+          );
+    const label = kind === "project" ? "Project ID" : "Case report ID";
+    const button =
+      kind === "project" ? "Load project policy" : "Load case report";
+    fireEvent.change(slot.getByLabelText(label), { target: { value: "same" } });
+    fireEvent.click(slot.getByText(button));
+    await slot.findByRole("alert");
+    assert.equal(calls, 1);
+    fireEvent.click(slot.getByText(button));
+    await slot.findByText(
+      kind === "project" ? /same: Judge allowed/ : "No case report found.",
+    );
+    assert.equal(calls, 2);
+    assert.equal(slot.queryByRole("alert"), null);
+    slot.lifecycle.unmount();
+  }
+});
+
+test("BB registry connection choices keep labeled radio and keyboard selection behavior", async () => {
+  const { act } = await import("@testing-library/react");
+  const slot = renderSlot(
+    { component: ModelsSettings },
+    {},
+    {
+      rpc: {
+        "models.list": () => ({
+          models: [],
+          defaults: { defaultId: null, privateId: null },
+          next: null,
+        }),
+      },
+    },
+  );
+  await slot.findByText("No models configured.");
+  const first = slot.getByRole("radio", { name: "Jev / TypeSafe" });
+  const second = slot.getByRole("radio", { name: "Cloudflare Workers AI" });
+  assert.equal(first.getAttribute("aria-checked"), "true");
+  await act(async () => {
+    first.focus();
+  });
+  fireEvent.keyDown(first, { key: "ArrowDown" });
+  await waitFor(() =>
+    assert.equal(second.getAttribute("aria-checked"), "true"),
+  );
+  assert.equal(document.activeElement, second);
+  assert.ok(slot.getByPlaceholderText("clef or clef-flash"));
+  assert.ok(slot.getByRole("radiogroup", { name: "Connection" }));
+  assert.equal(slot.container.querySelector("select"), null);
+  assert.ok(
+    slot.inspection.rpcCalls.every((call) => call.method === "models.list"),
+  );
+  slot.lifecycle.unmount();
+});
+
+test("first-load settings failures retain visible read-only retry controls", async () => {
+  const { DefaultSettings } = await import("./models-settings.tsx");
+  for (const kind of ["models", "defaults", "bindings"] as const) {
+    let calls = 0;
+    const load = () => {
+      calls++;
+      if (calls === 1) throw new Error("read_failed");
+      return kind === "bindings"
+        ? { triggers: [], next: null }
+        : {
+            models: [],
+            defaults: { defaultId: null, privateId: null },
+            next: null,
+          };
+    };
+    const component =
+      kind === "models"
+        ? ModelsSettings
+        : kind === "defaults"
+          ? DefaultSettings
+          : TriggerSettings;
+    const slot = renderSlot(
+      { component },
+      {},
+      {
+        rpc: { [kind === "bindings" ? "triggers.list" : "models.list"]: load },
+      },
+    );
+    await slot.findByRole("alert");
+    fireEvent.click(slot.getByText(`Refresh ${kind}`));
+    await slot.findByText(
+      kind === "bindings"
+        ? "No event bindings configured."
+        : kind === "models"
+          ? "No models configured."
+          : /Current default: none/,
+    );
+    assert.equal(calls, 2);
+    assert.equal(slot.queryByRole("alert"), null);
+    slot.lifecycle.unmount();
+  }
+});
+test("connection readiness failure can be retried without a synthetic probe", async () => {
+  let calls = 0;
+  const slot = renderSlot(
+    { component: ModelsSettings },
+    {},
+    {
+      rpc: {
+        "models.list": () => ({
+          models: [
+            {
+              id: "saved",
+              connection: "typesafe",
+              model: "jev-test",
+              allowPrivate: false,
+              timeoutMs: 2000,
+            },
+          ],
+          defaults: { defaultId: null, privateId: null },
+          next: null,
+        }),
+        "models.check": (value: unknown) => {
+          assert.deepEqual(value, { id: "saved", probe: false });
+          calls++;
+          if (calls === 1) throw new Error("read_failed");
+          return {
+            status: "configured",
+            nextAction: "Synthetic readiness fixture only",
+          };
+        },
+      },
+    },
+  );
+  fireEvent.click(await slot.findByText(/saved · typesafe\/jev-test/));
+  await slot.findByRole("alert");
+  fireEvent.click(slot.getByText("Refresh connection readiness"));
+  await slot.findByText(/readiness \(saved\): configured/);
+  assert.equal(calls, 2);
+  assert.equal(slot.queryByRole("alert"), null);
+  assert.ok(
+    slot.inspection.rpcCalls.every((call) =>
+      ["models.list", "models.check"].includes(call.method),
+    ),
+  );
   slot.lifecycle.unmount();
 });
