@@ -22,7 +22,9 @@ function setup(options: CreateFakePluginHostOptions = {}) {
             branchName: "feature",
           },
         ],
-        status: async () => ({
+      },
+      plugins: {
+        callRpc: async () => ({
           outcome: "available",
           workspace: {
             checkout: { kind: "branch", branchName: "feature" },
@@ -138,7 +140,7 @@ test(
       },
     });
     t.after(() => harness.lifecycle.dispose());
-    harness.inspection.sdk.stub("environments.status", async () => ({
+    harness.inspection.sdk.stub("plugins.callRpc", async () => ({
       outcome: "available",
       workspace: {
         checkout: { kind: "branch", branchName: "feature" },

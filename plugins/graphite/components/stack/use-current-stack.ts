@@ -5,7 +5,11 @@ import type { rpcContract } from "@/server";
 import type { CurrentStack } from "@/lib/current-stack.ts";
 
 /** Refresh Graphite metadata while its thread stays open. */
-export function useCurrentStack(projectId: string | null, threadId: string) {
+export function useCurrentStack(
+  projectId: string | null,
+  threadId: string,
+  enabled = true,
+) {
   const rpc = useRpc<typeof rpcContract>();
   const [result, setResult] = useState<{
     stack: CurrentStack | null;
@@ -13,6 +17,7 @@ export function useCurrentStack(projectId: string | null, threadId: string) {
   }>({ stack: null, error: false });
 
   useEffect(() => {
+    if (!enabled) return;
     if (projectId === null) {
       setResult({ stack: null, error: true });
       return;
@@ -27,7 +32,7 @@ export function useCurrentStack(projectId: string | null, threadId: string) {
         const result = await rpc.call("stack_current", { projectId, threadId });
         if (live) setResult({ stack: result, error: false });
       } catch {
-        if (live) setResult({ stack: null, error: true });
+        if (live) setResult((previous) => ({ ...previous, error: true }));
       } finally {
         pending = false;
       }
@@ -44,7 +49,7 @@ export function useCurrentStack(projectId: string | null, threadId: string) {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [rpc, projectId, threadId]);
+  }, [rpc, projectId, threadId, enabled]);
 
   return result;
 }

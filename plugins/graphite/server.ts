@@ -114,7 +114,7 @@ export default async function plugin(bb: BbPluginApi) {
         completed: "Read the Graphite stack",
       },
     },
-    parameters: z.object({}),
+    parameters: { type: "object", properties: {}, additionalProperties: false },
     async execute(_input, { threadId, projectId }) {
       if (projectId == null) {
         return {

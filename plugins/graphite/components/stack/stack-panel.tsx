@@ -1,13 +1,19 @@
 import { useState } from "react";
-import { useBbContext } from "@get-bb/plugin-sdk/app";
-import type { PluginThreadPanelProps } from "@get-bb/plugin-sdk/app";
+import {
+  useBbContext,
+  experimental_usePanelTabs,
+} from "@get-bb/plugin-sdk/app";
+import type { ExperimentalThreadActionTabProps } from "@get-bb/plugin-sdk/app";
 
 import { StackPositionIcon } from "@/components/icons/stack-position.tsx";
 import { StackRow } from "./stack-row.tsx";
 import { laneWidth } from "./lineage.tsx";
 import { useCurrentStack } from "./use-current-stack.ts";
 
-export function StackPanel({ threadId, params }: PluginThreadPanelProps) {
+export function StackPanel({
+  threadId,
+  params,
+}: ExperimentalThreadActionTabProps) {
   const context = useBbContext();
   const projectId =
     params !== null &&
@@ -16,12 +22,21 @@ export function StackPanel({ threadId, params }: PluginThreadPanelProps) {
     typeof params.projectId === "string"
       ? params.projectId
       : context.projectId;
-  const { stack, error } = useCurrentStack(projectId, threadId);
+  const panel = experimental_usePanelTabs();
+  const selected = panel.tabs.find(
+    (tab) => tab.key === panel.selectedKey,
+  )?.detail;
+  const visible =
+    panel.open &&
+    selected?.kind === "plugin" &&
+    selected.pluginId === "graphite" &&
+    selected.tab.id === "stack";
+  const { stack, error } = useCurrentStack(projectId, threadId, visible);
   const [openBranches, setOpenBranches] = useState<ReadonlySet<string>>(
     new Set(),
   );
 
-  if (error)
+  if (error && stack === null)
     return (
       <p className="text-sm text-warning-text">
         Unable to load the Graphite stack.
@@ -46,6 +61,11 @@ export function StackPanel({ threadId, params }: PluginThreadPanelProps) {
 
   return (
     <section className="min-w-0 text-xs text-muted-foreground">
+      {error ? (
+        <p className="mb-2 text-warning-text">
+          Unable to refresh the stack. Showing the last result.
+        </p>
+      ) : null}
       <div className="mb-3 flex items-center gap-2">
         <StackPositionIcon position={stack.placement} className="size-4" />
         <span className="tabular-nums text-sm font-medium text-foreground">

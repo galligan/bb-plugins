@@ -9,6 +9,7 @@ function bbWithEnvironments(
   environments: Array<{ id: string; isWorktree?: boolean }>,
   threadEnvironmentId: string | null,
   onHostCall?: (method: string, hostId: string) => void,
+  status?: unknown,
 ): BbPluginApi {
   const bb = {
     sdk: {
@@ -21,14 +22,32 @@ function bbWithEnvironments(
             isWorktree: environment.isWorktree ?? false,
             isGitRepo: true,
           })),
-        status: async () => {
-          return {
-            outcome: "available",
-            workspace: {
-              checkout: { kind: "branch", branchName: "feature" },
-              workingTree: { state: "clean" },
+      },
+      plugins: {
+        callRpc: async (request: {
+          pluginId: string;
+          method: string;
+          input: unknown;
+          outputSchema: { parse(value: unknown): unknown };
+        }) => {
+          assert.equal(request.pluginId, "bb--git");
+          assert.equal(request.method, "workspaceStatus");
+          assert.ok(
+            environments.some(
+              (environment) =>
+                JSON.stringify(request.input) ===
+                JSON.stringify({ environmentId: environment.id }),
+            ),
+          );
+          return request.outputSchema.parse(
+            status ?? {
+              outcome: "available",
+              workspace: {
+                checkout: { kind: "branch", branchName: "feature" },
+                workingTree: { state: "clean" },
+              },
             },
-          };
+          );
         },
       },
       threads: {
@@ -141,5 +160,51 @@ describe("environment targeting", () => {
     });
     assert.equal(verb.outcome, "ran");
     assert.deepEqual(calls, ["stack:host-1", "gt:host-1"]);
+  });
+});
+
+describe("Git plugin status contract", () => {
+  it("fails closed for unavailable and unknown checkout states", async () => {
+    for (const status of [
+      { outcome: "unavailable" },
+      { outcome: "not_applicable" },
+      {
+        outcome: "available",
+        workspace: {
+          checkout: { kind: "unknown" },
+          workingTree: { state: "clean" },
+        },
+      },
+      {
+        outcome: "available",
+        workspace: {
+          checkout: { kind: "detached" },
+          workingTree: { state: "clean" },
+        },
+      },
+    ]) {
+      const result = await resolveEnvironment(
+        bbWithEnvironments([{ id: "env" }], "env", undefined, status),
+        { projectId: "project", threadId: "thread" },
+      );
+      assert.equal(result.outcome, "unavailable");
+    }
+  });
+  it("rejects malformed Git output before any Graphite host call", async () => {
+    const bb = bbWithEnvironments(
+      [{ id: "env" }],
+      "env",
+      () => assert.fail("host must not run"),
+      {
+        outcome: "available",
+        workspace: {
+          checkout: { kind: "branch", branchName: "feature" },
+          workingTree: {},
+        },
+      },
+    );
+    await assert.rejects(
+      currentStack(bb, { projectId: "project", threadId: "thread" }),
+    );
   });
 });
