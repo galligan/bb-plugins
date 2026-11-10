@@ -64,7 +64,7 @@ export function RexTab() {
         <span className="font-medium text-foreground">{pane.sessionLabel}</span>
         <span className="shrink-0">{statusText(pane)}</span>
         <span className="min-w-0 flex-1 truncate text-destructive">
-          {pane.inputProblem}
+          {pane.inputProblem ?? pane.historyProblem}
         </span>
         {!pane.live && <ActionButton onClick={reopen}>Reconnect</ActionButton>}
       </div>

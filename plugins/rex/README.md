@@ -48,7 +48,10 @@ Click anywhere outside the terminal to give the keyboard back.
 Scroll the tab with the wheel or trackpad to read earlier output, and back down to return to the live screen. A scrollbar on the right shows where you are and can be dragged. It appears while the pointer is over the terminal or the view has just moved.
 
 - **History comes with the terminal.** The stream opens with a snapshot that carries the terminal's scrollback, so output from before the tab opened is there to scroll to.
-- **About 10,000 lines are kept**, the limit of bb's built-in terminal. A session with more history shows its newest 10,000. The rest of the snapshot is skipped without being decoded, and the tab is held to the same limit as output arrives. libghostty drops history a few hundred rows at a time, so the figure is approximate.
+- **The screen shows first, and history is restored as you scroll to it.** A snapshot holds the screen and then the history above it in pages of a few hundred rows, newest first. The tab draws the screen as soon as it is restored and restores older pages when the view gets within 1,000 rows of the oldest one it has. A terminal nobody scrolls back never pays for its history.
+- **The scrollbar counts the whole history from the start.** The snapshot says how many rows it carries, so the slider is the right length before the rows are restored and does not grow as they arrive. Dragging it far back restores what that needs first.
+- **Up to 100,000 rows are kept**, counting what the snapshot brings and what builds up afterwards. bb's built-in terminal keeps 10,000. Memory is the reason for a limit: history costs 0.7 to 0.85 MiB per 1,000 rows at 80 columns, more for a wider pane, and the memory is not given back while the tab is open. Past the limit the oldest rows go, a page at a time, so the figure is approximate. Once the last page is restored or the limit is reached, the snapshot is freed.
+- **Clearing the scrollback clears what was still to come.** When a program erases the scrollback or resets the terminal, the pages not yet restored are dropped too, since they are older than what was cleared. If a page turns out to be damaged, restoring stops there and the status line says so; the terminal keeps working with the history it has.
 - **Only the rows on screen are read** for each frame, wherever the view is.
 - **Typing or pasting** returns the view to the live screen. Output that arrives while you are scrolled back does not move the view.
 - **Resizing** keeps the first row of a scrolled-back view where it is.
@@ -123,7 +126,7 @@ Ghostty's own list of third-party code linked into libghostty-vt builds (`deps/l
 ## Limits
 
 - **No mouse reporting.** A program that asks for mouse events gets none, and the wheel does nothing in it.
-- **Scrollback differs a little from bb's terminal.** The wheel moves the view at once where bb's terminal animates it, a click on the scrollbar's track does nothing, and the 10,000-line limit is approximate.
+- **Scrollback differs a little from bb's terminal.** The wheel moves the view at once where bb's terminal animates it, a click on the scrollbar's track does nothing, and the tab keeps up to 100,000 rows where bb's terminal keeps 10,000.
 - **No composed input.** Dead keys and input methods are not sent. Key releases and modifier keys on their own are not sent either, which matters only to programs that ask for them through the Kitty keyboard protocol.
 - **One pane.** No tabs, splits, or layout. The pane is chosen when the tab opens.
 - **An attached session keeps its size.** A pane wider than the panel scrolls sideways; the tab does not scale it down.

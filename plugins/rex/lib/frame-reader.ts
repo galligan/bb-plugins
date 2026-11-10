@@ -164,14 +164,12 @@ export class FrameReader {
       rows,
       cursor: this.#readCursor(),
       lines,
-      ...this.#readScrollState(),
+      ...this.readScroll(),
     };
   }
 
-  #readScrollState(): Pick<
-    Frame,
-    "scroll" | "alternateScreen" | "mouseTracking"
-  > {
+  /** Reads only where the viewport is, without reading what it shows. */
+  readScroll(): Pick<Frame, "scroll" | "alternateScreen" | "mouseTracking"> {
     const wasm = this.#wasm;
     const terminal = this.#terminal;
     wasm.check("ghostty_terminal_get", terminal, TERMINAL_SCROLLBAR, this.#out);
