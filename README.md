@@ -14,6 +14,10 @@ from this repository without a separate distribution branch.
 | [`bb-plugin-graphite`](plugins/graphite) | Read and drive Graphite stacks from bb.                            |
 | [`bb-plugin-wt`](plugins/wt)             | Run threads in Git worktrees set up from the repo's own scripts.   |
 
+## In preparation
+
+[Judge](plugins/judge) has a minimal buildable scaffold and an implementation spec for typed judgments over BB state. Inference and triggers are not implemented, and it is not listed in the install collection.
+
 ## Install
 
 Install one plugin from the repository's `main` branch:

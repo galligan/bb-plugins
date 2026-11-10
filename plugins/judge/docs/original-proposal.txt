@@ -1,0 +1,430 @@
+# bb-judge: concept and spike spec
+
+Status: draft for a spike · 2026-11-10 · written against bb 0.49.0 (repo commit `7c1353d`, plugin SDK 0.6.138)
+
+`bb-judge` is a headless-first bb plugin that owns the connection to a decision model (Jev or Clef) and lets people, agents and other plugins ask typed questions about what is happening in bb. Saved question sets can be bound to bb events, so it does useful things with no other plugin installed.
+
+Background research: [Decision models on bb](https://claude.ai/artifact/BsPdPa6oox7wzMe61TCx4L).
+
+## Goals
+
+- One place for model connection, keys, failure policy, caching and a verdict log.
+- Explicit model selection: Jev (hosted), Clef and Clef-flash (hosted or self-hosted).
+- Ask arbitrary questions with arbitrary state from the CLI, RPC or an agent tool.
+- Use bb objects and events as inputs without writing a plugin.
+- Save question sets for reuse, with multi-step support from the start.
+- Ship templates people can copy from, and accept contributed ones in the repo.
+- Stay composable: other plugins call judge, and judge can call them.
+
+## Non-goals for the spike
+
+- Project-committed question sets. Everything is global for now.
+- A general automation engine. Actions are a small closed set.
+- Jig. Nothing here depends on it or anticipates its contract.
+- Auto-approving tool calls.
+
+## Vocabulary
+
+| Term | Meaning |
+| --- | --- |
+| Model | A named, configured decision model: connection, model id, pinned version. |
+| Source | A named resolver that turns a bb object or event into a value for `state`. |
+| Question set | A saved, named unit: inputs, questions, outcomes, in one or more steps. |
+| Step | One request inside a question set. Later steps can be gated on earlier outcomes. |
+| Outcome | A named boolean computed from answers and thresholds. |
+| Trigger | A record binding a bb event to a question set and a list of actions. |
+| Template | A question set shipped with the plugin. Never active. You copy it to use it. |
+
+## Shape
+
+```
+CLI · RPC · agent tool · triggers (bb events)
+                │
+        question set runner ── sources (bb.sdk, bb--git, event payload)
+                │
+          model registry ── private guard
+                │
+   transports: systemone │ workers-ai
+                │
+        verdict log · cache · thread metadata
+```
+
+Four layers, each usable without the one above it:
+
+1. **Ask.** Arbitrary questions against arbitrary state.
+2. **Sources.** Named inputs drawn from bb.
+3. **Question sets.** Saved and named, built on sources.
+4. **Triggers.** A question set bound to an event and actions.
+
+## Models
+
+### The wire format is the contract
+
+Jev's System One format is shared by Clef and by local servers, so judge's core types are that format and nothing vendor-specific:
+
+```jsonc
+// request
+{ "model": "…", "state": { … }, "questions": { "<id>": { "type": "noul|choice|score", "instructions": "…", "criteria": … } } }
+// response
+{ "model": "…", "answers": { "<id>": { "type": "noul", "noul": 0.93 } }, "usage": { "input_tokens": 120 } }
+```
+
+Answer shapes: `noul` returns a probability of yes. `choice` returns `choice`, `confidence` and `probabilities`. `score` returns `score`, `confidence`, `legend` and `probabilities`.
+
+### Transports
+
+| Transport | Covers | Notes |
+| --- | --- | --- |
+| `systemone` | TypeSafe (`https://api.typesafe.ai/v1/systemone`), self-hosted Clef, llama.cpp, Ollama | Any base URL that serves `/v1/systemone`. Bearer key optional. |
+| `workers-ai` | Clef and Clef-flash on Cloudflare | `POST https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/@cf/cloudflare/{clef\|clef-flash}`. Unwrap the `{ result, success, errors, messages }` envelope. `model` must be `clef` or `clef-flash`. |
+
+```ts
+interface JudgeTransport {
+  id: "systemone" | "workers-ai";
+  limits: { maxQuestions?: number; maxContextTokens: number; images: boolean };
+  send(req: SystemOneRequest, signal: AbortSignal): Promise<SystemOneResponse>;
+}
+```
+
+Write the core client as plain `fetch`. The TypeSafe SDK (`@typesafe-ai/sdk`, Node 22+) documents no base-URL or custom-fetch option on its docs page, so don't build the core on it. Keep judge's question types structurally compatible with the SDK's so its `noul()`, `choice()` and `score()` builders still work for anyone who wants them.
+
+### Differences that matter
+
+| | Jev | Clef | Clef-flash |
+| --- | --- | --- | --- |
+| Price per million input tokens | $0.042 | $0.24 | $0.09 (secondary sources) |
+| Context | 64k per request, 32k per question | 65,536 tokens | Not stated separately |
+| Question cap | None stated | 64 per request | Same API |
+| `choice` options / `score` levels | Up to 255 / up to 10 | Up to 255 / up to 10 | Same API |
+| Weights | Closed | Open, Apache 2.0 | Open, Apache 2.0 |
+
+### Configuration
+
+Connections are fixed and their secrets live in `bb.settings` (secret strings stay in a 0600 file on the server and never reach the frontend):
+
+| Connection | Settings |
+| --- | --- |
+| `typesafe` | `typesafeApiKey` |
+| `cloudflare` | `cloudflareAccountId`, `cloudflareApiToken` |
+| `custom` | `customBaseUrl`, `customApiKey` (optional) |
+
+Models are named entries in judge's database that reference a connection:
+
+```yaml
+- id: jev
+  connection: typesafe
+  model: jev-1.14.0        # pin a version; thresholds move when the model does
+  allowPrivate: false
+- id: clef-flash
+  connection: cloudflare
+  model: clef-flash
+  allowPrivate: false
+- id: clef-local
+  connection: custom
+  model: clef
+  allowPrivate: true
+```
+
+Resolution order for a step: explicit `--model` or RPC argument, then the step's `model`, then the set's `model`, then the global default.
+
+### The private guard
+
+Private is a property of the data, enforced by the user's settings. It is not a routing alias and a question set cannot waive it.
+
+- Each source is marked sensitive or not (defaults below; the user can tighten them).
+- Each model has `allowPrivate`. Self-hosting is one way to earn it. A hosted provider whose data policy the user accepts is another.
+- If a step includes a sensitive input and its resolved model has `allowPrivate: false`, judge uses the configured `privateDefault` model. If none is set, the step is `unavailable` with reason `private_not_allowed`.
+- Ad hoc state passed to `ask` is treated as sensitive unless the caller says otherwise.
+
+## Sources
+
+A source resolves to a JSON value with a size cap. Inputs are resolved per step, only if the step runs.
+
+| Source | Reads from | Sensitive by default | Status |
+| --- | --- | --- | --- |
+| `thread.title` | Thread DTO | No | Verified |
+| `thread.lastAssistantText` | `thread.idle` payload, else `threads.output` | No | Verified |
+| `thread.recentUserMessages` | Thread timeline or prompt history | No | API shape not checked |
+| `thread.commands` | `threads.events.list` with `types: ["item/completed"]`, items of type `commandExecution`: `command`, `exitCode`, `durationMs` | No | Verified |
+| `thread.commandOutput` | Same items, `aggregatedOutput` (optional, may be truncated) | Yes | Verified |
+| `thread.goal` | `thread/goal/updated` events: `objective`, `status` | No | Event exists; availability at idle not checked |
+| `git.changedFiles` | `bb--git` RPC `files` | No | Verified |
+| `git.status` | `bb--git` RPC `workspaceStatus` | No | Verified |
+| `git.diff` | `bb--git` RPC `diff`, target `{ type: "uncommitted" }` or branch | Yes | Verified |
+| `event.*` | The trigger's payload, e.g. `turn.failed` error facts | No | Verified per event |
+| `project.name`, `provider.id`, `provider.model` | Thread and project DTOs | No | Verified |
+
+Notes:
+
+- Git reads go through `bb.sdk.plugins.callRpc({ pluginId: "bb--git", … })`. They fail when the Git plugin is disabled and never wake a sleeping machine.
+- To-dos are not a usable source at idle. `experimental_headState` returns `pendingTodos` as null unless the thread is active.
+- Every input takes `maxChars`. The runner checks the assembled state against the resolved model's context limit before sending and returns `too_large` instead of truncating silently.
+
+## Question sets
+
+### Template the state, not the question
+
+Inputs go into `state` as named fields. Questions reference them by backticked name. Question text is never interpolated. That keeps the question hash stable for caching and calibration, and keeps agent-written text out of the instructions.
+
+### Single step
+
+```yaml
+id: needs-attention
+description: Does a finished turn need the user?
+model: clef-flash            # optional preference
+calibratedFor: [clef-flash, jev]
+inputs:
+  title: thread.title
+  last_message: { from: thread.lastAssistantText, maxChars: 12000 }
+questions:
+  asks_question:
+    type: noul
+    instructions: Does `last_message` ask the user something it needs answered to continue?
+  reports_problem:
+    type: noul
+    instructions: Does `last_message` report a failure or a blocker?
+outcomes:
+  needs_you:
+    any: [{ q: asks_question, gte: 0.7 }, { q: reports_problem, gte: 0.7 }]
+cases:
+  - inputs: { title: "Fix flaky test", last_message: "Which database should I target?" }
+    expect: { needs_you: true }
+```
+
+Top-level `inputs`, `questions` and `outcomes` are shorthand for a single step named `main`.
+
+### Steps
+
+```yaml
+id: completion-check
+budgetMs: 2500
+steps:
+  - id: screen
+    model: clef-flash
+    inputs:
+      last_message: { from: thread.lastAssistantText, maxChars: 12000 }
+    questions:
+      claims_done: { type: noul, instructions: Does `last_message` present the work as finished? }
+    outcomes:
+      claimed: { all: [{ q: claims_done, gte: 0.75 }] }
+
+  - id: verify
+    when: screen.claimed
+    inputs:
+      commands: { from: thread.commands, last: 20 }
+      changed: git.changedFiles
+    questions:
+      checks_ran: { type: noul, instructions: Do `commands` include a test, build or lint run after the last change? }
+    outcomes:
+      unverified: { all: [{ q: checks_ran, lte: 0.3 }] }
+
+outcomes:
+  premature_done: { all: [screen.claimed, verify.unverified] }
+```
+
+Rules:
+
+1. Steps run in order, one request per step.
+2. A step runs only if its `when` holds. `when` references outcomes of earlier steps.
+3. Inputs are resolved per step, and only if the step runs.
+4. Each step may name its own model. The private guard is checked per step.
+5. `budgetMs` covers the whole set. A step that would start past the budget does not start.
+6. A step ends as `ran`, `skipped` or `unavailable`. A skipped step's outcomes read as false. An unavailable step stops the set and marks the run incomplete.
+7. A later step does not see earlier answers, only whether its gate passed.
+
+### Outcomes
+
+An outcome is `all`, `any` or `not` over two kinds of term:
+
+- A predicate object on one question: `{ q, gte }` or `{ q, lte }` for a noul's probability; `{ q, is: <option>, gte }` for a choice; `{ q, gte }` on the expected value for a score.
+- A string naming another outcome, such as `screen.claimed`.
+
+Outcomes are the only thing triggers and callers act on. Raw answers stay available in the verdict.
+
+### Calibration
+
+Thresholds belong to a question set and a model together. `calibratedFor` lists the model ids the thresholds were set on. A run on any other model is recorded with `calibrated: false`, and triggers treat it as record-only.
+
+### Cases
+
+`cases` supply values for every input across all steps and assert set-level outcomes. They are required for templates and for anything contributed to the repo.
+
+## Triggers
+
+```yaml
+id: flag-needs-attention
+on: thread.idle
+ask: needs-attention
+projects: all               # or a list of project ids
+then:
+  needs_you: [{ badge: "Needs you" }]
+```
+
+### Events for the spike
+
+`thread.idle` and `turn.failed`. bb events are fire-and-forget and are not replayed while a plugin is unloaded, so triggers are best-effort by design.
+
+### Actions
+
+| Action | What it does | In the spike |
+| --- | --- | --- |
+| `record` | Writes the verdict to the log and to thread plugin metadata. Always on, implicit. | Yes |
+| `badge` | Shows a label on the thread from judge's frontend bundle. | Yes |
+| `send` | Sends a message to the thread with `threads.send`, mode `auto`. | Later, with caps |
+| `callRpc` | Passes the verdict to another plugin's RPC method. | Later |
+
+Details:
+
+- **Thread metadata is the composability surface.** Judge writes the latest verdict per question set under its own namespace with `threads.updatePluginMetadata`. Any plugin can read it. The namespace is capped at 256 KiB, so keep only the latest verdict per set.
+- **`badge` has a visibility catch.** `experimental_threadRowMetadata` only draws when the `threadRowMetadata` experiment and Organize → Rows → Metadata are both on, and both are off by default. Also register an `experimental_threadInfoRow` so the verdict is always visible in the thread's Info tab.
+- **`send` needs loop limits.** A message from judge starts a turn, which ends in another `thread.idle`. Limits to start from: once per user prompt, a 60-second cooldown, three per thread, and never in response to a turn judge itself started.
+- **There is no backend notify API.** `bb.ui` offers mention providers and `requestInput` only. A notification action would need judge's frontend plus `bb.realtime`, or the push-notifications plugin, whose RPC sets a thread's level and does not send a message. Deferred.
+
+### Guard against self-editing
+
+The plugin CLI context includes the calling `threadId`. A trigger created or changed from inside a thread starts disabled until the user enables it. Question sets created from a thread are allowed, since they only ask.
+
+## Storage and scope
+
+- One SQLite database through `bb.storage.database()`, migrated with `bb.storage.migrate` (append-only).
+- Each question set, trigger and model is stored as one validated YAML document in a row, with a `scope` column that is always `global` for now. Export is then the file format, and a project loader later is a second source feeding the same registry.
+- Each question set and trigger carries `projects: all | [ids]`. Each project has one "use global question sets" switch, stored by judge.
+- The verdict log keys on scope, set id, set hash and per-question hash.
+- State is not stored. The log keeps a state hash and sizes. A debug flag can turn on state capture.
+
+Suggested tables: `models`, `question_sets`, `triggers`, `runs`, `steps`, `cache`.
+
+## Templates
+
+- Shipped in the plugin's `templates/` directory. Contributions land there by PR and must include `cases`.
+- `bb judge templates use <template> --as <id>` copies a template into the user's question sets and records `from: <template>@<version>`. It is a copy, not a reference, because thresholds get tuned locally.
+- First three: `needs-attention`, `completion-check`, and `diff-lint` (a fixed list of rules as nouls over the uncommitted diff, phrased so yes means violation).
+
+## Surfaces
+
+### CLI
+
+One command, registered with `defineCli` so every level gets `--help` and `--json`:
+
+```
+bb judge ask <set> [--thread <id>] [--input key=value] [--model <id>]
+bb judge ask --noul "<question>" [--state <json>] [--model <id>] [--not-private]
+bb judge questions list | show <id> | save <file> | remove <id> | export <id> | import <file>
+bb judge templates list | use <template> [--as <id>]
+bb judge triggers list | add <file> | remove <id> | enable <id> | disable <id>
+bb judge models list | add | default <id> | check <id>
+bb judge test <set> [--model <id>] [--compare <id>]
+bb judge log [--set <id>] [--thread <id>] [-n <count>]
+```
+
+`run` executes on the server, so a file path argument names a file on the invoking machine. Read it through `bb.sdk.files` with that machine's `hostId`, never with `node:fs`.
+
+### RPC
+
+Registered with `defineRpcContract`, so other plugins reach it through `bb.sdk.plugins.callRpc` (which gives up after 75 seconds) and the frontend through `useRpc`:
+
+| Method | Input | Output |
+| --- | --- | --- |
+| `ask` | `{ state, questions, model?, private? }` | `StepResult` |
+| `run` | `{ set, threadId?, inputs?, model? }` | `Verdict` |
+| `sets.list` | `null` | Ids, descriptions, enabled state |
+| `verdicts.keyed` | `{ keys: threadId[] }` | Latest verdicts per thread, for badges |
+
+### Agent tool and skill
+
+- `judge_ask`, registered with `bb.agents.registerTool`, off by default. It runs a saved question set by id, or ad hoc questions.
+- `skills/judge/SKILL.md` teaches agents how to write a question set: one narrow judgment per question, named state fields, a no-match option, yes means violation for lint-style checks, and cases for every outcome.
+
+### Settings
+
+Flat `bb.settings` descriptors cover the connection secrets. Models, the per-project switches and trigger enablement need a custom `settingsSection` backed by RPC, because descriptors cannot express lists.
+
+## Result shapes
+
+```ts
+type StepResult =
+  | {
+      status: "ran";
+      provider: string;
+      model: string;
+      answers: Record<string, Answer>;
+      outcomes: Record<string, boolean>;
+      latencyMs: number;
+      inputTokens: number;
+      cached: boolean;
+    }
+  | { status: "skipped" }
+  | {
+      status: "unavailable";
+      reason: "timeout" | "error" | "too_large" | "budget" | "private_not_allowed";
+    };
+
+interface Verdict {
+  runId: string;
+  set: { id: string; scope: "global"; hash: string };
+  complete: boolean;      // false if any step was unavailable
+  calibrated: boolean;    // false if a step ran on a model outside calibratedFor
+  steps: Record<string, StepResult>;
+  outcomes: Record<string, boolean>;
+}
+```
+
+## Failure rules
+
+- Judge never throws to a caller for a model failure. It returns `unavailable`.
+- Default per-request timeout of 2 seconds, inside the set's `budgetMs`.
+- A trigger acts only when the verdict is `complete` and `calibrated`. Otherwise it records.
+- Cache by model, question hash and state hash, with a short TTL. A cached answer still writes a log row, marked `cached`.
+- If dispatch-hook triggers are added later: the hook has a 10-second box and bb fails the send on a throw, timeout or malformed answer. Judge must catch everything and return `proceed`.
+
+## Testing and calibration
+
+- Unit tests with `@get-bb/plugin-sdk/testing`: `createFakePluginHost`, drive RPC and CLI calls, stub `bb.sdk`.
+- A recorded transport for deterministic runner tests, including gates, budgets and the private guard.
+- `bb judge test <set>` runs the set's cases against a real model and reports per-outcome pass rates and how often each step ran.
+- `--compare <model>` runs the same cases on a second model and lists disagreements. This is the practical way to choose between Jev and Clef for a given set.
+
+## Spike plan
+
+1. **Ask.** Scaffold with `bb plugin new judge` (package `bb-plugin-judge`, plugin id `judge`). Connection settings, both transports, model registry, `ask` over CLI and RPC, verdict log.
+2. **Question sets.** Schema, sources, the step runner with gates and budget, private guard, `bb judge ask <set>`, storage with the `scope` column.
+3. **Templates and tests.** The three templates, `templates use`, `cases`, `bb judge test` with `--compare`.
+4. **Triggers.** `thread.idle` and `turn.failed`, the `record` action, thread metadata, the info row and row badge.
+5. **Reach.** `send` with loop limits, `callRpc`, the agent tool and the skill.
+
+## Deferred
+
+- Project-committed question sets. Needs a decision on which checkout to load from (default branch, not the thread's worktree), a per-project trust switch, and shadowing rules.
+- Computed options: a step whose choices come from an earlier ranking.
+- Fan-out: one request per item, for rules × hunks.
+- Earlier answers as later state.
+- Dispatch-hook triggers (`proceed`, `wait`, `reject`).
+- Approval triage on `interaction.pending`.
+- A notify action.
+- An OpenAI Decisions API transport.
+
+## Open questions and unverified points
+
+- [ ] Whether Cloudflare AI Gateway fronts Clef with the same body as Workers AI. Assumed, not confirmed.
+- [ ] Whether the TypeSafe SDK accepts a base URL in its constructor. The docs page does not say.
+- [ ] The simplest API for `thread.recentUserMessages`, and whether a thread's goal is readable at idle.
+- [ ] Whether the row-metadata experiment being off by default makes the info row the primary badge surface.
+- [ ] Whether ad hoc state should default to sensitive. This spec says yes.
+- [ ] Clef-flash latency on local hardware. No figures found.
+- [ ] Clef-flash's $0.09 price comes from secondary sources, not Cloudflare's own page.
+
+## References
+
+- bb plugin authoring skill: https://github.com/get-bb/bb/tree/main/plugins/bb-guide/skills/bb-plugin-authoring
+  - `references/backend-events.md` (events, the dispatch hook, RPC, HTTP, schedules)
+  - `references/backend-cli-agents.md` (`defineCli`, agent tools, `configure`)
+  - `references/backend-sdk.md` (`bb.sdk` areas, thread plugin metadata, cross-plugin RPC)
+  - `references/backend-foundation.md` (settings, storage, host entries)
+  - `references/git-reads.md` (`bb--git` methods)
+  - `references/frontend-thread-row-metadata.md` (row badges)
+  - `references/testing.md` (fake host, live loop)
+- TypeSafe: https://docs.typesafe.ai/llms.txt · [API](https://docs.typesafe.ai/api/system-one.md) · [models](https://docs.typesafe.ai/models.md) · [confidence](https://docs.typesafe.ai/confidence.md) · [model jaggedness](https://docs.typesafe.ai/model-jaggedness.md) · [JS SDK](https://docs.typesafe.ai/sdk/javascript.md)
+- Cloudflare: [Clef announcement](https://blog.cloudflare.com/clef-decision-models/) · [Workers AI model page](https://developers.cloudflare.com/workers-ai/models/clef) · [model card](https://huggingface.co/Cloudflare/clef)
+- [A deep dive into Clef](https://flaviocopes.com/clef/) (endpoint, envelope and model-name differences)
+- Prior art on bb: [Smart Queue](https://getbb.app/marketplace/agent-plugins) · [beside](https://github.com/get-bb/marketplace/pull/702)
+- Prior art elsewhere: [jev-lint](https://github.com/ckorhonen/jev-lint) · [jev-belay](https://github.com/valentynkit/jev-belay) · [Foreman](https://github.com/thruwire/foreman)
