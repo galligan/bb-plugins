@@ -25,6 +25,7 @@ export function ProjectForm({
 }) {
   const rpc = useRpc<typeof rpcContract>();
   const [data, setData] = useState<Settings | null>(null);
+  const [detectionError, setDetectionError] = useState<string | null>(null);
   const [detection, setDetection] = useState<Detection | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [initial, setInitial] = useState<Draft | null>(null);
@@ -32,20 +33,28 @@ export function ProjectForm({
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     let stale = false;
-    Promise.all([
-      rpc.call("projectSettings", { projectId }),
-      rpc.call("detectSetup", { projectId, hostId }),
-    ])
-      .then(([settings, plan]) => {
+    rpc
+      .call("projectSettings", { projectId })
+      .then((settings) => {
         if (stale) return;
         setData(settings);
-        setDetection(plan);
         setDraft(draftOf(settings));
         setInitial(draftOf(settings));
       })
       .catch((error) => {
         if (!stale)
           setError(error instanceof Error ? error.message : String(error));
+      });
+    rpc
+      .call("detectSetup", { projectId, hostId })
+      .then((plan) => {
+        if (!stale) setDetection(plan);
+      })
+      .catch((error) => {
+        if (!stale)
+          setDetectionError(
+            error instanceof Error ? error.message : String(error),
+          );
       });
     return () => {
       stale = true;
@@ -137,6 +146,7 @@ export function ProjectForm({
           <code className="break-all">{preview}</code>
         </p>
       </fieldset>
+      {detectionError && <p role="alert">Setup detection: {detectionError}</p>}
       {detection && <SetupDetection plan={detection} />}
       {error && <p role="alert">{error}</p>}
       <button
