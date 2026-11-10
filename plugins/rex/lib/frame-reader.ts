@@ -1,5 +1,7 @@
 // Reads what a terminal shows, through libghostty-vt's render state: the
-// viewport's rows of cells and the cursor.
+// viewport's rows of cells and the cursor. The viewport is wherever the
+// terminal is scrolled to, so only the rows on screen are ever read, however
+// long the history is.
 //
 // A cell's color is read as the program set it, not resolved to RGB. The
 // default colors and the 16 ANSI colors stay symbolic, because the tab draws
@@ -53,7 +55,13 @@ const STYLE_BG_COLOR = 4;
 const STYLE_FLAGS = 12;
 const BUFFER_BYTES = 12; // GhosttyBuffer: ptr, cap, len
 const TEXT_BYTES = 64;
-const OUT_BYTES = 8;
+const OUT_BYTES = 24; // Room for a GhosttyTerminalScrollbar: three u64s.
+const SCROLLBAR_OFFSET = 8;
+// GhosttyTerminalData and GhosttyTerminalScreen.
+const TERMINAL_ACTIVE_SCREEN = 6;
+const TERMINAL_SCROLLBAR = 9;
+const TERMINAL_MOUSE_TRACKING = 11;
+const SCREEN_ALTERNATE = 1;
 
 const CURSOR_STYLES = ["bar", "block", "underline", "hollow"] as const;
 
@@ -66,6 +74,17 @@ export interface Frame {
   cursor: { x: number; y: number; cols: 1 | 2; style: CursorStyle } | null;
   /** One entry per row, top to bottom. */
   lines: Run[][];
+  /**
+   * Where the viewport is among all the terminal's rows, history included:
+   * `total` rows exist and the one at `offset` is the first shown. On the
+   * live screen `offset` is `total - rows`. The alternate screen has no
+   * history, so there `total` is `rows`.
+   */
+  scroll: { total: number; offset: number };
+  /** Whether a full-screen program has switched to the alternate screen. */
+  alternateScreen: boolean;
+  /** Whether the program has asked to be sent mouse events. */
+  mouseTracking: boolean;
 }
 
 export class FrameReader {
@@ -140,7 +159,47 @@ export class FrameReader {
       lines.push(buildRuns(this.#readRow()));
     }
 
-    return { cols, rows, cursor: this.#readCursor(), lines };
+    return {
+      cols,
+      rows,
+      cursor: this.#readCursor(),
+      lines,
+      ...this.#readScrollState(),
+    };
+  }
+
+  #readScrollState(): Pick<
+    Frame,
+    "scroll" | "alternateScreen" | "mouseTracking"
+  > {
+    const wasm = this.#wasm;
+    const terminal = this.#terminal;
+    wasm.check("ghostty_terminal_get", terminal, TERMINAL_SCROLLBAR, this.#out);
+    const scroll = {
+      total: Number(wasm.view.getBigUint64(this.#out, true)),
+      offset: Number(
+        wasm.view.getBigUint64(this.#out + SCROLLBAR_OFFSET, true),
+      ),
+    };
+    wasm.check(
+      "ghostty_terminal_get",
+      terminal,
+      TERMINAL_ACTIVE_SCREEN,
+      this.#out,
+    );
+    const alternateScreen =
+      wasm.view.getInt32(this.#out, true) === SCREEN_ALTERNATE;
+    wasm.check(
+      "ghostty_terminal_get",
+      terminal,
+      TERMINAL_MOUSE_TRACKING,
+      this.#out,
+    );
+    return {
+      scroll,
+      alternateScreen,
+      mouseTracking: wasm.bytes[this.#out] !== 0,
+    };
   }
 
   #readCursor(): Frame["cursor"] {
