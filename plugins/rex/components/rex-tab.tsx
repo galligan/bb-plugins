@@ -1,7 +1,9 @@
-// The "Rex" tab: one terminal pane and a line of status above it.
+// The "Rex" tab: one terminal pane, and above it a line with the menu that
+// says which Rex window the thread shows, and the pane's status.
 
 import { useState, type ReactNode } from "react";
 
+import { TargetMenu } from "./target-menu.tsx";
 import { TerminalView } from "./terminal-view.tsx";
 import { usePane, type PaneState } from "./use-pane.ts";
 
@@ -54,19 +56,18 @@ export function RexTab({ threadId }: { threadId: string }) {
     return (
       <Notice>
         <p className="max-w-prose text-foreground">{pane.message}</p>
-        <ActionButton onClick={reopen}>Try again</ActionButton>
+        <div className="flex items-center gap-2">
+          <ActionButton onClick={reopen}>Try again</ActionButton>
+          {/* A window that cannot be shown can still be changed for another. */}
+          <TargetMenu threadId={threadId} shown={null} onChanged={reopen} />
+        </div>
       </Notice>
     );
   }
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
-        <span
-          className="min-w-0 shrink truncate font-medium text-foreground"
-          title={`Rex session ${pane.sessionLabel}, window ${pane.windowLabel}`}
-        >
-          {pane.sessionLabel}
-        </span>
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-1.5 py-1 text-xs text-muted-foreground">
+        <TargetMenu threadId={threadId} shown={pane} onChanged={reopen} />
         <span className="shrink-0">{statusText(pane)}</span>
         <span className="min-w-0 flex-1 truncate text-destructive">
           {pane.inputProblem ?? pane.historyProblem}
