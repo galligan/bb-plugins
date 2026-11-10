@@ -16,6 +16,7 @@ for (const [key, value] of Object.entries({
   DocumentFragment: dom.window.DocumentFragment,
   HTMLSelectElement: dom.window.HTMLSelectElement,
   HTMLInputElement: dom.window.HTMLInputElement,
+  HTMLTextAreaElement: dom.window.HTMLTextAreaElement,
   HTMLFormElement: dom.window.HTMLFormElement,
   getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
   Event: dom.window.Event,
@@ -571,6 +572,45 @@ test("BB registry connection select opens by keyboard and changes the model hint
   assert.ok(slot.getByPlaceholderText("clef or clef-flash"));
   assert.ok(
     slot.inspection.rpcCalls.every((call) => call.method === "models.list"),
+  );
+  slot.lifecycle.unmount();
+});
+
+test("compact choices display their initial selected label and retain changed labels after closing", async () => {
+  const { createElement, useState } = await import("react");
+  const { Choice } = await import("./controls.tsx");
+  const { CompactViewportOverrideProvider } =
+    await import("./ui/hooks/use-compact-viewport.tsx");
+  function CompactChoice() {
+    const [value, setValue] = useState("typesafe");
+    return createElement(CompactViewportOverrideProvider, {
+      isCompactViewport: true,
+      children: createElement(Choice, {
+        label: "Fixture connection",
+        value,
+        onChange: setValue,
+        options: [
+          { value: "typesafe", label: "Jev / TypeSafe" },
+          { value: "cloudflare", label: "Cloudflare Workers AI" },
+        ],
+      }),
+    });
+  }
+  const slot = renderSlot({ component: CompactChoice }, {});
+  const trigger = slot.getByRole("combobox", { name: "Fixture connection" });
+  assert.match(trigger.textContent ?? "", /Jev \/ TypeSafe/);
+  fireEvent.click(trigger);
+  fireEvent.click(
+    await slot.findByRole("option", { name: "Cloudflare Workers AI" }),
+  );
+  await waitFor(() =>
+    assert.match(trigger.textContent ?? "", /Cloudflare Workers AI/),
+  );
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  fireEvent.click(trigger);
+  fireEvent.click(await slot.findByRole("option", { name: "Jev / TypeSafe" }));
+  await waitFor(() =>
+    assert.match(trigger.textContent ?? "", /Jev \/ TypeSafe/),
   );
   slot.lifecycle.unmount();
 });
