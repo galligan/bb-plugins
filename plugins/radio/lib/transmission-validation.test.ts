@@ -235,3 +235,43 @@ test("size diagnostics count Unicode characters and never truncate or exempt inl
     await f.harness.lifecycle.dispose();
   }
 });
+
+test("recipient limits count distinct canonical IDs and bound raw duplicate input separately", async () => {
+  const f = fixture();
+  try {
+    const sent = f.store.transmissions.send(f.context, {
+      ...f.input,
+      recipientIds: Array(101).fill(f.target.id),
+    });
+    assert.deepEqual(sent.transmission.recipientIds, [f.target.id]);
+    assert.equal(
+      f.store.transmissions.send(f.context, {
+        ...f.input,
+        recipientIds: [f.target.id],
+      }).transmission.id,
+      sent.transmission.id,
+    );
+    assert.throws(
+      () =>
+        f.store.transmissions.send(f.context, {
+          ...f.input,
+          idempotencyKey: "unique",
+          recipientIds: Array.from(
+            { length: 101 },
+            (_, index) => `actor_${index}`,
+          ),
+        }),
+      /100.*distinct recipients/,
+    );
+    assert.throws(
+      () =>
+        f.store.transmissions.send(f.context, {
+          ...f.input,
+          recipientIds: Array(1001).fill(f.target.id),
+        }),
+      code("invalid_input"),
+    );
+  } finally {
+    await f.harness.lifecycle.dispose();
+  }
+});

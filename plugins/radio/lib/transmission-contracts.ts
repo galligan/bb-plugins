@@ -8,6 +8,7 @@ export const TX_BODY_MAX = 400;
 export const TX_RAW_MAX = 2000;
 export const TX_REFS_MAX = 16;
 export const TX_RECIPIENTS_MAX = 100;
+export const TX_RECIPIENT_INPUT_MAX = 1000;
 const referenceSchema = z.discriminatedUnion("kind", [
   z
     .object({
@@ -26,7 +27,7 @@ export const sendSchema = z
     channelId: idSchema,
     body: z.string().min(1).max(TX_RAW_MAX),
     refs: z.array(referenceSchema).max(TX_REFS_MAX).default([]),
-    recipientIds: z.array(idSchema).max(TX_RECIPIENTS_MAX).default([]),
+    recipientIds: z.array(idSchema).max(TX_RECIPIENT_INPUT_MAX).default([]),
     replyToId: idSchema.optional(),
     idempotencyKey: z.string().min(1).max(128),
   })
@@ -90,5 +91,10 @@ export function parseSend(input: unknown) {
       );
   }
   request.recipientIds = [...new Set(request.recipientIds)].sort();
+  if (request.recipientIds.length > TX_RECIPIENTS_MAX)
+    throw new RadioError(
+      "invalid_input",
+      `Select at most ${TX_RECIPIENTS_MAX} distinct recipients.`,
+    );
   return request;
 }
