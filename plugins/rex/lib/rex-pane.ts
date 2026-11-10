@@ -5,10 +5,13 @@
 // connection stays open for as long as the stream does. Input for the pane
 // goes out on that same control connection, which is what keeps it in order.
 //
+// The pane is the terminal of the thread's own Rex window, which
+// thread-window.ts finds or makes.
+//
 // Typing goes to whichever pane the tab shows. Claiming a pane and asking for
 // a size or colors do not: a terminal follows its owner, so those would
 // change the pane in the user's own Rex client. pane-claim.ts holds the rule
-// for when the tab may, and it only ever applies to a session this plugin
+// for when the tab may, and it only ever applies to a window this plugin
 // created.
 
 import { randomUUID } from "node:crypto";
@@ -16,10 +19,6 @@ import { randomUUID } from "node:crypto";
 import type WebSocket from "ws";
 import { z } from "zod";
 
-import {
-  readCreatedSessions,
-  updateCreatedSessions,
-} from "./created-sessions.ts";
 import {
   describeReject,
   encodeDataHello,
@@ -34,12 +33,10 @@ import {
 } from "./pane-input.ts";
 import { openRexSocket, RexControl, toBuffer } from "./rex-control.ts";
 import {
-  choosePane,
-  chooseSession,
-  sessionListSchema,
-  sessionViewSchema,
-  SHELL_FLAVOR,
-} from "./session.ts";
+  ensureThreadWindow,
+  type ThreadForWindow,
+  type ThreadWindowStore,
+} from "./thread-window.ts";
 
 const DATA_SUBPROTOCOL = "rex.data.terminal.v1";
 const HANDSHAKE_TIMEOUT_MS = 10_000;
@@ -66,6 +63,8 @@ export interface PaneStream extends Relay {
   /** Names this open pane to the tab, which sends it back with its input. */
   readonly id: string;
   readonly sessionLabel: string;
+  /** The label of the thread's window, as it is in Rex. */
+  readonly windowLabel: string;
   /** Whether the tab should report its panel's size and the app's colors. */
   readonly claimsPane: boolean;
   /**
@@ -73,61 +72,6 @@ export interface PaneStream extends Relay {
    * taken all of it.
    */
   input(events: readonly PaneInput[]): Promise<void>;
-}
-
-/** Where the plugin keeps the IDs of the sessions it created. */
-export interface CreatedSessionsStore {
-  read(): Promise<unknown>;
-  write(sessionIds: string[]): Promise<void>;
-}
-
-// Two tabs opening at once must not both find the label missing and both
-// create a session, which would leave the label ambiguous from then on.
-let sessionLookups: Promise<unknown> = Promise.resolve();
-
-function oneAtATime<T>(task: () => Promise<T>): Promise<T> {
-  const result = sessionLookups.then(task, task);
-  sessionLookups = result.catch(() => {});
-  return result;
-}
-
-/**
- * Finds the session labelled `label`, or creates it with one shell. `ours`
- * says whether this plugin created it, now or on an earlier open.
- */
-async function findOrCreateSession(
-  control: RexControl,
-  label: string,
-  store: CreatedSessionsStore,
-): Promise<{ sessionId: string; ours: boolean }> {
-  const list = await control.call("session.list", undefined, sessionListSchema);
-  const live = (list.sessions ?? []).map((session) => session.session_id);
-  const stored = readCreatedSessions(await store.read());
-  const recorded = updateCreatedSessions(stored, live);
-  if (recorded.length !== stored.length) await store.write(recorded);
-  const choice = chooseSession(list, label);
-  if (choice.kind === "found") {
-    return {
-      sessionId: choice.sessionId,
-      ours: recorded.includes(choice.sessionId),
-    };
-  }
-  if (choice.kind === "ambiguous") {
-    throw new PaneError(
-      "ambiguous_label",
-      `${choice.count} Rex sessions are labelled "${label}", so the tab cannot tell which to show. Rename all but one, or set the plugin's session label to a name only one session has.`,
-    );
-  }
-  const created = await control.call(
-    "session.create",
-    {
-      label,
-      initial_windows: [{ layout: { block: { flavor: SHELL_FLAVOR } } }],
-    },
-    z.object({ session_id: z.string() }),
-  );
-  await store.write(updateCreatedSessions(recorded, live, created.session_id));
-  return { sessionId: created.session_id, ours: true };
 }
 
 const ownedBlocksSchema = z.object({
@@ -141,30 +85,21 @@ const ownedBlocksSchema = z.object({
     .nullable(),
 });
 
-/** Opens the focused terminal of the session labelled `label`. */
+/**
+ * Opens the terminal of `thread`'s own Rex window, making the window, and the
+ * session labelled `sessionLabel` if need be, the first time.
+ */
 export async function openPane(options: {
   socketPath: string;
-  label: string;
-  createdSessions: CreatedSessionsStore;
+  sessionLabel: string;
+  thread: ThreadForWindow;
+  windows: ThreadWindowStore;
 }): Promise<PaneStream> {
   const control = await RexControl.connect(options.socketPath);
   try {
-    const { sessionId, ours } = await oneAtATime(() =>
-      findOrCreateSession(control, options.label, options.createdSessions),
-    );
-    const attached = await control.call(
-      "session.attach",
-      { session_id: sessionId },
-      z.object({ client_id: z.string(), view: sessionViewSchema }),
-    );
-    const pane = choosePane(attached.view);
-    if (pane.kind === "none") {
-      throw new PaneError(
-        "no_terminal",
-        `Rex session "${options.label}" has no terminal to show. ${pane.reason}`,
-      );
-    }
-    const block = { session_id: sessionId, block_id: pane.blockId };
+    const window = await ensureThreadWindow(control, options);
+    const { sessionId, blockId } = window;
+    const block = { session_id: sessionId, block_id: blockId };
 
     // A refused size or theme is not worth ending the pane over.
     const ask = (method: string, args: unknown) =>
@@ -176,8 +111,9 @@ export async function openPane(options: {
         )
         .catch(() => {});
     const claim = new PaneClaim({
-      mayClaim: ours,
-      clientId: attached.client_id,
+      // The window is one the plugin made for this thread.
+      mayClaim: true,
+      clientId: window.clientId,
       resize: (size) =>
         ask("resize", {
           columns: size.cols,
@@ -188,17 +124,17 @@ export async function openPane(options: {
       recolor: (theme) => ask("set_theme", setThemeArgsFor(theme)),
     });
     control.onMessage((message) => {
-      const owner = ownerChange(message, { sessionId, blockId: pane.blockId });
+      const owner = ownerChange(message, { sessionId, blockId });
       if (owner !== undefined) claim.ownerIs(owner);
     });
     if (claim.mayClaim) {
       const owned = await control.call(
         "session.own_block",
-        { session_id: sessionId, block_ids: [pane.blockId], mode: "take" },
+        { session_id: sessionId, block_ids: [blockId], mode: "take" },
         ownedBlocksSchema,
       );
       claim.ownerIs(
-        owned.blocks?.find((entry) => entry.block_id === pane.blockId)?.owner ??
+        owned.blocks?.find((entry) => entry.block_id === blockId)?.owner ??
           null,
       );
     }
@@ -222,7 +158,8 @@ export async function openPane(options: {
     return {
       ...stream,
       id: randomUUID(),
-      sessionLabel: options.label,
+      sessionLabel: options.sessionLabel,
+      windowLabel: window.windowLabel,
       claimsPane: claim.mayClaim,
       input: (events) => deliver(control, block, claim, events),
     };

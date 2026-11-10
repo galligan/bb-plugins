@@ -42,9 +42,9 @@ function statusText(pane: Extract<PaneState, { phase: "open" }>): string {
   return `${pane.frame.cols}×${pane.frame.rows}`;
 }
 
-export function RexTab() {
+export function RexTab({ threadId }: { threadId: string }) {
   const [attempt, setAttempt] = useState(0);
-  const pane = usePane(attempt);
+  const pane = usePane(threadId, attempt);
   const reopen = () => setAttempt((count) => count + 1);
 
   if (pane.phase === "connecting") {
@@ -61,7 +61,12 @@ export function RexTab() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">{pane.sessionLabel}</span>
+        <span
+          className="min-w-0 shrink truncate font-medium text-foreground"
+          title={`Rex session ${pane.sessionLabel}, window ${pane.windowLabel}`}
+        >
+          {pane.sessionLabel}
+        </span>
         <span className="shrink-0">{statusText(pane)}</span>
         <span className="min-w-0 flex-1 truncate text-destructive">
           {pane.inputProblem ?? pane.historyProblem}

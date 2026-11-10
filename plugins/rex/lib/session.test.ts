@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  choosePane,
   chooseSession,
+  chooseWindowPane,
   sessionViewSchema,
   type SessionView,
 } from "./session.ts";
@@ -68,35 +68,40 @@ function view(overrides: Partial<SessionView> = {}): SessionView {
   };
 }
 
-test("takes the focused block of the active window, on any layer", () => {
-  assert.deepEqual(choosePane(view()), {
+test("takes the focused block of the window asked for, on any layer", () => {
+  assert.deepEqual(chooseWindowPane(view(), "window:b"), {
     kind: "terminal",
     blockId: "block:b2",
   });
+  // Not the active window's: the one named.
+  assert.deepEqual(chooseWindowPane(view(), "window:a"), {
+    kind: "terminal",
+    blockId: "block:a1",
+  });
 });
 
-test("reports a session with no windows", () => {
-  assert.equal(choosePane({}).kind, "none");
-  assert.equal(choosePane(view({ active_window_id: null })).kind, "none");
+test("reports a window that is not in the session", () => {
+  assert.deepEqual(chooseWindowPane(view(), "window:gone"), {
+    kind: "none",
+    reason: "The window is no longer there.",
+  });
+  assert.equal(chooseWindowPane({}, "window:a").kind, "none");
 });
 
-test("reports an active window with nothing focused", () => {
-  const choice = choosePane(
-    view({
-      active_window_id: "window:c",
-      windows: [{ window_id: "window:c", layers: [{ blocks: null }] }],
-    }),
+test("reports a window with nothing focused", () => {
+  const choice = chooseWindowPane(
+    view({ windows: [{ window_id: "window:c", layers: [{ blocks: null }] }] }),
+    "window:c",
   );
   assert.deepEqual(choice, {
     kind: "none",
-    reason: "The active window has no focused pane.",
+    reason: "The window has no focused pane.",
   });
 });
 
 test("does not offer a focused block that is not a terminal", () => {
-  const choice = choosePane(
+  const choice = chooseWindowPane(
     view({
-      active_window_id: "window:c",
       windows: [
         {
           window_id: "window:c",
@@ -114,6 +119,7 @@ test("does not offer a focused block that is not a terminal", () => {
         },
       ],
     }),
+    "window:c",
   );
   assert.deepEqual(choice, {
     kind: "none",
@@ -152,8 +158,9 @@ test("reads the view from the Rex API page's example", () => {
       },
     ],
   });
-  assert.deepEqual(choosePane(parsed), {
+  assert.deepEqual(chooseWindowPane(parsed, "window:<uuid>"), {
     kind: "terminal",
     blockId: "block:<uuid>",
   });
+  assert.equal(parsed.windows?.[0]?.label, "editor");
 });

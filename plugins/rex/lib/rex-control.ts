@@ -84,7 +84,13 @@ export function openRexSocket(
   });
 }
 
-export class RexControl {
+/** The one thing most of this plugin needs of a control connection. */
+export interface RexCaller {
+  /** Calls a method and parses its result with `schema`. */
+  call<T>(method: string, payload: unknown, schema: z.ZodType<T>): Promise<T>;
+}
+
+export class RexControl implements RexCaller {
   readonly #socket: WebSocket;
   readonly #pending = new Map<string, Waiter>();
   readonly #listeners: ((message: unknown) => void)[] = [];
@@ -166,6 +172,7 @@ export class RexControl {
       new PaneError(
         "rex_refused",
         `Rex refused ${waiter.method}: ${error.message} (${error.code})`,
+        error.code,
       ),
     );
   }

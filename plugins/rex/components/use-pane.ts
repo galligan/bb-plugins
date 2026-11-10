@@ -22,6 +22,8 @@ export type PaneState =
   | {
       phase: "open";
       sessionLabel: string;
+      /** The label of the thread's window in Rex. */
+      windowLabel: string;
       /** Whether the tab fits the pane to its panel and gives it bb's colors. */
       claimsPane: boolean;
       /** Null until the snapshot that opens the stream has arrived. */
@@ -71,12 +73,16 @@ async function failureMessage(
 
 /** Runs until the stream ends or `signal` aborts. Throws on any failure. */
 async function watchPane(
+  threadId: string,
   signal: AbortSignal,
   publish: (state: PaneState) => void,
 ): Promise<void> {
   const [module, response] = await Promise.all([
     compileGhostty(),
-    fetch(`${HTTP_BASE}/stream`, { signal, cache: "no-store" }),
+    fetch(`${HTTP_BASE}/stream?thread=${encodeURIComponent(threadId)}`, {
+      signal,
+      cache: "no-store",
+    }),
   ]);
   if (!response.ok) throw new Error(await failureMessage(response, "stream"));
   const paneId = response.headers.get(PANE_HEADERS.pane);
@@ -87,6 +93,9 @@ async function watchPane(
   const pane = {
     sessionLabel: decodeURIComponent(
       response.headers.get(PANE_HEADERS.sessionLabel) ?? "",
+    ),
+    windowLabel: decodeURIComponent(
+      response.headers.get(PANE_HEADERS.windowLabel) ?? "",
     ),
     claimsPane: response.headers.get(PANE_HEADERS.claim) === "claimed",
   };
@@ -187,14 +196,14 @@ async function watchPane(
   }
 }
 
-/** Opens the pane. Change `attempt` to open it again. */
-export function usePane(attempt: number): PaneState {
+/** Opens the pane of `threadId`'s window. Change `attempt` to open it again. */
+export function usePane(threadId: string, attempt: number): PaneState {
   const [state, setState] = useState<PaneState>({ phase: "connecting" });
 
   useEffect(() => {
     const abort = new AbortController();
     setState({ phase: "connecting" });
-    watchPane(abort.signal, (next) => {
+    watchPane(threadId, abort.signal, (next) => {
       if (!abort.signal.aborted) setState(next);
     }).catch((error: unknown) => {
       if (abort.signal.aborted) return;
@@ -208,7 +217,7 @@ export function usePane(attempt: number): PaneState {
       abort.abort();
     });
     return () => abort.abort();
-  }, [attempt]);
+  }, [threadId, attempt]);
 
   return state;
 }
