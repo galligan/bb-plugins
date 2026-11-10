@@ -1,0 +1,44 @@
+# Bounded thread and event sources
+
+This stage supplies offline source adapters through `SourceService`. They return `{status: "ok", value, sensitive, provenance}` or `{status: "unavailable", reason, code}`. The saved-set runner integrates them later. No source adapter invokes inference, publishes state, wakes a host, executes a shell command, or writes raw source content to logs or run records.
+
+## Contracts and observations
+
+The implementation uses public SDK 0.6.132 declarations and the installed plugin-authoring backend SDK reference. Relevant public calls are `threads.get`, `threads.output`, `threads.defaultExecutionOptions`, `threads.events.list`, and `projects.get`. There are no imports from BB internals.
+
+The pinned `threads.promptHistory` response contains only entry ID, creation time, and input parts; its query supports a limit but no cursor. The global experimental history response adds scope/thread/project identifiers and a cursor but still has no per-entry author origin. Those surfaces cannot independently establish that every returned prompt was human-authored. The older optional canonical BB checkout was inspected read-only and found to be from August 2026; it was not used as proof of current runtime semantics.
+
+The pinned `client/turn/requested` event instead exposes `initiator`, `senderThreadId`, optional `originPluginId`, retry/system attribution, and typed input. A read-only structural scan of the implementation thread on the current BB build observed 22 such events: 2 user, 15 system, and 5 agent. Only counts, sequence, origin flags and input-kind/group metadata were retained in the sanitized task artifact; no message text was logged. This establishes the need for filtering, not universal provider/history support.
+
+Event reads use explicit descending order, exclusive `beforeSeq`, a typed event-kind filter, and a maximum page size of 100. The adapter validates sequence order, thread identity, kind and exclusivity across whole pages before selecting evidence. It reads at most five pages (500 matching announcements); if that bound is exhausted before satisfying the selection, it returns `history_window_exceeded`. Selected arrays are returned chronologically with their original sequence/time. Provenance records the source, observation time, requested bounds, selected count, newest selected sequence, and truncation where relevant, never source text.
+
+## Projections and privacy
+
+| Source                      | Projection and absence behavior                                                                                           | Classification                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `thread.title`              | Exact DTO title; null is unavailable, without fallback titles                                                             | Sensitive                                                                                      |
+| `thread.lastAssistantText`  | Explicit idle payload when supplied, including null; otherwise `threads.output`. Null never falls back to a stale reply   | Sensitive                                                                                      |
+| `thread.commands`           | Canonical completed command items: command, status, nullable exit/duration, sequence/time and truncation                  | Sensitive                                                                                      |
+| `thread.commandOutput`      | Same selected commands with available aggregated output; absent output is unavailable, not an empty invented string       | Sensitive                                                                                      |
+| `thread.recentUserMessages` | Bounded visible user-origin request text, sequence and time                                                               | Sensitive                                                                                      |
+| `thread.goal`               | Latest goal update, including objective/status/budget/usage; a latest clear is `goal_cleared` unavailable                 | Sensitive                                                                                      |
+| `project.name`              | Exact project DTO name, checked against context                                                                           | Sensitive                                                                                      |
+| `provider.id`               | Exact thread provider identifier                                                                                          | Public only for allowlisted `codex`, `claude-code`, and `pi`; other identifiers stay sensitive |
+| `provider.model`            | Resolved thread execution-option model, not an inferred provider weight/version                                           | Sensitive                                                                                      |
+| `event.*`                   | Only normalized idle/failure thread/project/request/turn identifiers, attempt number, input-accepted flag and error field | Error text is sensitive; allowlisted identifier/status facts may be public                     |
+
+A source definition cannot downgrade classification. A caller override will remain sensitive when the runner lands. Missing context, DTO fields, unsupported event/provider representations or SDK read failures return bounded diagnostic codes without upstream text. Invalid definitions/context shapes remain boundary errors. Project/thread mismatches are rejected instead of silently reading a different context. Git source adapters arrive in their separate task.
+
+## User and command history limits
+
+User-message projection accepts only explicit `initiator: user`, no sender thread, no plugin attribution, no system-message kind and no retry-of marker. Agent-only parts are excluded. Mixed multi-group requests and visible nontext attachments are unavailable because the current shape cannot establish a complete, unambiguous text-only user projection. Missing origin fields also fail closed. It never falls back to unattributed prompt history or provider-specific tool guesses. The result is observed user request history, not a guarantee that a provider accepted each request or retained a full conversation. The default selection is at most five requests; `count` can select up to 100.
+
+Command evidence accepts normalized `item/completed` items of type `commandExecution` with completed/failed/interrupted status. It does not reinterpret arbitrary `mcpToolCall` or provider-specific shell-tool arguments. A provider with no canonical command evidence returns unavailable. The default selection is at most ten commands; `count` can select up to 100. Missing exit codes/durations remain null. Upstream truncation is explicitly carried on each selected row and in provenance; bounded retained output is not presented as complete output.
+
+These command observations do not compare against subsequent edits, assert that a named check covered current code, or prove correctness. Goal replay reads both updated and cleared kinds; a clear always defeats an older objective. Historical `beforeSeq` selections are explicit snapshots, and an updated goal's status is preserved rather than assumed active. Goal projection selects the latest single announcement regardless of a larger maximum count.
+
+## Bounds, cancellation and remaining gates
+
+Every value has a hard 64 KiB serialized UTF-8 ceiling and its declared `maxChars` cap. Character counts are Unicode code points for plain strings and serialized JSON characters for structured projections. Oversized evidence is refused as a whole; nothing is silently clipped. Source calls share a monotonic whole-run deadline (5 seconds by default until the runner supplies its remaining deadline), caller cancellation and disposal. SDK calls receive the abort signal; even an abort-ignoring SDK fixture cannot trigger later follow-up reads after cancellation or expiry.
+
+Offline tests cover idle null/fallback behavior, provider variation, malformed/missing evidence, privacy, UTF-8/character bounds, command paging/order/truncation, user origin filtering, goal clear/update replay, scan caps, and SDK cancellation/disposal. The installed runtime shape scan retained only sanitized metadata. Full enrolled-host reads, provider-specific history retention, live grouped-history behavior and source-to-runner integration remain later live gates. Unsupported evidence returns unavailable until those contracts can be established. No BB core changes or provider calls were needed here.
