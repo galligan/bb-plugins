@@ -30,14 +30,21 @@ export function readManifest(root) {
   ) {
     throw new Error("repos.json must contain unique GitHub owner/repo strings");
   }
+  const destinations = slugs.map((slug) =>
+    slug.replace("/", "--").toLowerCase(),
+  );
+  if (new Set(destinations).size !== destinations.length) {
+    throw new Error("repos.json contains references that collide on disk");
+  }
   return slugs;
 }
 
 function validateCheckout(target, remote) {
+  // Compare the configured origin before Git applies transport URL rewrites.
   if (
     lstatSync(target).isSymbolicLink() ||
     !existsSync(path.join(target, ".git")) ||
-    git(["remote", "get-url", "origin"], target) !== remote
+    git(["config", "--get", "remote.origin.url"], target) !== remote
   ) {
     throw new Error(`Unexpected checkout at ${target}; inspect it manually`);
   }
@@ -83,6 +90,7 @@ export function syncRepos(root, action) {
     // Independent copies survive removal of the worktree that supplied them.
     git(["clone", "--no-hardlinks", seed ?? remote, target], root);
     if (seed) git(["remote", "set-url", "origin", remote], target);
+    if (action === "pull") git(["pull", "--ff-only"], target);
     console.log(
       `${slug}: cloned${seed ? " from a local worktree" : " from GitHub"}`,
     );

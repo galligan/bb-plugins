@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -70,6 +71,56 @@ test("worktrees get independent ignored clones with their GitHub origin preserve
       "https://github.com/example/plugin.git",
     );
     assert.equal(git(target, "status", "--porcelain"), "");
+    // Keep the seed at A while a local stand-in for GitHub advances to B.
+    const upstream = path.join(temp, "upstream");
+    git(source, "clone", seed, upstream);
+    writeFileSync(path.join(upstream, "README.md"), "updated reference\n");
+    git(upstream, "add", ".");
+    git(
+      upstream,
+      "-c",
+      "user.name=Test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "-qm",
+      "update",
+    );
+    const syncWithUpstream = (action) =>
+      execFileSync(
+        process.execPath,
+        [
+          "--eval",
+          `import { syncRepos } from ${JSON.stringify(new URL("./repos.mjs", import.meta.url).href)}; syncRepos(${JSON.stringify(target)}, ${JSON.stringify(action)});`,
+        ],
+        {
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+          env: {
+            ...process.env,
+            GIT_CONFIG_COUNT: "1",
+            GIT_CONFIG_KEY_0: `url.${upstream}.insteadOf`,
+            GIT_CONFIG_VALUE_0: "https://github.com/example/plugin.git",
+          },
+        },
+      );
+    rmSync(clone, { recursive: true });
+    syncWithUpstream("clone");
+    assert.equal(git(clone, "show", "HEAD:README.md"), "reference source");
+    rmSync(clone, { recursive: true });
+    syncWithUpstream("pull");
+    assert.equal(
+      git(clone, "rev-parse", "HEAD"),
+      git(upstream, "rev-parse", "HEAD"),
+    );
+    assert.equal(git(seed, "show", "HEAD:README.md"), "reference source");
+    rmSync(clone, { recursive: true });
+    rmSync(upstream, { recursive: true });
+    assert.throws(
+      () => syncWithUpstream("pull"),
+      /does not appear to be a git repository/,
+    );
+    assert.equal(git(clone, "show", "HEAD:README.md"), "reference source");
     rmSync(seed, { recursive: true });
     assert.equal(git(clone, "show", "HEAD:README.md"), "reference source");
     syncRepos(target, "clone");
@@ -92,5 +143,21 @@ test("worktrees get independent ignored clones with their GitHub origin preserve
     assert.throws(() => syncRepos(target, "unknown"), /Usage/);
   } finally {
     rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("destination collisions fail before any cloning, including case-only collisions", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "bb-plugin-manifest-"));
+  try {
+    for (const slugs of [
+      ["a--b/c", "a/b--c"],
+      ["A--b/c", "a/B--c"],
+    ]) {
+      writeFileSync(path.join(root, "repos.json"), JSON.stringify(slugs));
+      assert.throws(() => syncRepos(root, "clone"), /collide on disk/);
+      assert.equal(existsSync(path.join(root, "repos")), false);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
