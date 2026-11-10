@@ -36,6 +36,11 @@ const keySchema = z
   .refine((value) => !/[\r\n]/.test(value), "Key must not contain line breaks");
 export function defineConnectionSettings(bb: BbPluginApi) {
   return bb.settings.define({
+    showSidebarBadges: {
+      type: "boolean",
+      label: "Show Judge sidebar badges (requires BB row metadata)",
+      default: false,
+    },
     typesafeApiKey: {
       type: "string",
       secret: true,
@@ -85,8 +90,9 @@ export function defineConnectionSettings(bb: BbPluginApi) {
 export type ConnectionSettingsHandle = ReturnType<
   typeof defineConnectionSettings
 >;
-export type ConnectionSettings = Awaited<
-  ReturnType<ConnectionSettingsHandle["get"]>
+export type ConnectionSettings = Omit<
+  Awaited<ReturnType<ConnectionSettingsHandle["get"]>>,
+  "showSidebarBadges"
 >;
 export const CONNECTION_FIELDS = {
   typesafe: ["typesafeApiKey"],

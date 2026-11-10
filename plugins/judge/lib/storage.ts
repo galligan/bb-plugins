@@ -176,9 +176,14 @@ export class JudgeRepository {
     );
   }
 
+  private runListeners = new Set<(threadId: string | null) => void>();
+  onRun(listener: (threadId: string | null) => void): () => void {
+    this.runListeners.add(listener);
+    return () => this.runListeners.delete(listener);
+  }
   saveRun(value: unknown, now = Date.now()): Verdict {
     const verdict = parseVerdict(value);
-    return persist(() =>
+    const saved = persist(() =>
       this.db.transaction(() => {
         const { steps, ...summary } = verdict;
         this.db
@@ -201,6 +206,13 @@ export class JudgeRepository {
         return verdict;
       })(),
     );
+    for (const listener of this.runListeners)
+      try {
+        listener(saved.threadId);
+      } catch {
+        /* Committed runs remain successful. */
+      }
+    return saved;
   }
 
   getRun(id: string): Verdict | null {
