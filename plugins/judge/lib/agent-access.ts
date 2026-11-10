@@ -54,8 +54,13 @@ export async function registerAgentAccess(
       });
       if (disposed || ctx.signal.aborted) return error("cancelled");
       try {
+        const beforeRead = generation;
         const current = await settings.get();
         if (disposed || ctx.signal.aborted) return error("cancelled");
+        // A notification is newer than this read. Never restore its old value
+        // or let disable/re-enable revive a request admitted before revocation.
+        if (beforeRead !== generation)
+          return error(enabled ? "cancelled" : "agent_tool_disabled");
         update(current.enableAgentTool === true);
         if (!enabled) return error("agent_tool_disabled");
         const input = parseAgentInput(value);
