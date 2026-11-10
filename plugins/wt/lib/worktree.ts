@@ -540,29 +540,26 @@ export async function removeWorktree(
           `Not removing ${path}: submodule work cannot be saved automatically (${inspection.unsavedSubmodules.join(", ")}). Commit and push it there, then delete again.`,
         );
       }
+      if (inspection.editedSharedFiles.length > 0) {
+        // These exist nowhere else, and they are ignored because they tend to
+        // hold secrets, so they are never written into git to save them.
+        return failed(
+          `Not removing ${path}: ignored files edited here exist nowhere else and are not saved to git, since they may hold secrets (${inspection.editedSharedFiles.join(", ")}). Copy what you need to ${sourcePath}, or discard the edits, then delete again.`,
+        );
+      }
       if (
         inspection.changedFiles > 0 ||
         inspection.untrackedFiles > 0 ||
-        inspection.unreferencedHead ||
-        inspection.editedSharedFiles.length > 0
+        inspection.unreferencedHead
       ) {
         const ref = await saveRescueSnapshot({
           path,
           branch: inspection.branch,
           now: env.now?.() ?? new Date(),
-          // Edited copies of shared files exist nowhere else, and removal can
-          // run on a timer with nobody watching.
-          ignoredFiles: inspection.editedSharedFiles,
           signal: env.signal,
         });
         env.report("step", `Saved uncommitted work to ${ref}`);
         env.report("log", `Restore it with: git checkout ${ref} -- .`);
-        if (inspection.editedSharedFiles.length > 0) {
-          env.report(
-            "log",
-            `Includes edited ignored files: ${inspection.editedSharedFiles.join(", ")}`,
-          );
-        }
       }
 
       env.report("step", `Removing worktree at ${path}`);

@@ -483,21 +483,18 @@ const RESCUE_IDENTITY = [
  * on disk survives too. An index with unresolved conflicts cannot be written
  * as a tree, so this throws for one; `conflictedFiles` reports that up front.
  *
- * Ignored files are not included, except the ones named in `ignoredFiles`
- * (the shared files edited here, which exist nowhere else). Submodule contents
- * are not included. The ref name is unique per snapshot and an existing ref is
+ * Ignored files are never included: they are where secrets live, and a
+ * snapshot is a git object that can be pushed. Submodule contents are not
+ * included either. The ref name is unique per snapshot and an existing ref is
  * never overwritten.
  */
 export async function saveRescueSnapshot(options: {
   path: string;
   branch: string | null;
   now: Date;
-  /** Ignored files to save anyway, relative to `path`. */
-  ignoredFiles?: readonly string[];
   signal?: AbortSignal;
 }): Promise<string> {
   const { path, signal } = options;
-  const ignoredFiles = options.ignoredFiles ?? [];
   const scratch = await mkdtemp(join(tmpdir(), "wt-rescue-"));
   try {
     const must = async (
@@ -536,9 +533,6 @@ export async function saveRescueSnapshot(options: {
     const env = { GIT_INDEX_FILE: join(scratch, "worktree") };
     await must(["read-tree", "HEAD"], env);
     await must(["add", "--all"], env);
-    if (ignoredFiles.length > 0) {
-      await must(["add", "--force", "--", ...ignoredFiles], env);
-    }
     const commit = await commitTree(
       await must(["write-tree"], env),
       parents,

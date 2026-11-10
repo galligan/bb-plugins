@@ -454,7 +454,7 @@ test("shared files are not copied through a symlink out of the worktree", async 
   assert.equal(existsSync(join(outside, "secret")), false);
 });
 
-test("an edited ignored shared file is saved before removal", async (t) => {
+test("an edited ignored shared file blocks removal and stays out of git", async (t) => {
   const f = await fixture(t, {
     ".gitignore": ".env\n",
     ".worktreeinclude": ".env\n",
@@ -462,11 +462,23 @@ test("an edited ignored shared file is saved before removal", async (t) => {
   await writeFile(join(f.source, ".env"), "TOKEN=1\n");
   const path = await provisioned(f);
   await writeFile(join(path, ".env"), "TOKEN=edited\n");
+  await writeFile(join(path, "notes.txt"), "draft\n");
 
+  const removed = await removeWorktree(f.env, { pathKey: KEY, path });
+  assert.equal(removed.status, "failed");
+  assert.match(removed.status === "failed" ? removed.message : "", /\.env/u);
+  assert.equal(await readFile(join(path, ".env"), "utf8"), "TOKEN=edited\n");
+  // Nothing was saved to git, so the secret is in no object.
+  assert.deepEqual(rescueRefs(f.source), []);
+
+  await writeFile(join(path, ".env"), "TOKEN=1\n");
   assert.deepEqual(await removeWorktree(f.env, { pathKey: KEY, path }), {
     status: "removed",
   });
   const [ref] = rescueRefs(f.source);
-  assert.notEqual(ref, undefined);
-  assert.equal(git(f.source, "show", `${ref ?? ""}:.env`), "TOKEN=edited");
+  assert.equal(git(f.source, "show", `${ref ?? ""}:notes.txt`), "draft");
+  assert.equal(
+    git(f.source, "ls-tree", "-r", "--name-only", ref ?? "").includes(".env"),
+    false,
+  );
 });
