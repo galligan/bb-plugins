@@ -1,0 +1,33 @@
+name: autolabel
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited, ready_for_review]
+  push:
+    branches: [main]
+    paths:
+      - "plugins/**"
+      - "scripts/autolabel.mjs"
+      - ".github/workflows/autolabel.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  autolabel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Run only trusted base code, never the PR head (including fork PRs).
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const { autolabel } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/autolabel.mjs`);
+            await autolabel({ github, context });
