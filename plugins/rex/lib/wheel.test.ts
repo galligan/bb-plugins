@@ -9,6 +9,7 @@ import {
 } from "./wheel.ts";
 
 const CELL = 12;
+const ROWS = 24;
 
 function wheel(overrides: Partial<WheelInput>): WheelInput {
   return {
@@ -23,37 +24,58 @@ function wheel(overrides: Partial<WheelInput>): WheelInput {
 
 test("one notch of a wheel scrolls the history 50 pixels, as in bb's terminal", () => {
   // Measured in bb: each notch moved its terminal four 12-pixel rows.
-  const up = historyRows(wheel({ deltaY: -100, wheelDeltaY: 120 }), CELL);
+  const up = historyRows(wheel({ deltaY: -100, wheelDeltaY: 120 }), CELL, ROWS);
   assert.equal(Math.trunc(up), -4);
   assert.equal(up, -50 / CELL);
-  const down = historyRows(wheel({ deltaY: 100, wheelDeltaY: -120 }), CELL);
+  const down = historyRows(
+    wheel({ deltaY: 100, wheelDeltaY: -120 }),
+    CELL,
+    ROWS,
+  );
   assert.equal(down, 50 / CELL);
 });
 
 test("a trackpad's small movements scroll in proportion", () => {
   // Chromium reports three legacy units for each pixel of a trackpad scroll.
-  const rows = historyRows(wheel({ deltaY: -8, wheelDeltaY: 24 }), CELL);
+  const rows = historyRows(wheel({ deltaY: -8, wheelDeltaY: 24 }), CELL, ROWS);
   assert.equal(rows, (-(24 / 120) * 50) / CELL);
   assert.ok(Math.abs(rows) < 1);
 });
 
 test("falls back to the standard delta where the legacy one is missing", () => {
-  assert.equal(historyRows(wheel({ deltaY: -40 }), CELL), -50 / CELL);
+  assert.equal(historyRows(wheel({ deltaY: -40 }), CELL, ROWS), -50 / CELL);
   assert.equal(
-    historyRows(wheel({ deltaY: -3, deltaMode: 1 }), CELL),
+    historyRows(wheel({ deltaY: -3, deltaMode: 1 }), CELL, ROWS),
     (-3 * 50) / CELL,
   );
 });
 
+test("a page delta scrolls the history a screen at a time", () => {
+  // Without this a page would count as a pixel and scroll nothing.
+  assert.equal(historyRows(wheel({ deltaY: 1, deltaMode: 2 }), CELL, ROWS), 24);
+  assert.equal(
+    historyRows(wheel({ deltaY: -2, deltaMode: 2 }), CELL, ROWS),
+    -48,
+  );
+  assert.equal(
+    historyRows(wheel({ deltaY: 1, deltaMode: 2, altKey: true }), CELL, ROWS),
+    120,
+  );
+});
+
 test("Alt makes the wheel go five times as far", () => {
-  const plain = historyRows(wheel({ wheelDeltaY: 120 }), CELL);
-  const fast = historyRows(wheel({ wheelDeltaY: 120, altKey: true }), CELL);
+  const plain = historyRows(wheel({ wheelDeltaY: 120 }), CELL, ROWS);
+  const fast = historyRows(
+    wheel({ wheelDeltaY: 120, altKey: true }),
+    CELL,
+    ROWS,
+  );
   assert.ok(Math.abs(fast - plain * 5) < 1e-9);
   assert.equal(Math.trunc(fast), -20);
 });
 
 test("scrolls nothing when a cell could not be measured", () => {
-  assert.equal(historyRows(wheel({ wheelDeltaY: 120 }), 0), 0);
+  assert.equal(historyRows(wheel({ wheelDeltaY: 120 }), 0, ROWS), 0);
   assert.equal(alternateScreenLines(wheel({ deltaY: 100 }), 0, 24), 0);
 });
 

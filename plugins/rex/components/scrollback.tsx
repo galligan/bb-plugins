@@ -84,7 +84,7 @@ export function useWheel(
 
       lines.reset();
       const hidden = frame.scroll.total - frame.rows;
-      const rows = history.take(historyRows(wheel, cellHeight));
+      const rows = history.take(historyRows(wheel, cellHeight, frame.rows));
       const atEnd =
         rows < 0 ? frame.scroll.offset <= 0 : frame.scroll.offset >= hidden;
       // With nowhere to go, the element may scroll instead: a pane taller

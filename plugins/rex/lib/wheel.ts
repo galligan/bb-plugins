@@ -31,17 +31,25 @@ const FAST_SCROLL = 5;
 /**
  * How many rows of history a wheel event scrolls: negative is back, into
  * older output. The result can be a fraction of a row; `WholeRows` carries
- * the remainder to the next event.
+ * the remainder to the next event. `rows` is how many the terminal shows.
  */
-export function historyRows(event: WheelInput, cellHeight: number): number {
+export function historyRows(
+  event: WheelInput,
+  cellHeight: number,
+  rows: number,
+): number {
   if (!(cellHeight > 0)) return 0;
+  const fast = event.altKey ? FAST_SCROLL : 1;
+  // A page is a screen. Only a browser without the legacy delta gets here.
+  if (event.wheelDeltaY === undefined && event.deltaMode === DELTA_PAGE) {
+    return event.deltaY * rows * fast;
+  }
   const notchesUp =
     event.wheelDeltaY !== undefined
       ? event.wheelDeltaY / UNITS_PER_NOTCH
       : event.deltaMode === DELTA_LINE
         ? -event.deltaY
         : -event.deltaY / 40;
-  const fast = event.altKey ? FAST_SCROLL : 1;
   return (-notchesUp * fast * PIXELS_PER_NOTCH) / cellHeight;
 }
 
