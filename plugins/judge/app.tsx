@@ -10,8 +10,6 @@ export default definePluginApp((app) => {
   app.slots.settingsSection({
     id: "judge",
     title: "Models and verdicts",
-    description:
-      "Manage explicit model policy, applicability, calibration and event bindings.",
     component: JudgeSettings,
   });
   app.slots.experimental_threadInfoRow({

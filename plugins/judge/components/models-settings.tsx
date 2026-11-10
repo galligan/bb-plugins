@@ -39,6 +39,11 @@ export function ModelsSettings() {
     <Group
       title="Models"
       description="Configure the models Judge can use. Only allow private data for a connection you trust."
+      action={
+        <Button type="button" onClick={read.refresh}>
+          Refresh models
+        </Button>
+      }
     >
       <Feedback error={read.error ?? action.error} notice={action.notice} />
       {!read.data ? (
@@ -61,10 +66,6 @@ export function ModelsSettings() {
               })),
             ]}
           />
-          <p>
-            Default: {read.data.defaults.defaultId ?? "none"}; private fallback:{" "}
-            {read.data.defaults.privateId ?? "none"}.
-          </p>
           {(after || read.data.next) && (
             <div className="judge-actions">
               <Button
@@ -85,9 +86,6 @@ export function ModelsSettings() {
           )}
         </>
       )}
-      <Button type="button" onClick={read.refresh}>
-        Refresh models
-      </Button>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -200,7 +198,14 @@ export function DefaultSettings() {
   const [id, setId] = useState("");
   const [privateDefault, setPrivate] = useState(false);
   return (
-    <Group title="Model defaults">
+    <Group
+      title="Model defaults"
+      action={
+        <Button type="button" onClick={read.refresh}>
+          Refresh defaults
+        </Button>
+      }
+    >
       {read.data ? (
         <p>
           Current default: {read.data.defaults.defaultId ?? "none"}; private
@@ -213,9 +218,6 @@ export function DefaultSettings() {
             : "Loading model defaults…"}
         </p>
       )}
-      <Button type="button" onClick={read.refresh}>
-        Refresh defaults
-      </Button>
       <form
         onSubmit={(e) => {
           e.preventDefault();

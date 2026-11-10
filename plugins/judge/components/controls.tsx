@@ -19,11 +19,13 @@ import {
 export function Group({
   title,
   description,
+  action,
   collapsed = false,
   children,
 }: {
   title: string;
   description?: string;
+  action?: ReactNode;
   collapsed?: boolean;
   children: ReactNode;
 }) {
@@ -38,9 +40,7 @@ export function Group({
     </div>
   );
   const content = (
-    <Card className="judge-group-body rounded-md bg-surface-recessed/70 p-3">
-      {children}
-    </Card>
+    <Card className="judge-group-body px-4 py-3.5">{children}</Card>
   );
   return collapsed ? (
     <details className="judge-group" aria-label={title}>
@@ -51,7 +51,10 @@ export function Group({
     </details>
   ) : (
     <section className="judge-group" aria-label={title}>
-      {heading}
+      <div className="judge-group-heading">
+        {heading}
+        {action && <div className="shrink-0">{action}</div>}
+      </div>
       {content}
     </section>
   );
@@ -113,13 +116,31 @@ export function Feedback({
     </>
   );
 }
-export { Input } from "./ui/input.tsx";
+import { Input as RegistryInput } from "./ui/input.tsx";
+export function Input({
+  className,
+  ...props
+}: ComponentProps<typeof RegistryInput>) {
+  return (
+    <RegistryInput className={`h-7 text-xs ${className ?? ""}`} {...props} />
+  );
+}
 export { Textarea } from "./ui/textarea.tsx";
 export { Checkbox } from "./ui/checkbox.tsx";
 export { Switch } from "./ui/switch.tsx";
 import { Button as RegistryButton } from "./ui/button.tsx";
-export function Button(props: ComponentProps<typeof RegistryButton>) {
-  return <RegistryButton variant="outline" size="sm" {...props} />;
+export function Button({
+  className,
+  ...props
+}: ComponentProps<typeof RegistryButton>) {
+  return (
+    <RegistryButton
+      variant="outline"
+      size="sm"
+      className={`h-7 px-2 text-xs ${className ?? ""}`}
+      {...props}
+    />
+  );
 }
 export function Choice({
   label,
@@ -145,7 +166,7 @@ export function Choice({
           <SelectTrigger
             id={id}
             aria-labelledby={`${id}-label`}
-            className="w-full"
+            className="h-7 w-full border-border/60 bg-card px-2 text-xs"
           >
             <SelectValue placeholder="Choose…" />
           </SelectTrigger>
