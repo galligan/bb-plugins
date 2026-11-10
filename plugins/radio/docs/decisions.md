@@ -33,11 +33,19 @@ This is the current design baseline from discussion with Matt. “Agreed” reco
 - Snapshot broadcast recipients at send time; deduplicate identical recipient IDs, not distinct sessions belonging to one actor.
 - Project-main-channel listening by default for BB threads; subchannel subscriptions explicit.
 - Mute pauses future channel audience inclusion and passive surfacing, not direct mentions or existing obligations.
-- Keep ordinary rename aliases until explicitly reclaimed; force assignment removes conflicting aliases atomically.
 - `standby` means waiting/unable to accept yet, differing from historical “working on it.”
 - First local/external slice uses explicit reads, tool-result hints and composer mentions, while listening/steering receive isolated runtime probes.
 - A trusted personal shared-token deployment is the smallest auth option, with its identity limitations made explicit.
 - No automatic claim expiry, reassignment or repeated idle-driven notifications.
+
+## Released identity/addressing contract
+
+Matt approved the identity/addressing layer on 2026-11-10, including these defaults. Approval of this layer does not release later product behavior.
+
+- Readable handles and project/channel names use lowercase ASCII letters/digits with single hyphens between segments. Underscores and repeated hyphens are repaired before allocation or rename; return the canonical spelling and correction information. Do not silently truncate, capture a reserved address or displace a collision.
+- Manual handles come first. Ordinary participant renames retain aliases; explicit human reclaim atomically displaces the prior holder to a unique fallback and removes conflicting aliases. Historical canonical targets remain unchanged.
+- Start with project channels plus one subchannel level. Project/channel IDs survive renames.
+- Backslash-escaped mentions, quoted text, inline code and fenced code do not expand recipients. Unknown/ambiguous addresses require useful diagnostics and qualified choices.
 
 ## Unresolved product decisions
 
@@ -50,8 +58,8 @@ This is the current design baseline from discussion with Matt. “Agreed” reco
 | Reply routing                | Author-only, all original recipients or explicit audience; avoid accidental re-broadcasts                               |
 | Transfer and waiver          | How session-specific obligations move after handoff, deletion or abandonment; require explicit dispositions             |
 | Exclusive request reopening  | Whether abandon releases ownership automatically or requires a separate release                                         |
-| Handle lifecycle             | Reservation permissions, alias expiry, fallback names and automated naming defaults                                     |
-| Address parsing              | Escape/code handling, allowed characters, project slug rules and hierarchy depth                                        |
+| Handle lifecycle             | Manual allocation, rename aliases and explicit human reclaim are approved above; automated naming remains deferred      |
+| Address parsing              | Grammar and literal-region defaults are approved above; exact edge cases follow the identity/addressing implementation  |
 | External credentials         | Trusted shared token versus individually scoped/revocable principals                                                    |
 | Receipt evidence             | Adapter-specific guarantee, confirmation operation and how unknown outcomes appear                                      |
 | Dispatch governance          | Editing authority, revision limits, attachment support, export and audited removal                                      |
@@ -95,4 +103,4 @@ Model-generated handles can follow deterministic manual allocation; they need no
 | Cross-station retry/loop      | Stable originating IDs, one destination snapshot, no duplicate replies/acks or receipt inflation              |
 | UI                            | Keyboard/compact layout, no sidebar dependency, no focus stealing, clear partial/unknown states               |
 
-Follow root repository checks before any future push. This documentation-only change requires formatting, link validation and diff review; it does not establish any runtime feature as working.
+Follow root repository checks before any push. Design descriptions do not establish runtime behavior; the package README records the implemented scope and its verification limits.

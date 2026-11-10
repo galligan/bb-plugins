@@ -11,7 +11,7 @@ test("fresh storage allocates one station and repeated initialization preserves 
     assert.deepEqual(db.prepare("SELECT name FROM sqlite_master").all(), []);
     const store = openRadioStorage(bb.storage);
     assert.match(store.stationId, /^station_[0-9a-f-]{36}$/);
-    assert.deepEqual(openRadioStorage(bb.storage), store);
+    assert.equal(openRadioStorage(bb.storage).stationId, store.stationId);
     assert.deepEqual(db.prepare("SELECT singleton, id FROM station").all(), [
       { singleton: 1, id: store.stationId },
     ]);
@@ -33,11 +33,11 @@ test("closing and reopening the database and reloading the plugin preserve the s
     const station = openRadioStorage(bb.storage);
     const closed = bb.storage.database();
     closed.close();
-    assert.deepEqual(openRadioStorage(bb.storage), station);
+    assert.equal(openRadioStorage(bb.storage).stationId, station.stationId);
     const beforeReload = bb.storage.database();
     await harness.lifecycle.reload((next) => {
       radio(next);
-      assert.deepEqual(openRadioStorage(next.storage), station);
+      assert.equal(openRadioStorage(next.storage).stationId, station.stationId);
     });
     assert.throws(() => beforeReload.prepare("SELECT id FROM station").get());
   } finally {
@@ -141,7 +141,7 @@ test("a failed appended upgrade retains the existing station and migration histo
       db.prepare("SELECT * FROM _bb_migrations ORDER BY id").all(),
       history,
     );
-    assert.deepEqual(openRadioStorage(bb.storage), store);
+    assert.equal(openRadioStorage(bb.storage).stationId, store.stationId);
   } finally {
     await harness.lifecycle.dispose();
   }

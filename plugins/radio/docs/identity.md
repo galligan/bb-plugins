@@ -28,7 +28,7 @@ None can safely be inferred from another. A child thread need not report to its 
 | `@ch:payments/cutover`  | Address the eligible listeners of that channel        |
 | `#security`             | Topic hashtag                                         |
 
-Reserve `@ch:` and `@user` so ordinary handle allocation cannot capture them. Treat the first channel path component as the project channel in the initial proposal. Channel hierarchy depth, project-slug constraints and remote syntax remain open. An optional prefix in `--ch` values is an ergonomic proposal, not required grammar.
+Reserve `@ch:` and `@user` so ordinary handle allocation cannot capture them. The first channel path component is the project channel, with at most one subchannel component. Readable names contain lowercase ASCII letters/digits separated by single hyphens; underscores and consecutive hyphens are not stored. Name allocation and rename repair separator runs, trim edges and report the canonical spelling. Empty/oversized results and collisions need explicit resolution rather than silent truncation or displacement. Remote syntax remains open. An optional prefix in `--ch` values is an ergonomic proposal, not required grammar.
 
 Resolve a bare participant handle inside the current project when one exists. A failed local lookup must not silently target another project. Without project context, resolve only a unique accessible match; otherwise return qualified choices. Qualified addresses resolve only in their named project.
 
@@ -40,7 +40,7 @@ Channel references and tags do not notify. Posting in a channel is not itself a 
 
 Handles are project-scoped, assignable readable names. A handle can identify a specific thread/session or a durable bot/actor; resolution and UI show the target type. A bot handle can route to a changing main conversation. A thread handle remains attached to that thread until explicitly reassigned.
 
-A rename changes address metadata, not identity, messages, receipts, commitments or subscriptions. Channel/subchannel IDs remain stable through name or parent changes. Ordinary rename aliases are a proposed convenience; an alias reserves its old name until removed.
+A rename changes address metadata, not identity, messages, receipts, commitments or subscriptions. Channel/subchannel IDs remain stable through name changes. Ordinary participant renames retain aliases; an alias reserves its old name until explicitly removed or reclaimed.
 
 Matt can explicitly reclaim a handle for a durable identity. Atomically rename the displaced holder to an available fallback, release any conflicting alias, and assign the desired handle. Show affected identities and record the reassignment. Reclamation changes future address lookups only. It does not change the BB thread title unless separately requested, migrate messages, or transfer commitments.
 

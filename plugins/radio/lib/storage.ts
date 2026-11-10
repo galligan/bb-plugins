@@ -1,22 +1,21 @@
 import { randomUUID } from "node:crypto";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import { IdentityRegistry } from "./identity-registry.ts";
+import { ProjectRegistry } from "./project-registry.ts";
+import { MIGRATIONS } from "./migrations.ts";
+export { MIGRATIONS } from "./migrations.ts";
 
 type Storage = Pick<BbPluginApi["storage"], "database" | "migrate">;
 
 export interface RadioStore {
   readonly stationId: string;
+  readonly identities: IdentityRegistry;
+  readonly projects: ProjectRegistry;
 }
-
-// Statement positions and contents are immutable once shipped. Append only.
-export const MIGRATIONS = [
-  `CREATE TABLE station (
-    singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
-    id TEXT NOT NULL UNIQUE CHECK(length(id) > 0)
-  ) STRICT`,
-];
 
 export function openRadioStorage(storage: Storage): RadioStore {
   const db = storage.database();
+  db.pragma("foreign_keys = ON");
   storage.migrate(db, MIGRATIONS);
 
   // First load and retries share one identity, including simultaneous loaders.
@@ -28,6 +27,10 @@ export function openRadioStorage(storage: Storage): RadioStore {
       .prepare<[], { id: string }>("SELECT id FROM station WHERE singleton = 1")
       .get();
     if (!station) throw new Error("Radio station initialization failed");
-    return Object.freeze({ stationId: station.id });
+    return Object.freeze({
+      stationId: station.id,
+      identities: new IdentityRegistry(db, station.id),
+      projects: new ProjectRegistry(db),
+    });
   })();
 }
