@@ -80,6 +80,13 @@ export class ModelService {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
+  /** Gate writes first; committed transactions must not report a notification failure. */
+  mutateDefinitions<T>(write: () => T): T {
+    this.active();
+    const result = write();
+    this.notify();
+    return result;
+  }
   private active(): void {
     if (this.disposed) throw new ValidationError("cancelled");
     if (this.invalidationFailed)
@@ -96,7 +103,13 @@ export class ModelService {
   }
   private notify(): void {
     this.generation++;
-    for (const listener of this.listeners) listener();
+    for (const listener of this.listeners) {
+      try {
+        listener();
+      } catch {
+        /* Generation checks still reject stale consumers if an abort hook fails. */
+      }
+    }
   }
 
   settingsChanged(next: ConnectionSettings, prev: ConnectionSettings): void {

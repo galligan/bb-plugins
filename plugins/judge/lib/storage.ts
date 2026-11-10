@@ -3,8 +3,11 @@ import { modelConfigSchema, type ModelConfig } from "./contracts.ts";
 import { LIMITS } from "./json.ts";
 import { parseVerdict, runSummarySchema, type Verdict } from "./results.ts";
 
+import { persist, type Database } from "./persistence.ts";
+import { DefinitionRepository } from "./sets-storage.ts";
+export { PersistenceError } from "./persistence.ts";
+
 type Storage = BbPluginApi["storage"];
-type Database = ReturnType<Storage["database"]>;
 type RunListOptions = {
   setId?: string;
   threadId?: string;
@@ -27,21 +30,6 @@ export const MIGRATIONS = [
   `CREATE TABLE model_defaults (id INTEGER PRIMARY KEY CHECK(id = 1), default_id TEXT, private_id TEXT)`,
 ];
 
-export class PersistenceError extends Error {
-  constructor() {
-    super("persistence_failed");
-    this.name = "PersistenceError";
-  }
-}
-
-function persist<T>(operation: () => T): T {
-  try {
-    return operation();
-  } catch {
-    throw new PersistenceError();
-  }
-}
-
 export function openJudgeStorage(storage: Storage): JudgeRepository {
   return persist(() => {
     const db = storage.database();
@@ -53,8 +41,12 @@ export function openJudgeStorage(storage: Storage): JudgeRepository {
 
 export class JudgeRepository {
   private db: Database;
+  readonly definitions: DefinitionRepository;
   constructor(db: Database) {
     this.db = db;
+    this.definitions = new DefinitionRepository(db, () =>
+      this.invalidateInference(),
+    );
   }
 
   saveModel(value: unknown): ModelConfig {

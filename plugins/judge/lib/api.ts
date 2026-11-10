@@ -10,6 +10,7 @@ import { ValidationError } from "./json.ts";
 import type { ModelService } from "./models.ts";
 import type { JudgeRepository } from "./storage.ts";
 import { PersistenceError } from "./storage.ts";
+import { SetService } from "./sets.ts";
 
 export function publicError(error: unknown): string {
   if (error instanceof PersistenceError) return "persistence_failed";
@@ -23,6 +24,7 @@ export class JudgeApi {
   readonly inference: InferenceService;
   readonly models: ModelService;
   readonly repository: JudgeRepository;
+  readonly sets: SetService;
   constructor(
     models: ModelService,
     repository: JudgeRepository,
@@ -30,6 +32,7 @@ export class JudgeApi {
   ) {
     this.models = models;
     this.repository = repository;
+    this.sets = new SetService(repository, models);
     this.inference = new InferenceService(models, fetcher);
     this.asks = new AskService(this.inference, repository);
   }
@@ -100,6 +103,18 @@ export function registerRpc(bb: BbPluginApi, api: JudgeApi): void {
     }
   }
   bb.rpc.register(rpcContract, {
+    "sets.list": (input) => safe(() => api.sets.list(input)),
+    "sets.show": (input) => safe(() => api.sets.get(input.id)),
+    "sets.save": (input) => safe(() => api.sets.save(input.yaml)),
+    "sets.import": (input) => safe(() => api.sets.save(input.yaml)),
+    "sets.export": (input) =>
+      safe(() => {
+        const record = api.sets.get(input.id);
+        return record ? { yaml: record.yaml } : null;
+      }),
+    "sets.remove": (input) => safe(() => api.sets.remove(input.id)),
+    "projects.set": (input) =>
+      safe(() => api.sets.project(input.projectId, input.enabled)),
     ask: (input, ctx) =>
       safe(() => api.asks.ask(input, ctx.experimental_signal)),
     "models.list": (input) => safe(() => api.list(input)),
