@@ -82,6 +82,7 @@
       "name": "bb-plugin-rex",
       "version": "0.1.0",
       "dependencies": {
+        "@radix-ui/react-slot": "^1.5.0",
         "ws": "^8.18.0",
         "zod": "^4.6.5",
       },
