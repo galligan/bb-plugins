@@ -11,7 +11,7 @@
 // terminal is full, and freed then.
 
 import type { Terminal } from "./ghostty.ts";
-import { RESULT, type Wasm } from "./wasm.ts";
+import { GhosttyError, RESULT, type Wasm } from "./wasm.ts";
 
 // GhosttySnapshotDecoderData and GhosttySnapshotDecoderProgressKind.
 const DATA_HISTORY_ROWS_PRIMARY = 3;
@@ -103,7 +103,9 @@ export class SnapshotHistory {
   /**
    * Restores the next page above the history the terminal holds. Returns
    * false, having freed the snapshot, when there was nothing more to restore
-   * or the terminal would not take it.
+   * or the terminal would not take it. Throws `GhosttyError`, having freed
+   * the snapshot, when the next page does not decode: the terminal keeps the
+   * history it has, and no older page can follow a damaged one.
    */
   restorePage(): boolean {
     const wasm = this.#wasm;
@@ -112,10 +114,9 @@ export class SnapshotHistory {
       const { decoder } = this.#open;
       const result = wasm.call("ghostty_snapshot_decoder_next", decoder);
       if (result !== RESULT.success) {
-        // The end of the snapshot, or a page that does not decode. Either
-        // way the terminal keeps the history it has and this is over.
         this.#release();
-        return false;
+        if (result === RESULT.noValue) return false;
+        throw new GhosttyError("restore the snapshot's history", result);
       }
       // Pixels of an image can come between pages. They add no rows.
       wasm.check(
@@ -154,6 +155,14 @@ export class SnapshotHistory {
     while (this.restorePage()) {
       // Until the terminal refuses one.
     }
+  }
+
+  /**
+   * Gives up the pages not yet restored and frees the snapshot. For when the
+   * program has cleared the terminal's history, which those pages precede.
+   */
+  abandon(): void {
+    this.#release();
   }
 
   /**

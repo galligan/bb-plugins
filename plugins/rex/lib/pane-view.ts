@@ -23,6 +23,7 @@ export class PaneView {
   readonly #terminal: Terminal;
   readonly #history: SnapshotHistory;
   readonly #reader: FrameReader;
+  #historyProblem: string | null = null;
 
   constructor(vt: GhosttyVt, terminal: Terminal, history: SnapshotHistory) {
     this.#vt = vt;
@@ -36,9 +37,22 @@ export class PaneView {
     return this.#history.finished;
   }
 
+  /** Why older history stopped being restored early, if it did. */
+  get historyProblem(): string | null {
+    return this.#historyProblem;
+  }
+
+  /**
+   * The program cleared the terminal's history. Whatever the snapshot had
+   * not given up yet is older than that, and goes with it.
+   */
+  historyCleared(): void {
+    this.#history.abandon();
+  }
+
   /** Reads what the terminal shows, placed among all of its history. */
   read(): Frame {
-    this.#history.finishIfNearlyFull();
+    this.#guarded(() => this.#history.finishIfNearlyFull());
     const frame = this.#reader.read();
     // The alternate screen has no history, restored or not.
     const pending = frame.alternateScreen ? 0 : this.#history.pendingRows;
@@ -85,8 +99,25 @@ export class PaneView {
 
   /** Restores older pages until `enough` says so or there are no more. */
   #restoreUntil(enough: () => boolean): void {
-    while (!enough() && this.#history.restorePage()) {
-      // Each page moves the rows the terminal holds further from its top.
+    this.#guarded(() => {
+      while (!enough() && this.#history.restorePage()) {
+        // Each page moves the rows the terminal holds further from its top.
+      }
+    });
+  }
+
+  /**
+   * Runs a step that restores history. A page that does not decode ends the
+   * restoring and is kept to report: the terminal still works, with the
+   * history it has.
+   */
+  #guarded(restore: () => void): void {
+    try {
+      restore();
+    } catch (error) {
+      this.#historyProblem = `Older history could not be restored: ${
+        error instanceof Error ? error.message : String(error)
+      }`;
     }
   }
 }

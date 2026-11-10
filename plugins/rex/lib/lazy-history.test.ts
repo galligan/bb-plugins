@@ -165,6 +165,52 @@ test("a snapshot taken while a full-screen program shows keeps its history", asy
   assert.equal(history(pane.read()), 3001 - SIZE.rows);
 });
 
+for (const [name, sequence] of [
+  ["erases the scrollback", "\x1b[3J"],
+  ["resets the terminal", "\x1bc"],
+] as const) {
+  test(`a program that ${name} ends the restoring`, async () => {
+    const pane = await openPane(long);
+    assert.equal(pane.read().scroll.total, ALL_ROWS);
+
+    // Followed by more output than the history that was held, so the rows
+    // held alone would not show that anything was cleared.
+    pane.feed(`${sequence}${lines(2000, PRINTED + 1)}`);
+    const frame = pane.read();
+    assert.equal(pane.view.historyRestored, true);
+    assert.equal(history(frame), pane.held(), "only what came after counts");
+
+    pane.scroll({ kind: "row", row: 0 });
+    const oldest = Number(pane.top().replace("line ", ""));
+    assert.ok(oldest > PRINTED - SIZE.rows, `the oldest line is ${oldest}`);
+  });
+}
+
+test("a damaged history page ends the restoring and says so", async () => {
+  // History pages follow the screen in a snapshot, newest first, so a byte
+  // far into it belongs to a page the screen does not need.
+  const damaged = long.slice();
+  const at = Math.floor(damaged.length * 0.8);
+  damaged.fill(0xff, at, at + 64);
+  const pane = await openPane(damaged);
+  assert.equal(pane.text(pane.read(), SIZE.rows - 2), `line ${PRINTED}`);
+  assert.equal(pane.view.historyProblem, null);
+
+  pane.scroll({ kind: "row", row: 0 });
+  assert.match(
+    pane.view.historyProblem ?? "",
+    /^Older history could not be restored: /,
+  );
+  assert.equal(pane.view.historyRestored, true);
+  // The terminal still works, with the history that was restored.
+  const frame = pane.read();
+  assert.equal(frame.scroll.offset, 0);
+  assert.ok(history(frame) > 0 && history(frame) < PRINTED);
+  pane.feed(lines(5, PRINTED + 1));
+  pane.scroll({ kind: "bottom" });
+  assert.equal(pane.text(pane.read(), SIZE.rows - 2), `line ${PRINTED + 5}`);
+});
+
 test("a short history is all there once the snapshot's pages are read", async () => {
   const pane = await openPane(await snapshotWithLines(50));
   assert.equal(history(pane.read()), 51 - SIZE.rows);

@@ -9,6 +9,7 @@
 // default and ANSI colors from the app's theme, whoever owns the pane.
 
 import type { GhosttyVt, Terminal } from "./ghostty.ts";
+import { HistoryClearScan } from "./history-clear.ts";
 import { PaneView } from "./pane-view.ts";
 import { parseRexMessage, RexMessageSplitter } from "./rex-messages.ts";
 import { findSnapshotEnd, newSnapshotScan } from "./snapshot.ts";
@@ -29,6 +30,7 @@ export class PaneDecoder {
   readonly #splitter: RexMessageSplitter;
   readonly #maxHistoryRows: number;
   readonly #scan = newSnapshotScan();
+  readonly #clears = new HistoryClearScan();
   #pending = new Uint8Array(64 * 1024);
   #pendingLength = 0;
   #terminal: Terminal | null = null;
@@ -102,6 +104,7 @@ export class PaneDecoder {
     for (const part of this.#splitter.push(bytes)) {
       if (part.kind === "vt") {
         this.#vt.write(terminal, part.bytes);
+        if (this.#clears.push(part.bytes)) this.#view?.historyCleared();
         continue;
       }
       const message = parseRexMessage(part.json);

@@ -32,6 +32,8 @@ export type PaneState =
       exit: { code: number | null } | null;
       /** Why the latest input did not reach the terminal, if it did not. */
       inputProblem: string | null;
+      /** Why older history stopped being restored early, if it did. */
+      historyProblem: string | null;
       /** Sends input to the pane. Input is delivered in the order sent. */
       send: (input: PaneInput) => void;
       /**
@@ -101,6 +103,7 @@ async function watchPane(
       live,
       exit: decoder.exit,
       inputProblem,
+      historyProblem: decoder.view?.historyProblem ?? null,
       send,
       scroll,
     });
