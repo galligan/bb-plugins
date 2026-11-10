@@ -16,7 +16,7 @@ import {
 
 function Meta({ icon, children }: { icon: string; children: ReactNode }) {
   return (
-    <span className="inline-flex h-4 min-w-0 items-center gap-1.5 leading-4">
+    <span className="inline-flex h-4 min-w-0 max-w-[40%] shrink-0 items-center gap-1.5 leading-4">
       <Icon name={icon} className="size-3.5 shrink-0" />
       <span className="min-w-0 truncate">{children}</span>
     </span>
@@ -50,12 +50,13 @@ export function WorktreeMetadata({ row }: { row: OverviewRow }) {
           <button
             className="inline-flex h-4 min-w-0 items-center gap-1.5 rounded-sm text-left hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             onClick={() => navigate.toThread(first.id)}
-            aria-label={`Open thread: ${first.title}`}
+            aria-label={`Open thread: ${first.title}${first.archived ? " (archived)" : ""}`}
           >
             <Icon name="MessageSquare" className="size-3.5 shrink-0" />
             <span className="truncate">
               <ThreadTitleText title={first.title} />
             </span>
+            {first.archived && <span className="shrink-0">(archived)</span>}
           </button>
           {row.threads.length > 1 && (
             <Popover>
