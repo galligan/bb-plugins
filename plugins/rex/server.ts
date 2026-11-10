@@ -1,13 +1,15 @@
 // bb-plugin-rex — the plugin's backend.
 //
 // The browser cannot reach the Rex server's Unix socket, so this relays for
-// it. Three routes, all for the plugin's own tab:
+// it. Five routes, all for the plugin's own tab:
 //
-//   - `GET /stream?thread=<id>` opens the terminal of that thread's own Rex
-//     window, making the window the first time, and answers with its byte
-//     stream for as long as the tab reads it
+//   - `GET /stream?thread=<id>` opens the terminal of the Rex window that
+//     thread shows, making the thread's own window the first time, and
+//     answers with its byte stream for as long as the tab reads it
 //   - `POST /input` takes the tab's keys, pastes, focus changes, panel size and
 //     terminal colors for an open stream and passes them to Rex in order
+//   - `GET /targets?thread=<id>` lists the windows the thread could show
+//     instead, and `POST /target` picks one, or goes back to its own
 //   - `GET /ghostty-vt.wasm` serves the vendored libghostty-vt build the tab
 //     decodes the stream with
 //
@@ -23,8 +25,15 @@ import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { PANE_HEADERS, PaneError } from "./lib/pane-error.ts";
 import { paneInputBatchSchema } from "./lib/pane-input.ts";
 import { RexControl } from "./lib/rex-control.ts";
+import { listWindows } from "./lib/rex-directory.ts";
 import { openPane, type PaneStream } from "./lib/rex-pane.ts";
 import { findRexSocket } from "./lib/rex-socket.ts";
+import { setTargetSchema, targetExists, type Targets } from "./lib/targets.ts";
+import {
+  THREAD_VIEW_KEY_PREFIX,
+  threadViewSchema,
+  type ThreadViewStore,
+} from "./lib/thread-view.ts";
 import {
   closeThreadWindow,
   THREAD_WINDOW_KEY_PREFIX,
@@ -87,6 +96,25 @@ export default async function plugin(bb: BbPluginApi) {
     delete: (threadId) =>
       bb.storage.kv.delete(THREAD_WINDOW_KEY_PREFIX + threadId),
   };
+
+  const views: ThreadViewStore = {
+    get: (threadId) =>
+      bb.storage.kv.get<unknown>(THREAD_VIEW_KEY_PREFIX + threadId),
+    set: (threadId, view) =>
+      bb.storage.kv.set(THREAD_VIEW_KEY_PREFIX + threadId, view),
+    delete: (threadId) =>
+      bb.storage.kv.delete(THREAD_VIEW_KEY_PREFIX + threadId),
+  };
+
+  /** Runs `task` on a control connection to Rex that is closed afterwards. */
+  async function withRex<T>(task: (rex: RexControl) => Promise<T>): Promise<T> {
+    const control = await RexControl.connect(await findRexSocket());
+    try {
+      return await task(control);
+    } finally {
+      control.close();
+    }
+  }
 
   /** What a window for the thread is made from, if the thread may have one. */
   async function threadForWindow(threadId: string): Promise<ThreadForWindow> {
@@ -151,6 +179,7 @@ export default async function plugin(bb: BbPluginApi) {
         sessionLabel: label,
         loadThread: () => threadForWindow(threadId),
         windows,
+        views,
       });
     } catch (error) {
       const failure = toPaneError(error);
@@ -175,6 +204,7 @@ export default async function plugin(bb: BbPluginApi) {
         [PANE_HEADERS.nonce]: pane.nonce,
         [PANE_HEADERS.sessionLabel]: encodeURIComponent(pane.sessionLabel),
         [PANE_HEADERS.windowLabel]: encodeURIComponent(pane.windowLabel),
+        [PANE_HEADERS.window]: pane.ownWindow ? "own" : "picked",
         [PANE_HEADERS.claim]: pane.claimsPane ? "claimed" : "none",
       },
     });
@@ -206,6 +236,63 @@ export default async function plugin(bb: BbPluginApi) {
     }
   });
 
+  bb.http.route("GET", "/targets", async (context) => {
+    try {
+      const threadId = context.req.query("thread") ?? "";
+      await threadForWindow(threadId);
+      const [sessions, own, pick] = await Promise.all([
+        withRex(listWindows),
+        windows.get(threadId),
+        views.get(threadId),
+      ]);
+      const ownWindow = threadViewSchema
+        .pick({ sessionId: true, windowId: true })
+        .safeParse(own);
+      const picked = threadViewSchema.safeParse(pick);
+      const targets: Targets = {
+        sessions,
+        own: ownWindow.success ? ownWindow.data : null,
+        pick: picked.success ? picked.data : null,
+      };
+      return context.json(targets);
+    } catch (error) {
+      const failure = toPaneError(error);
+      return context.json(failure.toBody(), failure.status);
+    }
+  });
+
+  bb.http.route("POST", "/target", async (context) => {
+    try {
+      const body = setTargetSchema.safeParse(
+        await context.req.json().catch(() => null),
+      );
+      if (!body.success) {
+        throw new PaneError(
+          "bad_input",
+          "The pick is not in a shape the plugin accepts.",
+        );
+      }
+      const { thread: threadId, target } = body.data;
+      await threadForWindow(threadId);
+      if (target === null) {
+        await views.delete(threadId);
+      } else {
+        // Only a window that is there now can be picked.
+        if (!targetExists(await withRex(listWindows), target)) {
+          throw new PaneError(
+            "no_terminal",
+            "That window or pane is no longer there. Open the menu again to see what is.",
+          );
+        }
+        await views.set(threadId, target);
+      }
+      return context.body(null, 204);
+    } catch (error) {
+      const failure = toPaneError(error);
+      return context.json(failure.toBody(), failure.status);
+    }
+  });
+
   bb.http.route("GET", "/ghostty-vt.wasm", async () => {
     return new Response(await readWasm(), {
       headers: {
@@ -220,8 +307,11 @@ export default async function plugin(bb: BbPluginApi) {
    * deleted. A thread that never used Rex has no record, and Rex is not
    * contacted for it.
    */
-  const closeWindowOf = (threadId: string) =>
-    closeThreadWindow({
+  const closeWindowOf = async (threadId: string) => {
+    // A pick is only a note of what to show. The window picked is not the
+    // plugin's and is left as it is.
+    await views.delete(threadId);
+    return closeThreadWindow({
       threadId,
       windows,
       connect: async () => {
@@ -229,6 +319,7 @@ export default async function plugin(bb: BbPluginApi) {
         return { rex: control, close: () => control.close() };
       },
     });
+  };
 
   const closeForEvent = (threadId: string): Promise<void> =>
     closeWindowOf(threadId).then(

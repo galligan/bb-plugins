@@ -34,6 +34,7 @@ export const sessionViewSchema = z.object({
                 .array(
                   z.object({
                     block_id: z.string().nullable(),
+                    label: z.string().optional(),
                     creator_name: z.string().optional(),
                   }),
                 )
@@ -68,10 +69,15 @@ export function chooseSession(list: SessionList, label: string): SessionChoice {
 export type PaneChoice =
   { kind: "terminal"; blockId: string } | { kind: "none"; reason: string };
 
-/** Finds the focused block of the window `windowId`, if it is a terminal. */
+/**
+ * Finds the pane of the window `windowId` to show: `preferredBlockId` if it
+ * names a terminal in the window, and otherwise the focused block, if that
+ * is a terminal.
+ */
 export function chooseWindowPane(
   view: SessionView,
   windowId: string,
+  preferredBlockId: string | null = null,
 ): PaneChoice {
   const window = (view.windows ?? []).find(
     (candidate) => candidate.window_id === windowId,
@@ -79,13 +85,22 @@ export function chooseWindowPane(
   if (window === undefined) {
     return { kind: "none", reason: "The window is no longer there." };
   }
+  const blocks = (window.layers ?? []).flatMap((layer) => layer.blocks ?? []);
+  if (
+    preferredBlockId !== null &&
+    blocks.some(
+      (candidate) =>
+        candidate.block_id === preferredBlockId &&
+        candidate.creator_name === TERMINAL_CREATOR,
+    )
+  ) {
+    return { kind: "terminal", blockId: preferredBlockId };
+  }
   const blockId = window.focused_block_id;
   if (blockId == null) {
     return { kind: "none", reason: "The window has no focused pane." };
   }
-  const block = (window.layers ?? [])
-    .flatMap((layer) => layer.blocks ?? [])
-    .find((candidate) => candidate.block_id === blockId);
+  const block = blocks.find((candidate) => candidate.block_id === blockId);
   if (block?.creator_name !== TERMINAL_CREATOR) {
     return { kind: "none", reason: "The focused pane is not a terminal." };
   }

@@ -65,6 +65,8 @@ export const PANE_HEADERS = {
   nonce: "x-rex-nonce",
   sessionLabel: "x-rex-session-label",
   windowLabel: "x-rex-window-label",
+  /** `own` for the window the plugin made for the thread, else `picked`. */
+  window: "x-rex-window",
   /** `claimed` when the tab should report its panel's size and colors. */
   claim: "x-rex-pane-claim",
 } as const;
