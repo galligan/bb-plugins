@@ -38,6 +38,8 @@ The parser ignores backslash-escaped characters, matching straight/curly quotes,
 
 Names inside tokens also report repairs, so `@Agent__Name` resolves through canonical `@agent-name` while preserving the original token. Address structure itself is strict: participant addresses have at most one project qualifier, and channels at most one subchannel. Dot-separated or otherwise malformed participant paths fail rather than silently resolving a valid prefix. `@user` is the human alias; `user` and `ch` cannot be allocated as participant handles, and `ch` cannot be a project qualifier because `@ch:` owns that prefix.
 
+A colon after an unqualified token may be prose punctuation when followed by whitespace, as in `@here: useful`. An extra colon after a qualified participant/channel address, or a colon at the end of input, is rejected rather than resolving a valid prefix.
+
 The resolver receives an explicit list of adapter-authorized project IDs, capped at 100, and optional current project context. It does not derive access from a claimed handle, metadata or parentage. Public adapters must construct this scope and the handle mutation caller context from authenticated authority, not from a request body. No public authentication or transport is implemented by this domain layer.
 
 Channel references and tags do not notify. Posting in a channel is not itself a broadcast. Explicit audience expansion uses `@ch:...`.

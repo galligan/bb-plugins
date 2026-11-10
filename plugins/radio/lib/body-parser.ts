@@ -50,10 +50,12 @@ export function parseBody(body: string): BodyToken[] {
     const original = match[0];
     const end = index + original.length;
     const next = body[end] ?? "";
+    const proseColon =
+      !original.includes(":") && /\s/.test(body[end + 1] ?? "");
     if (
       next === "/" ||
       next === "@" ||
-      (next === ":" && /[^\s]/.test(body[end + 1] ?? "")) ||
+      (next === ":" && !proseColon) ||
       (next === "." && /[\p{L}\p{N}_-]/u.test(body[end + 1] ?? ""))
     )
       throw new RadioError(

@@ -59,6 +59,11 @@ test("quotes, code, blockquotes and backslash escapes do not expand recipients",
 test("malformed address syntax and unmatched quotes refuse partial audience expansion", () => {
   for (const body of [
     "@project:handle:remote",
+    "@one:worker:",
+    "@one:worker: ",
+    "@unqualified:",
+    "ch:one:",
+    "@ch:one/sub:",
     "@ch:one/two/three",
     "@agent/path",
     "@agent.name",
