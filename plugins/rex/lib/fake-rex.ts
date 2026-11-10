@@ -62,6 +62,11 @@ export class FakeRex implements RexCaller {
     return this.calls.map(([method]) => method);
   }
 
+  /** Opens one more window in a session, as a person might in Rex. */
+  openWindow(session: FakeSession, label: string): void {
+    this.#addWindow(session, label, null);
+  }
+
   #addWindow(
     session: FakeSession,
     label: string,
@@ -155,10 +160,6 @@ export class FakeRex implements RexCaller {
         `stream is not attached to session ${session.id}`,
         "conflict",
       );
-    }
-    if (method === "session.destroy") {
-      this.sessions.splice(this.sessions.indexOf(session), 1);
-      return {};
     }
     if (method === "session.new_window") {
       const window = this.#make(session, args);

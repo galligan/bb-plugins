@@ -163,7 +163,6 @@ async function ensure(
     );
   }
   let made: ThreadWindow;
-  let undo: () => Promise<unknown>;
   if (choice.kind === "missing") {
     const created = await rex.call(
       "session.create",
@@ -176,12 +175,6 @@ async function ensure(
     const [first] = created.initial_windows;
     const { client_id } = await attach(rex, created.session_id);
     made = toWindow(created.session_id, first, windowLabel, client_id);
-    undo = () =>
-      rex.call(
-        "session.destroy",
-        { session_id: created.session_id },
-        z.unknown(),
-      );
   } else {
     const { client_id } = await attach(rex, choice.sessionId);
     const created = await rex.call(
@@ -196,12 +189,6 @@ async function ensure(
       newWindowSchema,
     );
     made = toWindow(choice.sessionId, created, windowLabel, client_id);
-    undo = () =>
-      rex.call(
-        "session.close_window",
-        { session_id: choice.sessionId, window_id: created.window_id },
-        z.unknown(),
-      );
   }
   try {
     await windows.set(thread.id, {
@@ -210,8 +197,16 @@ async function ensure(
     });
   } catch (error) {
     // A window with no record could never be found again or closed with
-    // its thread, so it is not left behind.
-    await undo().catch(() => {});
+    // its thread, so it is not left behind. Only the window is closed, even
+    // when its session was created for it: someone may have opened a window
+    // of their own there since, and an empty session does no harm.
+    await rex
+      .call(
+        "session.close_window",
+        { session_id: made.sessionId, window_id: made.windowId },
+        z.unknown(),
+      )
+      .catch(() => {});
     throw error;
   }
   return made;

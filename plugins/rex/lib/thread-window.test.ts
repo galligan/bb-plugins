@@ -374,16 +374,45 @@ for (const existing of [true, false]) {
       }),
       /storage is full/,
     );
+    // The window is gone. A session made for it stays, empty.
     assert.deepEqual(
       rex.sessions.map((session) => session.windows.map((made) => made.label)),
-      existing ? [["mine"]] : [],
+      existing ? [["mine"]] : [[]],
     );
 
-    // A retry, with storage working, makes exactly one.
+    // A retry, with storage working, makes exactly one, in that session.
     await ensure(rex, store);
-    const labels = rex.sessions.flatMap((session) =>
-      session.windows.map((made) => made.label),
+    assert.deepEqual(
+      rex.sessions.map((session) => session.windows.map((made) => made.label)),
+      existing ? [["mine", LABEL]] : [[LABEL]],
     );
-    assert.equal(labels.filter((label) => label === LABEL).length, 1);
   });
 }
+
+test("undoing a new session's window spares a window someone else opened there", async () => {
+  const rex = new FakeRex();
+  const store = storage();
+  const failing = {
+    ...store.windows,
+    // While the record is being written, a person opens a window of their
+    // own in the session that was just created.
+    set: () => {
+      const session = rex.sessions[0];
+      assert.ok(session !== undefined);
+      rex.openWindow(session, "theirs");
+      return Promise.reject(new Error("storage is full"));
+    },
+  };
+  await assert.rejects(
+    ensureThreadWindow(rex, {
+      sessionLabel: "bb",
+      loadThread: () => Promise.resolve(THREAD),
+      windows: failing,
+    }),
+  );
+  assert.deepEqual(
+    rex.sessions.map((session) => session.windows.map((made) => made.label)),
+    [["theirs"]],
+  );
+  assert.equal(rex.methods.includes("session.destroy"), false);
+});
