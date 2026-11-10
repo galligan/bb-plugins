@@ -285,10 +285,14 @@ test("expiry during final verdict validation preserves completed answers and rec
       }
       return realDate();
     });
-    const result = await h.api.runner.run({
-      id: "synthetic",
-      threadId: "thread",
-    });
+    const result = await h.api.runner.run(
+      {
+        id: "synthetic",
+        threadId: "thread",
+      },
+      undefined,
+      { bypassCache: true },
+    );
     assert.equal(calls, 2);
     assert.equal(result.complete, false);
     assert.deepEqual(result.failure, { reason: "budget", code: "budget" });

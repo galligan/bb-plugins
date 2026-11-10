@@ -169,13 +169,16 @@ test("expiry during final report validation preserves completed case evidence bu
     h.api.sets.save(JSON.stringify(definition));
     let armed = false;
     let offset = 0;
-    let reads = 0;
-    const current = h.api.models.configurationGeneration.bind(h.api.models);
-    t.mock.method(h.api.models, "configurationGeneration", () => {
-      const value = current();
-      if (++reads === 2) armed = true;
-      return value;
-    });
+    const saveRun = h.repository.saveRun.bind(h.repository);
+    t.mock.method(
+      h.repository,
+      "saveRun",
+      (...args: Parameters<typeof saveRun>) => {
+        const value = saveRun(...args);
+        armed = true;
+        return value;
+      },
+    );
     const now = performance.now.bind(performance);
     const date = Date.now.bind(Date);
     t.mock.method(performance, "now", () => now() + offset);

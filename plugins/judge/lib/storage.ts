@@ -5,6 +5,7 @@ import { parseVerdict, runSummarySchema, type Verdict } from "./results.ts";
 
 import { persist, type Database } from "./persistence.ts";
 import { DefinitionRepository } from "./sets-storage.ts";
+import { ResponseCache } from "./response-cache.ts";
 import { EvaluationRepository } from "./evaluation-storage.ts";
 export { PersistenceError } from "./persistence.ts";
 
@@ -46,12 +47,14 @@ export class JudgeRepository {
   private db: Database;
   readonly definitions: DefinitionRepository;
   readonly evaluations: EvaluationRepository;
+  readonly cache: ResponseCache;
   constructor(db: Database) {
     this.db = db;
     this.definitions = new DefinitionRepository(db, () =>
       this.invalidateInference(),
     );
     this.evaluations = new EvaluationRepository(db);
+    this.cache = new ResponseCache(db);
   }
 
   saveModel(value: unknown): ModelConfig {

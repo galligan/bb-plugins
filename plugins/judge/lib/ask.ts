@@ -41,7 +41,7 @@ export class AskService {
             outcomes: {},
             latencyMs: result.latencyMs,
             inputTokens: result.inputTokens,
-            cacheHit: false,
+            cacheHit: outcome.cacheHit ?? false,
             provenance: {},
           }
         : { status: "unavailable", reason: result.reason, code: result.code };
