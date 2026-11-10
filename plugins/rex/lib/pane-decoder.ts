@@ -3,11 +3,13 @@
 // The stream opens with a snapshot, which libghostty can only decode whole,
 // so bytes are held until the snapshot's own framing says it is complete.
 // Everything after it is terminal output with Rex's messages mixed in.
+//
+// Rex's `theme` messages are skipped on purpose: the tab draws the terminal's
+// default and ANSI colors from the app's theme, whoever owns the pane.
 
 import type { GhosttyVt, Terminal } from "./ghostty.ts";
 import { parseRexMessage, RexMessageSplitter } from "./rex-messages.ts";
 import { findSnapshotEnd, newSnapshotScan } from "./snapshot.ts";
-import { parseTheme } from "./theme.ts";
 
 /** A snapshot grows with scrollback and images. Past this, give up. */
 const MAX_SNAPSHOT_BYTES = 64 * 1024 * 1024;
@@ -88,8 +90,6 @@ export class PaneDecoder {
           cellWidthPx: message.cell_width_px ?? 0,
           cellHeightPx: message.cell_height_px ?? 0,
         });
-      } else if (message.type === "theme") {
-        this.#vt.applyTheme(terminal, parseTheme(message));
       } else if (message.type === "child_exited") {
         this.#exit = { code: message.exit_code ?? null };
       }

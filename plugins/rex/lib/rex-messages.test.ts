@@ -142,19 +142,17 @@ test("reads the documented message types", () => {
       cell_height_px: 17,
     },
   );
-  assert.deepEqual(
-    parseRexMessage({
-      type: "theme",
-      foreground: "d6deeb",
-      palette: ["1=#ef5350"],
-      scheme: "dark",
-    }),
-    { type: "theme", foreground: "d6deeb", palette: ["1=#ef5350"] },
-  );
   assert.deepEqual(parseRexMessage({ type: "child_exited", exit_code: 0 }), {
     type: "child_exited",
     exit_code: 0,
   });
+});
+
+test("skips Rex's theme, which the tab does not draw from", () => {
+  assert.deepEqual(
+    parseRexMessage({ type: "theme", foreground: "d6deeb", scheme: "dark" }),
+    { type: "unknown" },
+  );
 });
 
 test("skips a type it does not know and a known type with bad fields", () => {

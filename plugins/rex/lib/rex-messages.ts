@@ -142,13 +142,6 @@ const rexMessageSchema = z.discriminatedUnion("type", [
     cell_height_px: z.number().int().min(0).optional(),
   }),
   z.object({
-    type: z.literal("theme"),
-    foreground: z.string().optional(),
-    background: z.string().optional(),
-    cursor: z.string().optional(),
-    palette: z.array(z.string()).nullish(),
-  }),
-  z.object({
     type: z.literal("child_exited"),
     exit_code: z.number().int().optional(),
   }),

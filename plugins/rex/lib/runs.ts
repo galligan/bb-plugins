@@ -29,7 +29,24 @@ const DRAWN_FLAGS =
   STYLE.overline |
   STYLE.underline;
 
-/** One cell of a row. Colors are packed 0xRRGGBB; null means the default. */
+// A color is one number. Up to 0xFFFFFF it is a packed 0xRRGGBB that a program
+// chose outright. Above that it names a color the app's theme supplies, which
+// the tab draws from bb's own CSS variables so the terminal follows the app:
+// the 16 ANSI colors, and the terminal's default foreground and background.
+const THEMED = 0x1000000;
+
+/** The terminal's default colors, as the app's theme gives them. */
+export const THEME_COLOR = {
+  foreground: THEMED + 16,
+  background: THEMED + 17,
+} as const;
+
+/** One of the 16 ANSI colors, palette indexes 0 to 15. */
+export function ansiColor(index: number): number {
+  return THEMED + index;
+}
+
+/** One cell of a row. A null color means the terminal's default. */
 export interface Cell {
   /** The cell's grapheme, or "" for a cell with no text. */
   text: string;
@@ -114,26 +131,51 @@ export function buildRuns(cells: readonly Cell[]): Run[] {
 }
 
 /**
- * The colors to draw a run in, given the terminal's defaults.
+ * The colors to draw a run in.
  *
  * `background` is null when the run has none of its own, so the terminal's
- * background shows through.
+ * background shows through. Bold text in one of the first eight ANSI colors
+ * is drawn in its bright counterpart, as bb's built-in terminal draws it.
  */
-export function runColors(
-  run: Pick<Run, "fg" | "bg" | "flags">,
-  defaults: { foreground: number; background: number },
-): { color: number; background: number | null } {
+export function runColors(run: Pick<Run, "fg" | "bg" | "flags">): {
+  color: number;
+  background: number | null;
+} {
+  const bold = (run.flags & STYLE.bold) !== 0;
+  const own =
+    bold && run.fg !== null && run.fg >= THEMED && run.fg < THEMED + 8
+      ? run.fg + 8
+      : run.fg;
   const inverse = (run.flags & STYLE.inverse) !== 0;
-  const background = inverse ? (run.fg ?? defaults.foreground) : run.bg;
+  const background = inverse ? (own ?? THEME_COLOR.foreground) : run.bg;
   const color = inverse
-    ? (run.bg ?? defaults.background)
-    : (run.fg ?? defaults.foreground);
+    ? (run.bg ?? THEME_COLOR.background)
+    : (own ?? THEME_COLOR.foreground);
   if ((run.flags & STYLE.invisible) !== 0) {
-    return { color: background ?? defaults.background, background };
+    return { color: background ?? THEME_COLOR.background, background };
   }
   return { color, background };
 }
 
+/**
+ * A color as CSS. Theme colors are references to bb's variables, the ones its
+ * built-in terminal reads, so they change with the app's theme on their own.
+ */
 export function cssColor(color: number): string {
+  if (color === THEME_COLOR.foreground) return "var(--foreground)";
+  if (color === THEME_COLOR.background) return "var(--sidebar)";
+  if (color >= THEMED) return `var(--ansi-${color - THEMED})`;
   return `#${color.toString(16).padStart(6, "0")}`;
+}
+
+/** The text of the cell at column `col` of a row, or "" for an empty cell. */
+export function textAt(runs: readonly Run[], col: number): string {
+  let start = 0;
+  for (const run of runs) {
+    if (col < start + run.cols) {
+      return run.pinned ? run.text : (run.text[col - start] ?? "");
+    }
+    start += run.cols;
+  }
+  return "";
 }

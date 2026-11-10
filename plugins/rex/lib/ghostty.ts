@@ -7,19 +7,7 @@
 // source archive and from the module's own `ghostty_type_json()`.
 
 import { FrameReader } from "./frame-reader.ts";
-import type { Theme } from "./theme.ts";
 import { Wasm } from "./wasm.ts";
-
-// GhosttyTerminalOption.
-const OPT_COLOR_FOREGROUND = 12;
-const OPT_COLOR_BACKGROUND = 13;
-const OPT_COLOR_CURSOR = 14;
-const OPT_COLOR_PALETTE = 15;
-// GhosttyTerminalData.
-const DATA_COLOR_PALETTE_DEFAULT = 25;
-
-const RGB_BYTES = 3;
-const PALETTE_BYTES = 256 * RGB_BYTES;
 
 /** A handle to a terminal inside the module. */
 export type Terminal = number;
@@ -110,43 +98,6 @@ export class GhosttyVt {
     );
   }
 
-  /** Replaces the terminal's default colors. Null restores a built-in color. */
-  applyTheme(terminal: Terminal, theme: Theme): void {
-    const wasm = this.#wasm;
-    const scratch = wasm.alloc(PALETTE_BYTES);
-    try {
-      const setColor = (option: number, color: number | null) => {
-        if (color !== null) writeRgb(wasm.bytes, scratch, color);
-        wasm.check(
-          "ghostty_terminal_set",
-          terminal,
-          option,
-          color === null ? 0 : scratch,
-        );
-      };
-      setColor(OPT_COLOR_FOREGROUND, theme.foreground);
-      setColor(OPT_COLOR_BACKGROUND, theme.background);
-      setColor(OPT_COLOR_CURSOR, theme.cursor);
-
-      // Each theme replaces the one before it, so start from the built-in
-      // palette and apply only this theme's changes.
-      wasm.check("ghostty_terminal_set", terminal, OPT_COLOR_PALETTE, 0);
-      if (theme.palette.size === 0) return;
-      wasm.check(
-        "ghostty_terminal_get",
-        terminal,
-        DATA_COLOR_PALETTE_DEFAULT,
-        scratch,
-      );
-      for (const [index, color] of theme.palette) {
-        writeRgb(wasm.bytes, scratch + index * RGB_BYTES, color);
-      }
-      wasm.check("ghostty_terminal_set", terminal, OPT_COLOR_PALETTE, scratch);
-    } finally {
-      wasm.free(scratch, PALETTE_BYTES);
-    }
-  }
-
   /** Makes a reader for what the terminal shows. */
   newFrameReader(terminal: Terminal): FrameReader {
     return new FrameReader(this.#wasm, terminal);
@@ -174,10 +125,4 @@ export class GhosttyVt {
       wasm.free(out, 8);
     }
   }
-}
-
-function writeRgb(bytes: Uint8Array, pointer: number, color: number): void {
-  bytes[pointer] = (color >> 16) & 0xff;
-  bytes[pointer + 1] = (color >> 8) & 0xff;
-  bytes[pointer + 2] = color & 0xff;
 }

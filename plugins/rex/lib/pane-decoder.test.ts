@@ -10,7 +10,7 @@ import type { Frame } from "./frame-reader.ts";
 import { GHOSTTY_VT_BUILD } from "./ghostty-build.ts";
 import { GhosttyVt } from "./ghostty.ts";
 import { PaneDecoder } from "./pane-decoder.ts";
-import { STYLE } from "./runs.ts";
+import { ansiColor, STYLE } from "./runs.ts";
 import { SnapshotFormatError } from "./snapshot.ts";
 import { GhosttyError } from "./wasm.ts";
 
@@ -127,13 +127,48 @@ test("reads colors and attributes into runs", async () => {
   assert.notEqual((inverse?.flags ?? 0) & STYLE.underline, 0);
 });
 
-test("resolves a palette color and follows a theme from Rex", async () => {
-  const snapshot = await snapshotOf("");
-  const red = encode("\x1b[31mred\x1b[0m");
-  const builtIn = await decode(join(snapshot, red), 4096);
-  const builtInRed = builtIn.frame.lines[0]?.[0]?.fg;
-  assert.equal(typeof builtInRed, "number");
+test("keeps the 16 ANSI colors symbolic, for the app's theme to draw", async () => {
+  const stream = join(
+    await snapshotOf(""),
+    encode("\x1b[31mred\x1b[0m \x1b[92;44mbright-on-blue\x1b[0m"),
+  );
+  const { frame } = await decode(stream, stream.length);
+  const [red, , bright] = frame.lines[0] ?? [];
+  assert.deepEqual([red?.text, red?.fg, red?.bg], ["red", ansiColor(1), null]);
+  assert.deepEqual(
+    [bright?.text, bright?.fg, bright?.bg],
+    ["bright-on-blue", ansiColor(10), ansiColor(4)],
+  );
+});
 
+test("draws a color a program chose outright as that color", async () => {
+  const stream = join(
+    await snapshotOf(""),
+    // Palette 196 is pure red in the 6x6x6 cube; palette 232 starts the grays.
+    encode(
+      "\x1b[38;5;196mcube\x1b[0m \x1b[48;5;232mgray\x1b[0m \x1b[38;2;1;2;3mrgb\x1b[0m",
+    ),
+  );
+  const { frame } = await decode(stream, stream.length);
+  const [cube, , gray, , rgb] = frame.lines[0] ?? [];
+  assert.deepEqual([cube?.text, cube?.fg], ["cube", 0xff0000]);
+  assert.deepEqual([gray?.text, gray?.bg], ["gray", 0x080808]);
+  assert.deepEqual([rgb?.text, rgb?.fg], ["rgb", 0x010203]);
+});
+
+test("reads the background of cells erased in a color", async () => {
+  const stream = join(await snapshotOf(""), encode("\x1b[44m\x1b[K\x1b[0m"));
+  const { frame } = await decode(stream, stream.length);
+  assert.deepEqual(
+    (frame.lines[0] ?? []).map((run) => [run.text.trim(), run.cols, run.bg]),
+    [["", 20, ansiColor(4)]],
+  );
+});
+
+test("does not take colors from Rex's theme messages", async () => {
+  const snapshot = await snapshotOf("");
+  const output = encode("plain \x1b[31mred\x1b[0m \x1b[38;5;196mcube\x1b[0m");
+  const plain = await decode(join(snapshot, output), 4096);
   const themed = await decode(
     join(
       snapshot,
@@ -142,31 +177,14 @@ test("resolves a palette color and follows a theme from Rex", async () => {
           type: "theme",
           foreground: "#d6deeb",
           background: "011627",
-          cursor: "80a4c2",
-          palette: ["1=#ef5350"],
+          palette: ["1=#ef5350", "196=#00ff00"],
         }),
       ),
-      red,
+      output,
     ),
     4096,
   );
-  assert.equal(themed.frame.foreground, 0xd6deeb);
-  assert.equal(themed.frame.background, 0x011627);
-  assert.equal(themed.frame.cursorColor, 0x80a4c2);
-  assert.equal(themed.frame.lines[0]?.[0]?.fg, 0xef5350);
-
-  // A later theme replaces the earlier one instead of adding to it.
-  const reset = await decode(
-    join(
-      snapshot,
-      encode(rex({ type: "theme", palette: ["1=#ef5350"] })),
-      encode(rex({ type: "theme" })),
-      red,
-    ),
-    4096,
-  );
-  assert.equal(reset.frame.lines[0]?.[0]?.fg, builtInRed);
-  assert.equal(reset.frame.foreground, builtIn.frame.foreground);
+  assert.deepEqual(themed.frame, plain.frame);
 });
 
 test("reports where the cursor is", async () => {

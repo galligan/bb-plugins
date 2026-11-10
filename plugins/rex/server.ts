@@ -1,12 +1,14 @@
 // bb-plugin-rex — the plugin's backend.
 //
 // The browser cannot reach the Rex server's Unix socket, so this relays for
-// it. Two routes, both for the plugin's own tab:
+// it. Three routes, all for the plugin's own tab:
 //
 //   - `GET /stream` opens the focused terminal of the configured Rex session
 //     and answers with its byte stream for as long as the tab reads it
+//   - `POST /input` takes the tab's keys, pastes, focus changes, panel size and
+//     terminal colors for an open stream and passes them to Rex in order
 //   - `GET /ghostty-vt.wasm` serves the vendored libghostty-vt build the tab
-//     decodes that stream with
+//     decodes the stream with
 //
 // The stream is relayed as it arrives and never interpreted here; app.tsx
 // decodes it.
@@ -15,7 +17,9 @@ import { readFile } from "node:fs/promises";
 
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 
+import { CREATED_SESSIONS_KEY } from "./lib/created-sessions.ts";
 import { PANE_HEADERS, PaneError } from "./lib/pane-error.ts";
+import { paneInputBatchSchema } from "./lib/pane-input.ts";
 import { openPane, type PaneStream } from "./lib/rex-pane.ts";
 import { findRexSocket } from "./lib/rex-socket.ts";
 
@@ -56,9 +60,15 @@ export default async function plugin(bb: BbPluginApi) {
     },
   });
 
-  const open = new Set<PaneStream>();
+  const createdSessions = {
+    read: () => bb.storage.kv.get<unknown>(CREATED_SESSIONS_KEY),
+    write: (sessionIds: string[]) =>
+      bb.storage.kv.set(CREATED_SESSIONS_KEY, sessionIds),
+  };
+
+  const open = new Map<string, PaneStream>();
   bb.onDispose(() => {
-    for (const pane of open) pane.close();
+    for (const pane of open.values()) pane.close();
   });
 
   bb.http.route("GET", "/stream", async (context) => {
@@ -72,15 +82,19 @@ export default async function plugin(bb: BbPluginApi) {
           "The plugin's Rex session label setting is empty.",
         );
       }
-      pane = await openPane({ socketPath: await findRexSocket(), label });
+      pane = await openPane({
+        socketPath: await findRexSocket(),
+        label,
+        createdSessions,
+      });
     } catch (error) {
       const failure = toPaneError(error);
       bb.log.warn(`stream not opened: ${failure.code}: ${failure.message}`);
       return context.json(failure.toBody(), failure.status);
     }
 
-    open.add(pane);
-    void pane.closed.then(() => open.delete(pane));
+    open.set(pane.id, pane);
+    void pane.closed.then(() => open.delete(pane.id));
     // The tab may have gone away while the pane was being opened.
     const { signal } = context.req.raw;
     if (signal.aborted) pane.close();
@@ -92,11 +106,38 @@ export default async function plugin(bb: BbPluginApi) {
         // layer may buffer it: small chunks have to reach the tab at once.
         "content-type": "application/octet-stream",
         "cache-control": "no-store, no-transform",
+        [PANE_HEADERS.pane]: pane.id,
         [PANE_HEADERS.nonce]: pane.nonce,
         [PANE_HEADERS.sessionLabel]: encodeURIComponent(pane.sessionLabel),
-        [PANE_HEADERS.created]: String(pane.created),
+        [PANE_HEADERS.claim]: pane.claimsPane ? "claimed" : "none",
       },
     });
+  });
+
+  bb.http.route("POST", "/input", async (context) => {
+    try {
+      const batch = paneInputBatchSchema.safeParse(
+        await context.req.json().catch(() => null),
+      );
+      if (!batch.success) {
+        throw new PaneError(
+          "bad_input",
+          "The input is not in a shape the plugin accepts.",
+        );
+      }
+      const pane = open.get(batch.data.pane);
+      if (pane === undefined) {
+        throw new PaneError(
+          "pane_closed",
+          "The terminal stream this input is for has ended.",
+        );
+      }
+      await pane.input(batch.data.events);
+      return context.body(null, 204);
+    } catch (error) {
+      const failure = toPaneError(error);
+      return context.json(failure.toBody(), failure.status);
+    }
   });
 
   bb.http.route("GET", "/ghostty-vt.wasm", async () => {

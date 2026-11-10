@@ -14,7 +14,7 @@
   },
   "bb": {
     "name": "Rex [Experimental]",
-    "description": "Watch a live Rex terminal pane beside a thread.",
+    "description": "Use a live Rex terminal pane beside a thread.",
     "branding": {
       "icon": "Terminal"
     },

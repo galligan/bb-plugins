@@ -1,12 +1,18 @@
-// Fetches the pane's stream from the plugin's backend and keeps a frame of
-// what the terminal shows.
+// Fetches the pane's stream from the plugin's backend, keeps a frame of what
+// the terminal shows, and sends the pane its input.
 
 import { useEffect, useState } from "react";
 
 import type { Frame, FrameReader } from "../lib/frame-reader.ts";
 import { GhosttyVt } from "../lib/ghostty.ts";
+import { InputQueue } from "../lib/input-queue.ts";
 import { PaneDecoder } from "../lib/pane-decoder.ts";
 import { PANE_HEADERS, paneErrorBodySchema } from "../lib/pane-error.ts";
+import {
+  MAX_INPUT_BATCH,
+  MAX_PASTE_CHARS,
+  type PaneInput,
+} from "../lib/pane-input.ts";
 
 const HTTP_BASE = "/api/v1/plugins/rex/http";
 
@@ -16,14 +22,18 @@ export type PaneState =
   | {
       phase: "open";
       sessionLabel: string;
-      /** Whether opening the tab created the session. */
-      created: boolean;
+      /** Whether the tab fits the pane to its panel and gives it bb's colors. */
+      claimsPane: boolean;
       /** Null until the snapshot that opens the stream has arrived. */
       frame: Frame | null;
       /** False once the stream has ended; the last frame stays. */
       live: boolean;
       /** Set once the terminal's program has exited. */
       exit: { code: number | null } | null;
+      /** Why the latest input did not reach the terminal, if it did not. */
+      inputProblem: string | null;
+      /** Sends input to the pane. Input is delivered in the order sent. */
+      send: (input: PaneInput) => void;
     };
 
 // Compiled once per page and shared; each pane instantiates its own copy.
@@ -39,13 +49,16 @@ function compileGhostty(): Promise<WebAssembly.Module> {
   return compiled;
 }
 
-async function failureMessage(response: Response): Promise<string> {
+async function failureMessage(
+  response: Response,
+  what: string,
+): Promise<string> {
   const body = paneErrorBodySchema.safeParse(
     await response.json().catch(() => null),
   );
   return body.success
     ? body.data.error.message
-    : `The Rex stream request failed with HTTP ${response.status}.`;
+    : `The Rex ${what} request failed with HTTP ${response.status}.`;
 }
 
 /** Runs until the stream ends or `signal` aborts. Throws on any failure. */
@@ -57,22 +70,25 @@ async function watchPane(
     compileGhostty(),
     fetch(`${HTTP_BASE}/stream`, { signal, cache: "no-store" }),
   ]);
-  if (!response.ok) throw new Error(await failureMessage(response));
+  if (!response.ok) throw new Error(await failureMessage(response, "stream"));
+  const paneId = response.headers.get(PANE_HEADERS.pane);
   const nonce = response.headers.get(PANE_HEADERS.nonce);
-  if (nonce === null || response.body === null) {
-    throw new Error("The Rex stream response is missing its channel nonce.");
+  if (paneId === null || nonce === null || response.body === null) {
+    throw new Error("The Rex stream response is missing its pane headers.");
   }
   const pane = {
     sessionLabel: decodeURIComponent(
       response.headers.get(PANE_HEADERS.sessionLabel) ?? "",
     ),
-    created: response.headers.get(PANE_HEADERS.created) === "true",
+    claimsPane: response.headers.get(PANE_HEADERS.claim) === "claimed",
   };
 
   const vt = await GhosttyVt.instantiate(module);
   const decoder = new PaneDecoder(vt, nonce);
   let frames: FrameReader | null = null;
-  const draw = (live: boolean) => {
+  let live = true;
+  let inputProblem: string | null = null;
+  const draw = () => {
     if (decoder.terminal !== null)
       frames ??= vt.newFrameReader(decoder.terminal);
     publish({
@@ -81,7 +97,42 @@ async function watchPane(
       frame: frames?.read() ?? null,
       live,
       exit: decoder.exit,
+      inputProblem,
+      send,
     });
+  };
+  const report = (problem: string | null) => {
+    if (problem === inputProblem) return;
+    inputProblem = problem;
+    draw();
+  };
+
+  const queue = new InputQueue<PaneInput>({
+    maxBatch: MAX_INPUT_BATCH,
+    send: async (events) => {
+      const reply = await fetch(`${HTTP_BASE}/input`, {
+        method: "POST",
+        signal,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ pane: paneId, events }),
+      });
+      if (!reply.ok) throw new Error(await failureMessage(reply, "input"));
+      report(null);
+    },
+    onFailure: (error) => {
+      if (signal.aborted) return;
+      report(error instanceof Error ? error.message : String(error));
+    },
+  });
+  const send = (input: PaneInput) => {
+    if (!live) return;
+    if (input.type === "paste" && input.text.length > MAX_PASTE_CHARS) {
+      report(
+        `That paste is too large to send: the limit is ${MAX_PASTE_CHARS / 1024} KiB.`,
+      );
+      return;
+    }
+    queue.push(input);
   };
 
   // Output can arrive far faster than the screen refreshes. Every chunk is
@@ -89,7 +140,7 @@ async function watchPane(
   // repaint.
   let scheduled = 0;
   const body = response.body.getReader();
-  draw(true);
+  draw();
   try {
     for (;;) {
       const { done, value } = await body.read();
@@ -98,12 +149,13 @@ async function watchPane(
       if (scheduled === 0) {
         scheduled = requestAnimationFrame(() => {
           scheduled = 0;
-          draw(true);
+          draw();
         });
       }
     }
     cancelAnimationFrame(scheduled);
-    draw(false);
+    live = false;
+    draw();
   } finally {
     cancelAnimationFrame(scheduled);
     // Ends the relay on the server when decoding failed part-way.
