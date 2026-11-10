@@ -24,6 +24,7 @@ This repository contains independently versioned plugins for [bb](https://github
 
 - Keep plugins independent, even when that means a small amount of duplication. Introduce shared code only after at least two plugins have the same proven need, while preserving independent package builds.
 - Keep registration and UI adapters thin; put reusable behavior in the plugin's own `lib/` modules.
+- Before adding or changing UI, read [Plugin UI and UX](docs/dev/ui-ux.md). Reuse BB's host surfaces, public capability components, and registry controls before introducing custom UI; preserve host navigation, theme, focus, and compact-layout behavior.
 - Put plugin-specific instructions and operating documentation beside the plugin. Put cross-plugin development lessons in `docs/dev/`, with links to code or tests that establish the behavior. Keep contribution and release policy in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Research and worktrees

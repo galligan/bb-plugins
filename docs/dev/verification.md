@@ -12,7 +12,7 @@ bun run test
 bun run build
 ```
 
-The root test command runs the included plugin suites plus `scripts/` tests. Graphite and Worktree+ use `node --test`; repository scripts use `bun test`. Linear uses its own Vitest suite and is excluded from root formatting, lint, type checks, tests, and builds. If changing Linear, run its package checks and report their results separately; a green root pipeline does not cover it.
+The root test command runs the included plugin suites plus explicit `./scripts/*.test.mjs` paths. Keep that path boundary: Bun treats a bare `scripts/` argument as a filter and can also discover tests inside ignored reference clones. Graphite and Worktree+ use `node --test`; repository scripts use `bun test`. Linear uses its own Vitest suite and is excluded from root formatting, lint, type checks, tests, and builds. If changing Linear, run its package checks and report their results separately; a green root pipeline does not cover it.
 
 Use focused checks during iteration, such as `bun test scripts/autolabel.test.mjs` or `bun run test` from the affected plugin directory. For workflow changes, run `actionlint` when available. Complete the root gates before pushing. If a tool version differs from the pin or a check cannot run, record that limit instead of claiming CI parity.
 
@@ -31,6 +31,8 @@ The current SDK provides `@get-bb/plugin-sdk/testing`, `/testing/host`, and `/te
 Build success verifies bundle generation, not live behavior. Keep backend, host, frontend, and live coverage distinct in a handoff. Existing SDK warnings should be reported as compatibility debt; a warning is not evidence that an obsolete call is the preferred implementation.
 
 ## Live testing
+
+For frontend changes, use the [UI review matrix](ui-ux.md#ui-review-and-verification) to cover theme, layout, keyboard/touch interaction, data states, and lifecycle behavior on the affected surface.
 
 Build before installing or releasing a plugin. Use an isolated BB instance and disposable projects for development, especially for worktree creation/removal and stack write operations. Verify the CLI points to the intended instance before installing, reloading, or invoking a destructive operation. Keep the user's active instance and repositories outside that test scope unless the user has explicitly included them.
 

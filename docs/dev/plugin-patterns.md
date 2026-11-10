@@ -32,6 +32,8 @@ Use host-side commands for information the public service does not provide. Grap
 
 ## Surface choices and cleanup
 
+For surface selection, registry controls, host-owned interactions, theming, and accessibility, follow [Plugin UI and UX](ui-ux.md). Its reuse order is host-rendered contribution, public capability component, BB registry control, then custom composition.
+
 Keep registration files and UI surfaces thin so CLI, agent tools, and UI can share behavior without importing one another. Use the smallest surface that exposes the intended decision: a command for an operation, a schema-defined tool for agent input, or a visible control when a person needs to choose or inspect state. Prefer SDK components and navigation for behavior owned by BB; keep plugin-owned controls within the plugin package.
 
 Follow each registration's lifecycle contract. Dispose resources the plugin owns, including child processes, subscriptions that require explicit disposal, and retained host workers. Remove per-operation progress routing in `finally` blocks; Worktree+'s `reports` map is an example. A timeout or cancelled UI request does not prove that a child process has stopped.

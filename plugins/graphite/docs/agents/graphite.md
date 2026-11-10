@@ -192,7 +192,7 @@ The reader asserts the applied migration ids on every read.
 
 ## Do not shell out for worktree facts
 
-Graphite's current `lib/current-stack.ts` reads branch, head SHA, working-tree state, and ahead/behind counts through `bb.sdk.environments.status`. This is a compatibility API for the package's older SDK pin. The current public replacement is the bundled Git plugin's `workspaceStatus`, called through `bb.sdk.plugins.callRpc`; inspect its contract before migrating. Preserve the environment target and write-guard semantics instead of replacing the call with server-local `git rev-parse` or `git status`.
+Graphite's current `lib/current-stack.ts` consumes the branch name and working-tree state from `bb.sdk.environments.status`, after requiring an available response and a branch checkout. It does not consume head SHA or ahead/behind counts from that response. This is a compatibility API for the package's older SDK pin. The current public replacement is the bundled Git plugin's `workspaceStatus`, called through `bb.sdk.plugins.callRpc`; inspect its contract before migrating. Preserve the environment target and write-guard semantics instead of replacing the call with server-local `git rev-parse` or `git status`.
 
 See [plugin patterns](../../../../docs/dev/plugin-patterns.md#git-reads-and-compatibility-code) and the installed `bb-plugin-authoring` reference `git-reads.md` for the current API lookup path.
 
