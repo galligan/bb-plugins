@@ -4,11 +4,13 @@
 
 One BB server plugin owns one Radio database and domain service. Thin adapters expose CLI, native tools, typed local RPC, token-authenticated HTTP and additive UI. Use the public SDK; do not import BB internals, sibling plugin source, old Radio implementation code or Dispatch runtime code.
 
-Future package identity is `bb-plugin-radio`, plugin ID `radio`. No package/runtime is created in this design stage. Pin the installed compatible SDK when implementation begins, and follow repository build/release procedures then.
+Package identity is `bb-plugin-radio`, plugin ID `radio`, pinned to public SDK 0.6.132. The current backend only initializes station storage; the communication adapters described here remain future work. Follow repository build/release procedures as each layer is implemented.
 
 ## Persistence model
 
 Use `bb.storage.database()` and ordered append-only migrations. SQLite transactions handle tx creation, audience expansion, idempotency, handle allocation and exclusive claims. The plugin database belongs to the BB server; avoid direct client database access and worktree-relative storage.
+
+The foundation implements only a singleton station row with an opaque `station_` UUID. It is allocated transactionally and reused across database reopen and plugin reload. Remaining records below are conceptual and are not pre-created by the scaffold.
 
 Conceptual records, not a final schema:
 
