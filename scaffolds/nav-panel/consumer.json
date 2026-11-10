@@ -1,0 +1,13 @@
+{
+  "id": "collection-example",
+  "title": "Collection example",
+  "empty": "No items yet. Add records in your data source, then refresh.",
+  "items": [
+    {
+      "id": "example",
+      "title": "Example item",
+      "detail": "Inspect this item before marking it reviewed.",
+      "reviewed": false
+    }
+  ]
+}
