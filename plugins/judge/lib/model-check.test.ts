@@ -4,6 +4,27 @@ import { createFakePluginHost } from "@get-bb/plugin-sdk/testing";
 import { createModelService } from "./models.ts";
 import { openJudgeStorage } from "./storage.ts";
 
+test("a configuration race failing before dispatch does not claim a tested model", async () => {
+  const { bb, harness } = createFakePluginHost({
+    pluginId: "judge",
+    settings: { typesafeApiKey: "dummy" },
+  });
+  try {
+    const service = await createModelService(bb, openJudgeStorage(bb.storage));
+    service.save({ id: "model", connection: "typesafe", model: "fixture" });
+    const pending = service.checkModel("model", async () => {
+      throw new Error("must not enter probe");
+    });
+    // Readiness awaits native settings; dispose on its continuation before resolve.
+    queueMicrotask(() => queueMicrotask(() => service.dispose()));
+    const result = await pending;
+    assert.equal(result.tested, false);
+    assert.equal(result.latencyMs, null);
+  } finally {
+    await harness.lifecycle.dispose();
+  }
+});
+
 test("explicit model checks use one sanitized contract and never probe missing configuration", async () => {
   const { bb, harness } = createFakePluginHost({ pluginId: "judge" });
   try {

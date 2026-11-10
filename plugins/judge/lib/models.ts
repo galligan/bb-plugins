@@ -237,8 +237,8 @@ export class ModelService {
       modelId: id,
       status,
       code: status === "reachable" ? "ok" : status,
-      tested: true,
-      latencyMs: performance.now() - start,
+      tested: attempted,
+      latencyMs: attempted ? performance.now() - start : null,
       nextAction:
         status === "reachable"
           ? "Connectivity verified for this explicit test."
