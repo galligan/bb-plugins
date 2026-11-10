@@ -59,7 +59,15 @@ export function skipLiteral(body: string, index: number): number | null {
       cursor++;
       continue;
     }
-    if (body[cursor] === closing[char]) return cursor + 1;
+    if (body[cursor] === closing[char]) {
+      if (
+        (char === "'" || char === "‘") &&
+        /[\p{L}\p{N}]/u.test(body[cursor - 1] ?? "") &&
+        /[\p{L}\p{N}]/u.test(body[cursor + 1] ?? "")
+      )
+        continue;
+      return cursor + 1;
+    }
   }
   throw new RadioError(
     "invalid_input",

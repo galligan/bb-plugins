@@ -212,68 +212,76 @@ test("external metadata and aliases never grant permission to mutate or reclaim 
   }
 });
 
-test("concurrent allocation on separate SQLite connections has exactly one winner", async () => {
-  const { bb, harness } = createFakePluginHost({ pluginId: "radio" });
-  const workers: Worker[] = [];
-  try {
-    const store = openRadioStorage(bb.storage);
-    store.projects.register("proj_one", "one");
-    const dbPath = (
-      bb.storage.database().pragma("database_list") as {
-        name: string;
-        file: string;
-      }[]
-    ).find((row) => row.name === "main")!.file;
-    const actors = [
-      store.identities.createActor(),
-      store.identities.createActor(),
-    ];
-    const ready: Promise<void>[] = [];
-    const outcomes: Promise<string>[] = [];
-    const exits: Promise<void>[] = [];
-    for (const actor of actors) {
-      const worker = new Worker(
-        new URL("./handle-allocation.worker.ts", import.meta.url),
-        {
-          workerData: { dbPath, stationId: store.stationId, actorId: actor.id },
-        },
+test(
+  "concurrent allocation on separate SQLite connections has exactly one winner",
+  { timeout: 15_000 },
+  async () => {
+    const { bb, harness } = createFakePluginHost({ pluginId: "radio" });
+    const workers: Worker[] = [];
+    try {
+      const store = openRadioStorage(bb.storage);
+      store.projects.register("proj_one", "one");
+      const dbPath = (
+        bb.storage.database().pragma("database_list") as {
+          name: string;
+          file: string;
+        }[]
+      ).find((row) => row.name === "main")!.file;
+      const actors = [
+        store.identities.createActor(),
+        store.identities.createActor(),
+      ];
+      const ready: Promise<void>[] = [];
+      const outcomes: Promise<string>[] = [];
+      const exits: Promise<void>[] = [];
+      for (const actor of actors) {
+        const worker = new Worker(
+          new URL("./handle-allocation.worker.ts", import.meta.url),
+          {
+            workerData: {
+              dbPath,
+              stationId: store.stationId,
+              actorId: actor.id,
+            },
+          },
+        );
+        workers.push(worker);
+        ready.push(
+          new Promise((resolve, reject) => {
+            worker.once("message", () => resolve());
+            worker.once("error", reject);
+          }),
+        );
+        outcomes.push(
+          new Promise((resolve, reject) => {
+            worker.on("message", (message) => {
+              if (message.result) resolve(message.result);
+            });
+            worker.once("error", reject);
+          }),
+        );
+        exits.push(
+          new Promise((resolve, reject) => {
+            worker.once("exit", (code) =>
+              code === 0 ? resolve() : reject(new Error(`worker exit ${code}`)),
+            );
+          }),
+        );
+      }
+      await Promise.all(ready);
+      for (const worker of workers) worker.postMessage("go");
+      assert.deepEqual((await Promise.all(outcomes)).sort(), [
+        "conflict",
+        "success",
+      ]);
+      await Promise.all(exits);
+      assert.equal(
+        bb.storage.database().prepare("SELECT * FROM handles").all().length,
+        1,
       );
-      workers.push(worker);
-      ready.push(
-        new Promise((resolve, reject) => {
-          worker.once("message", () => resolve());
-          worker.once("error", reject);
-        }),
-      );
-      outcomes.push(
-        new Promise((resolve, reject) => {
-          worker.on("message", (message) => {
-            if (message.result) resolve(message.result);
-          });
-          worker.once("error", reject);
-        }),
-      );
-      exits.push(
-        new Promise((resolve, reject) => {
-          worker.once("exit", (code) =>
-            code === 0 ? resolve() : reject(new Error(`worker exit ${code}`)),
-          );
-        }),
-      );
+    } finally {
+      await Promise.all(workers.map((worker) => worker.terminate()));
+      await harness.lifecycle.dispose();
     }
-    await Promise.all(ready);
-    for (const worker of workers) worker.postMessage("go");
-    assert.deepEqual((await Promise.all(outcomes)).sort(), [
-      "conflict",
-      "success",
-    ]);
-    await Promise.all(exits);
-    assert.equal(
-      bb.storage.database().prepare("SELECT * FROM handles").all().length,
-      1,
-    );
-  } finally {
-    await Promise.all(workers.map((worker) => worker.terminate()));
-    await harness.lifecycle.dispose();
-  }
-});
+  },
+);

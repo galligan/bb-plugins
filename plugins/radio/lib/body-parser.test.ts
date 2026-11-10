@@ -42,6 +42,12 @@ test("quotes, code, blockquotes and backslash escapes do not expand recipients",
   );
   assert.deepEqual(parseBody("`unclosed @literal"), []);
   assert.deepEqual(parseBody("```\n@unclosed-fence"), []);
+  assert.deepEqual(
+    parseBody("'don't address @hidden' ‘It’s @also-hidden’ @visible").map(
+      (token) => token.canonical,
+    ),
+    ["@visible"],
+  );
 });
 
 test("malformed address syntax and unmatched quotes refuse partial audience expansion", () => {
