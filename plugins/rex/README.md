@@ -43,11 +43,24 @@ The terminal takes keys only while it has focus, which a click gives it. The cur
 
 Click anywhere outside the terminal to give the keyboard back.
 
+## Scrolling back
+
+Scroll the tab with the wheel or trackpad to read earlier output, and back down to return to the live screen. A scrollbar on the right shows where you are and can be dragged. It appears while the pointer is over the terminal or the view has just moved.
+
+- **History comes with the terminal.** The stream opens with a snapshot that carries the terminal's scrollback, so output from before the tab opened is there to scroll to.
+- **About 10,000 lines are kept**, the limit of bb's built-in terminal. A session with more history shows its newest 10,000. The rest of the snapshot is skipped without being decoded, and the tab is held to the same limit as output arrives. libghostty drops history a few hundred rows at a time, so the figure is approximate.
+- **Only the rows on screen are read** for each frame, wherever the view is.
+- **Typing or pasting** returns the view to the live screen. Output that arrives while you are scrolled back does not move the view.
+- **Resizing** keeps the first row of a scrolled-back view where it is.
+- **Scrolling is local.** It moves this tab's view only. Nothing is sent to Rex, and no other client's view changes.
+
+A full-screen program, such as an editor or a pager, runs on the alternate screen, which has no history. There the wheel does what it does in bb's terminal: it sends the program one arrow key per wheel event. That does reach Rex, as typing would. If the program has asked for mouse events itself, the wheel sends nothing, because the tab does not report the mouse.
+
 ## Size and ownership
 
 A Rex terminal takes its size and its default colors from the client that owns it, so changing either changes the pane for every client looking at it. The tab changes a pane only where that is safe:
 
-- **In a session this plugin created**, the tab claims the pane, fits it to the panel, and gives it bb's terminal colors. It refits when the panel changes size and sends the colors again when the app's theme changes.
+- **In a session this plugin created**, the tab claims the pane, fits it to the panel beside its scrollbar, and gives it bb's terminal colors. It refits when the panel changes size and sends the colors again when the app's theme changes.
 - **In a session you pointed it at** by setting `sessionLabel` to an existing session, the tab never claims the pane and never asks for a size or sets a theme. It draws the pane at the size its owner gave it, scrolling if that is larger than the panel. Typing works the same.
 - **If another client takes a pane the tab had claimed**, such as when you open the session in Rex.app, the tab stops asking and draws the size Rex reports. If ownership comes back, for example when that client leaves, the tab fits the pane to its panel and gives it bb's colors again.
 
@@ -70,7 +83,7 @@ In a pane it has not claimed, the tab still draws with bb's colors, but Rex keep
 
 ## How it works
 
-- **Backend** (`server.ts`, `lib/rex-*.ts`). A browser cannot reach the Rex server's Unix socket, so the bb server relays. `GET /stream` finds or creates the session, opens a Rex data connection to the terminal, and answers with the terminal's byte stream for as long as the tab reads it. `POST /input` takes the tab's keys, pastes, focus changes, panel size, and terminal colors for an open stream and sends them to Rex with `block.event`, `com.superlogical.terminal.resize`, and `com.superlogical.terminal.set_theme`. Each open tab holds one control connection and one data connection to Rex, and both close when the tab does.
+- **Backend** (`server.ts`, `lib/rex-*.ts`). A browser cannot reach the Rex server's Unix socket, so the bb server relays. `GET /stream` finds or creates the session, opens a Rex data connection to the terminal, and answers with the terminal's byte stream for as long as the tab reads it. It reads from Rex no faster than the tab takes the bytes, so a snapshot of tens of megabytes is passed through without being held in memory. `POST /input` takes the tab's keys, pastes, focus changes, panel size, and terminal colors for an open stream and sends them to Rex with `block.event`, `com.superlogical.terminal.resize`, and `com.superlogical.terminal.set_theme`. Each open tab holds one control connection and one data connection to Rex, and both close when the tab does.
 - **Frontend** (`app.tsx`, `components/`, `lib/pane-decoder.ts`). The stream opens with a snapshot of the terminal in Ghostty's snapshot format, followed by everything the terminal's program writes. The tab decodes both with a vendored build of libghostty-vt compiled to WebAssembly, then draws the result as text.
 
 The relay is a streamed HTTP response. It is sent as `application/octet-stream` with `Cache-Control: no-transform`, which keeps bb's response compression from holding small chunks back.
@@ -109,7 +122,8 @@ Ghostty's own list of third-party code linked into libghostty-vt builds (`deps/l
 
 ## Limits
 
-- **Keyboard only.** No mouse reporting and no wheel scrolling, so the terminal's scrollback cannot be reached from the tab.
+- **No mouse reporting.** A program that asks for mouse events gets none, and the wheel does nothing in it.
+- **Scrollback differs a little from bb's terminal.** The wheel moves the view at once where bb's terminal animates it, a click on the scrollbar's track does nothing, and the 10,000-line limit is approximate.
 - **No composed input.** Dead keys and input methods are not sent. Key releases and modifier keys on their own are not sent either, which matters only to programs that ask for them through the Kitty keyboard protocol.
 - **One pane.** No tabs, splits, or layout. The pane is chosen when the tab opens.
 - **An attached session keeps its size.** A pane wider than the panel scrolls sideways; the tab does not scale it down.
