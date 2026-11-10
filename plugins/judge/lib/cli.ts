@@ -9,6 +9,7 @@ import { type JudgeApi, publicError } from "./api.ts";
 import { assertJson, LIMITS, ValidationError } from "./json.ts";
 import { questionCommands } from "./sets-cli.ts";
 import { templateCommands } from "./templates-cli.ts";
+import { triggerCommands } from "./triggers-cli.ts";
 import { evaluationCommands } from "./evaluation-cli.ts";
 
 const json = {
@@ -71,6 +72,7 @@ export function registerCli(bb: BbPluginApi, api: JudgeApi): void {
         ...questionCommands(bb, api.sets),
         ...templateCommands(api.templates),
         ...evaluationCommands(api),
+        ...triggerCommands(api),
         ask: cliCommand({
           summary: "Run a saved set or judge explicit JSON state",
           description:

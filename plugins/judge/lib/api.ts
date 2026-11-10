@@ -15,6 +15,10 @@ import { SourceService } from "./sources/service.ts";
 import { Runner } from "./runner.ts";
 import { TemplateService } from "./templates.ts";
 import { EvaluationService } from "./evaluation.ts";
+import { TriggerService } from "./triggers.ts";
+import { TriggerEngine } from "./trigger-engine.ts";
+import { VerdictPublisher } from "./verdict-publisher.ts";
+import { VerdictReader } from "./verdict-reader.ts";
 import { CalibrationService } from "./calibration.ts";
 
 export function publicError(error: unknown): string {
@@ -35,6 +39,10 @@ export class JudgeApi {
   readonly templates: TemplateService;
   readonly evaluations: EvaluationService;
   readonly calibration: CalibrationService;
+  readonly triggers: TriggerService;
+  readonly publisher: VerdictPublisher;
+  readonly triggerEngine: TriggerEngine;
+  readonly verdicts: VerdictReader;
   constructor(
     models: ModelService,
     repository: JudgeRepository,
@@ -63,13 +71,44 @@ export class JudgeApi {
       this.runner,
     );
     this.calibration = new CalibrationService(repository, this.sets, models);
+    this.triggers = new TriggerService(repository.triggers, this.sets, models);
+    this.publisher = new VerdictPublisher(
+      repository,
+      this.sets,
+      models,
+      this.calibration,
+      this.triggers,
+      sdk,
+    );
+    this.triggerEngine = new TriggerEngine(
+      repository,
+      this.sets,
+      models,
+      this.triggers,
+      this.runner,
+      this.publisher,
+      sdk,
+    );
+    this.verdicts = new VerdictReader({
+      repository,
+      sets: this.sets,
+      calibration: this.calibration,
+      triggers: this.triggers,
+      sdk,
+      models,
+    });
   }
-  dispose(): void {
+  async dispose(): Promise<void> {
+    this.verdicts.dispose();
+    const stopped = this.triggerEngine.dispose();
+    this.publisher.dispose();
+    this.triggers.dispose();
     this.evaluations.dispose();
     this.calibration.dispose();
     this.runner.dispose();
     this.sources.dispose();
     this.inference.dispose();
+    await stopped;
   }
 
   list(value: unknown) {
@@ -136,6 +175,20 @@ export function registerRpc(bb: BbPluginApi, api: JudgeApi): void {
     }
   }
   bb.rpc.register(rpcContract, {
+    "triggers.list": (input) => safe(() => api.triggers.list(input)),
+    "triggers.show": (input) => safe(() => api.triggers.get(input.id)),
+    "triggers.save": (input) => safe(() => api.triggers.save(input)),
+    "triggers.enable": (input) =>
+      safe(() => api.triggers.enable(input.id, input.enabled)),
+    "triggers.remove": (input) =>
+      safe(() => {
+        api.triggers.remove(input.id);
+        return { removed: true as const };
+      }),
+    "triggers.log": (input) =>
+      safe(() => api.repository.triggerAttempts.list(input)),
+    "verdicts.keyed": (input, ctx) =>
+      safe(() => api.verdicts.keyed(input, ctx.experimental_signal)),
     test: (input, ctx) =>
       safe(() => api.evaluations.test(input, ctx.experimental_signal)),
     "tests.get": (input) =>

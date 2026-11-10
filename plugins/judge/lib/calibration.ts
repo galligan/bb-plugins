@@ -12,6 +12,7 @@ export class CalibrationService {
   private sets: SetService;
   private models: ModelService;
   private disposal = new AbortController();
+  private listeners = new Set<(setId: string) => void>();
   constructor(
     repository: JudgeRepository,
     sets: SetService,
@@ -23,6 +24,11 @@ export class CalibrationService {
   }
   dispose(): void {
     this.disposal.abort();
+    this.listeners.clear();
+  }
+  onChange(listener: (setId: string) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
   private async current(
     report: EvaluationReport,
@@ -93,6 +99,12 @@ export class CalibrationService {
         testRunId: report.id,
         acceptedAt: Date.now(),
       });
+      for (const listener of this.listeners)
+        try {
+          listener(id);
+        } catch {
+          /* The committed acceptance remains successful; readers also recheck authoritative evidence. */
+        }
       return { setId: id, ...accepted };
     } finally {
       scope.close();
