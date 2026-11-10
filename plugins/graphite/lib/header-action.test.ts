@@ -55,3 +55,12 @@ test("header carries count, placement, status precedence and panel action", () =
     "Graphite 2/3 · Metadata changed",
   );
 });
+
+test("a failed refresh retains the loaded action and labels the stale read", () => {
+  const action = stackHeaderAction(stack, () => {}, true);
+  assert.equal(action?.label, "Graphite 2/3 · Refresh failed");
+  assert.equal(
+    stackHeaderAction(null, () => {}, true),
+    null,
+  );
+});

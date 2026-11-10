@@ -5,10 +5,12 @@ import type { CurrentStack } from "./current-stack.ts";
 export function stackHeaderAction(
   stack: CurrentStack | null | undefined,
   open: () => void,
+  refreshFailed = false,
 ): PluginThreadAction | null {
   if (stack?.outcome !== "stacked" || stack.total < 2) return null;
-  const state =
-    stack.warnings.length > 0
+  const state = refreshFailed
+    ? "Refresh failed"
+    : stack.warnings.length > 0
       ? "Metadata changed"
       : stack.needsRestack
         ? "Needs restack"

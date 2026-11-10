@@ -39,6 +39,7 @@ function bbWithEnvironments(
                 JSON.stringify({ environmentId: environment.id }),
             ),
           );
+          if (status instanceof Error) throw status;
           return request.outputSchema.parse(
             status ?? {
               outcome: "available",
@@ -190,7 +191,7 @@ describe("Git plugin status contract", () => {
       assert.equal(result.outcome, "unavailable");
     }
   });
-  it("rejects malformed Git output before any Graphite host call", async () => {
+  it("returns structured failures for malformed Git output before any host call", async () => {
     const bb = bbWithEnvironments(
       [{ id: "env" }],
       "env",
@@ -203,8 +204,27 @@ describe("Git plugin status contract", () => {
         },
       },
     );
-    await assert.rejects(
-      currentStack(bb, { projectId: "project", threadId: "thread" }),
+    assert.deepEqual(
+      await currentStack(bb, { projectId: "project", threadId: "thread" }),
+      { outcome: "none", reason: "Git workspace status is unavailable" },
     );
   });
+});
+
+it("Git RPC rejection returns read and write failures without invoking the host", async () => {
+  const bb = bbWithEnvironments(
+    [{ id: "env" }],
+    "env",
+    () => assert.fail("no host calls"),
+    new Error("RPC unavailable"),
+  );
+  const request = { projectId: "project", threadId: "thread" };
+  assert.deepEqual(await currentStack(bb, request), {
+    outcome: "none",
+    reason: "Git workspace status is unavailable",
+  });
+  assert.deepEqual(
+    await runVerb(bb, { ...request, verb: "restack", force: true }),
+    { outcome: "unavailable", reason: "Git workspace status is unavailable" },
+  );
 });

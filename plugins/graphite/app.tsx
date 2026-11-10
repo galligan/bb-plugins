@@ -33,7 +33,7 @@ export default definePluginApp((app) => {
     useData: useCurrentStacks,
     item: ({ thread, data, experimental_panel }) =>
       stackHeaderAction(
-        data.get(thread.id)?.error ? null : data.get(thread.id)?.stack,
+        data.get(thread.id)?.stack,
         () => {
           experimental_panel.openTab({
             tab: {
@@ -45,6 +45,7 @@ export default definePluginApp((app) => {
             params: { projectId: thread.projectId },
           });
         },
+        data.get(thread.id)?.error,
       ),
   });
 });

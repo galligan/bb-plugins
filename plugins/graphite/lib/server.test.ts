@@ -250,3 +250,32 @@ test("RPC rejects malformed joined thread output instead of returning an invalid
     },
   ]);
 });
+
+test("Git RPC rejection preserves structured CLI failures and never calls the host", async (t) => {
+  const { bb, harness } = setup();
+  t.after(() => harness.lifecycle.dispose());
+  harness.inspection.sdk.stub("plugins.callRpc", async () => {
+    throw new Error("Git plugin is disabled");
+  });
+  await plugin(bb);
+  const read = await harness.behavior.runCli([
+    "stack",
+    "--json",
+    "--project",
+    "project",
+  ]);
+  assert.equal(read.exitCode, 1);
+  assert.deepEqual(JSON.parse(read.stdout), {
+    outcome: "none",
+    reason: "Git workspace status is unavailable",
+  });
+  const write = await harness.behavior.runCli([
+    "restack",
+    "--force",
+    "--project",
+    "project",
+  ]);
+  assert.equal(write.exitCode, 1);
+  assert.match(write.stderr, /Git workspace status is unavailable/);
+  assert.equal(harness.inspection.experimental_hostRpcCalls.length, 0);
+});
