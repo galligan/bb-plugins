@@ -31,6 +31,7 @@ import { targetCli } from "./lib/target-command.ts";
 import { listWindows } from "./lib/rex-directory.ts";
 import { openPane, type PaneStream } from "./lib/rex-pane.ts";
 import { findRexSocket } from "./lib/rex-socket.ts";
+import { ThreadWindowIndex } from "./lib/window-index.ts";
 import { setTargetSchema, targetExists, type Targets } from "./lib/targets.ts";
 import {
   THREAD_VIEW_KEY_PREFIX,
@@ -52,6 +53,9 @@ const WASM_LOCATIONS = [
   new URL("./vendor/ghostty-vt.wasm", import.meta.url),
   new URL("../vendor/ghostty-vt.wasm", import.meta.url),
 ];
+
+/** How long to wait before reading the stored window records again. */
+const INDEX_RETRY_MS = 30_000;
 
 async function readWasm(): Promise<Uint8Array<ArrayBuffer>> {
   for (const location of WASM_LOCATIONS) {
@@ -94,12 +98,29 @@ export default async function plugin(bb: BbPluginApi) {
 
   // The threads the plugin has made a window for, kept in memory as well as
   // in storage, because the instructions hook below cannot wait for storage.
-  // It is read here, before anything is registered, so that no agent session
-  // starts while it is still empty and no archive is undone by a late read.
-  const threadsWithWindow = new Set(
-    (await bb.storage.kv.list(THREAD_WINDOW_KEY_PREFIX)).map((key) =>
-      key.slice(THREAD_WINDOW_KEY_PREFIX.length),
-    ),
+  // They are read here, before anything is registered, so that no agent
+  // session starts while the index is still empty. If storage cannot be read
+  // just now, the plugin loads all the same and reads it again later: the
+  // tab and the command work from storage and do not need the index.
+  const threadsWithWindow = new ThreadWindowIndex();
+  const storedWindows = {
+    list: async () =>
+      (await bb.storage.kv.list(THREAD_WINDOW_KEY_PREFIX)).map((key) =>
+        key.slice(THREAD_WINDOW_KEY_PREFIX.length),
+      ),
+    has: async (threadId: string) =>
+      (await bb.storage.kv.get<unknown>(
+        THREAD_WINDOW_KEY_PREFIX + threadId,
+      )) !== undefined,
+  };
+  const indexLoaded = await threadsWithWindow.load(storedWindows).then(
+    () => true,
+    (error: unknown) => {
+      bb.log.warn(
+        `could not read which threads have a Rex window: ${toPaneError(error).message}`,
+      );
+      return false;
+    },
   );
   const windows: ThreadWindowStore = {
     get: (threadId) =>
@@ -383,17 +404,29 @@ export default async function plugin(bb: BbPluginApi) {
   // Catch up once: close the window of every recorded thread that bb says is
   // archived or deleted. A thread bb cannot be asked about keeps its window:
   // a failed request must not end the programs running in it.
-  void (async () => {
-    // A close removes its thread from the set, which a set allows while it
-    // is being walked.
-    for (const threadId of threadsWithWindow) {
+  const catchUp = async () => {
+    for (const threadId of threadsWithWindow.threads()) {
       const thread = await bb.sdk.threads.get({ threadId }).catch(() => null);
       if (thread === null) continue;
       if (thread.archivedAt !== null || thread.deletedAt !== null) {
         await closeForEvent(threadId);
       }
     }
-  })().catch((error: unknown) => {
-    bb.log.warn(`catch-up failed: ${toPaneError(error).message}`);
-  });
+  };
+  if (indexLoaded) {
+    void catchUp();
+  } else {
+    // The records could not be read when the plugin loaded. Read them again
+    // every so often until they can be, then catch up.
+    let retry: NodeJS.Timeout | null = null;
+    const readLater = () => {
+      retry = setTimeout(() => {
+        void threadsWithWindow.load(storedWindows).then(catchUp, readLater);
+      }, INDEX_RETRY_MS);
+    };
+    readLater();
+    bb.onDispose(() => {
+      if (retry !== null) clearTimeout(retry);
+    });
+  }
 }
