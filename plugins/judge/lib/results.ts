@@ -83,6 +83,9 @@ export const verdictSchema = z
     endedAt: timeSchema,
     complete: z.boolean(),
     calibrated: z.boolean(),
+    failure: z
+      .strictObject({ reason: unavailableReasonSchema, code: idSchema })
+      .optional(),
     steps: strictRecord(idSchema, stepResultSchema).refine(
       (s) => Object.keys(s).length > 0 && Object.keys(s).length <= LIMITS.steps,
     ),
@@ -90,11 +93,13 @@ export const verdictSchema = z
   })
   .superRefine((v, ctx) => {
     const results = Object.values(v.steps);
-    const unavailable = results.some(
-      (s) =>
-        s.status === "unavailable" ||
-        (s.status === "skipped" && s.reason === "upstream_unavailable"),
-    );
+    const unavailable =
+      v.failure !== undefined ||
+      results.some(
+        (s) =>
+          s.status === "unavailable" ||
+          (s.status === "skipped" && s.reason === "upstream_unavailable"),
+      );
     if (
       v.endedAt < v.startedAt ||
       v.complete === unavailable ||
@@ -105,6 +110,7 @@ export const verdictSchema = z
     if (
       v.set === null &&
       (v.calibrated ||
+        v.failure !== undefined ||
         Object.keys(v.steps).length !== 1 ||
         !Object.hasOwn(v.steps, "main"))
     ) {
@@ -122,6 +128,7 @@ export const runSummarySchema = z.strictObject({
   endedAt: v.endedAt,
   complete: v.complete,
   calibrated: v.calibrated,
+  failure: v.failure,
 });
 
 export function parseVerdict(value: unknown): Verdict {

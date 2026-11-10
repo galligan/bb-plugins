@@ -11,6 +11,8 @@ import type { ModelService } from "./models.ts";
 import type { JudgeRepository } from "./storage.ts";
 import { PersistenceError } from "./storage.ts";
 import { SetService } from "./sets.ts";
+import { SourceService } from "./sources/service.ts";
+import { Runner } from "./runner.ts";
 
 export function publicError(error: unknown): string {
   if (error instanceof PersistenceError) return "persistence_failed";
@@ -25,9 +27,12 @@ export class JudgeApi {
   readonly models: ModelService;
   readonly repository: JudgeRepository;
   readonly sets: SetService;
+  readonly sources: SourceService;
+  readonly runner: Runner;
   constructor(
     models: ModelService,
     repository: JudgeRepository,
+    sdk: BbPluginApi["sdk"],
     fetcher: typeof fetch = fetch,
   ) {
     this.models = models;
@@ -35,8 +40,19 @@ export class JudgeApi {
     this.sets = new SetService(repository, models);
     this.inference = new InferenceService(models, fetcher);
     this.asks = new AskService(this.inference, repository);
+    this.sources = new SourceService(sdk);
+    this.runner = new Runner(
+      repository,
+      this.sets,
+      models,
+      this.inference,
+      this.sources,
+      sdk,
+    );
   }
   dispose(): void {
+    this.runner.dispose();
+    this.sources.dispose();
     this.inference.dispose();
   }
 
@@ -117,6 +133,8 @@ export function registerRpc(bb: BbPluginApi, api: JudgeApi): void {
       safe(() => api.sets.project(input.projectId, input.enabled)),
     ask: (input, ctx) =>
       safe(() => api.asks.ask(input, ctx.experimental_signal)),
+    run: (input, ctx) =>
+      safe(() => api.runner.run(input, ctx.experimental_signal)),
     "models.list": (input) => safe(() => api.list(input)),
     "models.add": (input) => safe(() => api.models.save(input)),
     "models.default": (input) =>

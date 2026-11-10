@@ -27,7 +27,7 @@ async function setup(
   });
   const repository = openJudgeStorage(bb.storage);
   const models = await createModelService(bb, repository);
-  const api = new JudgeApi(models, repository, fetcher);
+  const api = new JudgeApi(models, repository, bb.sdk, fetcher);
   bb.onDispose(() => api.dispose());
   registerRpc(bb, api);
   registerCli(bb, api);

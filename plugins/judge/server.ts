@@ -10,9 +10,12 @@ export default async function judge(bb: BbPluginApi): Promise<void> {
   const api = new JudgeApi(
     await createModelService(bb, repository),
     repository,
+    bb.sdk,
   );
   bb.onDispose(() => api.dispose());
   registerRpc(bb, api);
   registerCli(bb, api);
-  bb.log.info("Judge explicit asks ready; triggers remain disabled.");
+  bb.log.info(
+    "Judge ad hoc and saved-set asks ready; triggers remain disabled.",
+  );
 }

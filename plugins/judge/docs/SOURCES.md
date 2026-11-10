@@ -1,6 +1,6 @@
 # Bounded thread, event and Git sources
 
-This stage supplies offline source adapters through `SourceService`. They return `{status: "ok", value, sensitive, provenance}` or `{status: "unavailable", reason, code}`. The saved-set runner integrates them later. No source adapter invokes inference, publishes state, wakes a host, executes a shell command, or writes raw source content to logs or run records.
+The adapters in `SourceService` return `{status: "ok", value, sensitive, provenance}` or `{status: "unavailable", reason, code}`. The saved-set runner now resolves them lazily after each step's gate. No source adapter itself invokes inference, publishes state, wakes a host, executes a shell command, or writes raw source content to logs or run records.
 
 ## Contracts and observations
 
@@ -27,7 +27,7 @@ Event reads use explicit descending order, exclusive `beforeSeq`, a typed event-
 | `provider.model`            | Resolved thread execution-option model, not an inferred provider weight/version                                           | Sensitive                                                                                      |
 | `event.*`                   | Only normalized idle/failure thread/project/request/turn identifiers, attempt number, input-accepted flag and error field | Error text is sensitive; allowlisted identifier/status facts may be public                     |
 
-A source definition cannot downgrade classification. A caller override will remain sensitive when the runner lands. Missing context, DTO fields, unsupported event/provider representations or SDK read failures return bounded diagnostic codes without upstream text. Invalid definitions/context shapes remain boundary errors. Project/thread mismatches are rejected instead of silently reading a different context.
+A source definition cannot downgrade classification. Caller overrides remain sensitive. Missing context, DTO fields, unsupported event/provider representations or SDK read failures return bounded diagnostic codes without upstream text. Invalid definitions/context shapes remain boundary errors. Project/thread mismatches are rejected instead of silently reading a different context.
 
 ## Environment-scoped Git sources
 
@@ -57,6 +57,6 @@ These command observations do not compare against subsequent edits, assert that 
 
 ## Bounds, cancellation and remaining gates
 
-Every value has a hard 64 KiB serialized UTF-8 ceiling and its declared `maxChars` cap. Character counts are Unicode code points for plain strings and serialized JSON characters for structured projections. Oversized evidence is refused as a whole; nothing is silently clipped. Source calls share a monotonic whole-run deadline (5 seconds by default until the runner supplies its remaining deadline), caller cancellation and disposal. SDK calls receive the abort signal; even an abort-ignoring SDK fixture cannot trigger later follow-up reads after cancellation or expiry.
+Every value has a hard 64 KiB serialized UTF-8 ceiling and its declared `maxChars` cap. Character counts are Unicode code points for plain strings and serialized JSON characters for structured projections. Oversized evidence is refused as a whole; nothing is silently clipped. Source calls share a monotonic whole-run deadline (5 seconds by default, or the runner's remaining deadline), caller cancellation and disposal. SDK calls receive the abort signal; even an abort-ignoring SDK fixture cannot trigger later follow-up reads after cancellation or expiry.
 
-Offline tests cover idle null/fallback behavior, provider variation, malformed/missing evidence, privacy, UTF-8/character bounds, command paging/order/truncation, user origin filtering, goal clear/update replay, scan caps, and SDK cancellation/disposal. The installed runtime shape scan retained only sanitized metadata. Full enrolled-host reads, provider-specific history retention, live grouped-history behavior and source-to-runner integration remain later live gates. Unsupported evidence returns unavailable until those contracts can be established. No BB core changes or provider calls were needed here.
+Offline tests cover idle null/fallback behavior, provider variation, malformed/missing evidence, privacy, UTF-8/character bounds, command paging/order/truncation, user origin filtering, goal clear/update replay, scan caps, and SDK cancellation/disposal. Runner tests add lazy source collection, Git environment routing, privacy fallback and shared-budget behavior with recorded transports. The installed runtime shape scan retained only sanitized metadata. Full enrolled-host reads, provider-specific history retention, live grouped-history behavior and live source-to-provider integration remain later gates. Unsupported evidence returns unavailable until those contracts can be established. No BB core changes or live provider calls were needed here.

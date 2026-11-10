@@ -9,6 +9,7 @@ import {
 import { probeStatusSchema } from "./connections.ts";
 import { verdictSchema, runSummarySchema } from "./results.ts";
 import { setContracts } from "./sets-contract.ts";
+import { runSchema } from "./run-contract.ts";
 
 export const askSchema = z.strictObject({
   state: jsonSchema,
@@ -51,6 +52,7 @@ export const logSchema = z.strictObject({
 export const rpcContract = defineRpcContract({
   ...setContracts,
   ask: { input: askSchema, output: verdictSchema },
+  run: { input: runSchema, output: verdictSchema },
   "models.list": {
     input: modelPageSchema,
     output: z.strictObject({
