@@ -60,6 +60,14 @@ test("lints only tracked YAML paths with stable optional-analyzer settings", () 
   assert.equal(f.calls[2].options.cwd, "/repo");
 });
 
+test("accepts the v-prefixed version emitted by go install", () => {
+  const f = fixture({
+    probe: { status: 0, stdout: `v${version}\nbuild metadata` },
+  });
+  assert.equal(f.code, 0);
+  assert.equal(f.calls.length, 3);
+});
+
 for (const probe of [
   { status: 0, stdout: "0.0.0\n" },
   { status: null, error: new Error("ENOENT") },

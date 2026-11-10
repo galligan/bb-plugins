@@ -10,7 +10,7 @@ export function lintWorkflows({
   log = console.log,
 }) {
   const probe = run("actionlint", ["-version"], { cwd, encoding: "utf8" });
-  const actual = probe.stdout?.trim().split("\n")[0];
+  const actual = probe.stdout?.trim().split("\n")[0].replace(/^v/, "");
   if (exitCode(probe) !== 0 || actual !== version) {
     log(
       `Workflow lint requires actionlint ${version}; found ${actual || "unavailable"}. Install the pinned version on PATH as documented in docs/dev/verification.md. No tools were installed.`,
