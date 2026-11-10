@@ -106,4 +106,30 @@ export const MIGRATIONS = [
     FOREIGN KEY(dispatch_id, revision) REFERENCES dispatch_revisions(dispatch_id, revision)
   ) STRICT`,
   `CREATE INDEX dispatch_channel_cursor ON dispatches(channel_id, seq)`,
+  `CREATE TABLE response_events (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    id TEXT NOT NULL UNIQUE,
+    tx_id TEXT NOT NULL REFERENCES transmissions(id),
+    target_id TEXT NOT NULL REFERENCES participants(id),
+    actor_id TEXT NOT NULL REFERENCES participants(id),
+    session_id TEXT REFERENCES participants(id),
+    kind TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  ) STRICT`,
+  `CREATE INDEX response_tx_cursor ON response_events(tx_id, seq)`,
+  `CREATE TABLE receipt_confirmations (
+    tx_id TEXT NOT NULL REFERENCES transmissions(id),
+    target_id TEXT NOT NULL REFERENCES participants(id),
+    endpoint_id TEXT NOT NULL REFERENCES participants(id),
+    event_id TEXT NOT NULL REFERENCES response_events(id),
+    PRIMARY KEY(tx_id, target_id, endpoint_id)
+  ) STRICT`,
+  `CREATE TABLE protocol_requests (
+    caller_key TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    request_json TEXT NOT NULL,
+    event_id TEXT NOT NULL REFERENCES response_events(id),
+    PRIMARY KEY(caller_key, idempotency_key)
+  ) STRICT`,
 ];

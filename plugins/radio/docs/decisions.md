@@ -31,7 +31,6 @@ This is the current design baseline from discussion with Matt. “Agreed” reco
 - Snapshot broadcast recipients at send time; deduplicate identical recipient IDs, not distinct sessions belonging to one actor.
 - Project-main-channel listening by default for BB threads; subchannel subscriptions explicit.
 - Mute pauses future channel audience inclusion and passive surfacing, not direct mentions or existing obligations.
-- `standby` means waiting/unable to accept yet, differing from historical “working on it.”
 - First local/external slice uses explicit reads, tool-result hints and composer mentions, while listening/steering receive isolated runtime probes.
 - A trusted personal shared-token deployment is the smallest auth option, with its identity limitations made explicit.
 - No automatic claim expiry, reassignment or repeated idle-driven notifications.
@@ -53,17 +52,19 @@ Under Matt's continuing implementation authorization, the first internal transmi
 
 The internal store keeps immutable Markdown revisions under stable document IDs in the plugin database. Original authors and the explicit station human can revise, recording editor/session provenance; an expected current revision is required. Titles are bounded to 120 UTF-16 units, Markdown to 65536 UTF-8 bytes, and lists to 50 titles without content. List cursors paginate document creation order, not revision changes; refresh/read observes edits. Reads and transmission refs check project access. A latest dispatch ref pins the selected revision at tx acceptance, and exact replay retains it. External URL refs are never fetched automatically. Deletion, collaborative editing and synchronization are deferred.
 
+## Resolved protocol decisions and first facts
+
+Matt explicitly chose `standby` = waiting/unable to accept yet, without a work commitment. Abandoning an exclusive request leaves it closed to new claims until the original author explicitly reopens it. The first response-fact layer records received/ack/standby/squelch independently. Only explicit recipient confirmation records received evidence per concrete owned session (or human endpoint); history/count reads and ack do not synthesize it. Mixed actor/session targets are independent, and facts outside the frozen audience do not expand that audience. Commitment/claim behavior follows in its own layer.
+
 ## Unresolved product decisions
 
 | Decision                     | Why it matters / recommendation                                                                                         |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `standby` meaning            | Waiting versus work in progress changes commitment state; settle before schema/tool contracts                           |
 | Response coverage            | Whether wilco/done satisfy required ack and whether an answer implies ack; keep evidence distinct even if UI groups it  |
 | Audience expansion           | Exact parent/subchannel inclusion, dormant subscribers and mixed actor/session targets; show explicit resolved audience |
 | Actor delivery               | Which of several sessions receives an actor-addressed tx; bot routing should choose rather than broadcasting silently   |
 | Reply routing                | Author-only, all original recipients or explicit audience; avoid accidental re-broadcasts                               |
 | Transfer and waiver          | How session-specific obligations move after handoff, deletion or abandonment; require explicit dispositions             |
-| Exclusive request reopening  | Whether abandon releases ownership automatically or requires a separate release                                         |
 | Handle lifecycle             | Manual allocation, rename aliases and explicit human reclaim are approved above; automated naming remains deferred      |
 | Address parsing              | Grammar and literal-region defaults are approved above; exact edge cases follow the identity/addressing implementation  |
 | External credentials         | Trusted shared token versus individually scoped/revocable principals                                                    |
