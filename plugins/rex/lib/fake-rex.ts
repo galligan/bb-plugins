@@ -7,11 +7,19 @@ import type { z } from "zod";
 import { PaneError } from "./pane-error.ts";
 import type { RexCaller } from "./rex-control.ts";
 
+interface FakeBlock {
+  id: string;
+  label: string;
+  creator: string;
+  cwd: string | null;
+}
+
 interface FakeWindow {
   id: string;
   label: string;
-  /** The window's panes; the first one has focus. */
-  blocks: { id: string; creator: string; cwd: string | null }[];
+  blocks: FakeBlock[];
+  /** The pane with focus. The window's first, unless a test moves it. */
+  focusedBlockId: string | null;
 }
 
 interface FakeSession {
@@ -57,6 +65,13 @@ export class FakeRex implements RexCaller {
     return session;
   }
 
+  /** Splits a window as a person might in Rex: adds one more pane to it. */
+  split(window: FakeWindow, label = "shell", creator = TERMINAL): FakeBlock {
+    const block = { id: this.#id("block"), label, creator, cwd: null };
+    window.blocks.push(block);
+    return block;
+  }
+
   /** The methods called, without their payloads. */
   get methods(): string[] {
     return this.calls.map(([method]) => method);
@@ -72,10 +87,17 @@ export class FakeRex implements RexCaller {
     label: string,
     cwd: string | null,
   ): FakeWindow {
+    const block = {
+      id: this.#id("block"),
+      label: "shell",
+      creator: TERMINAL,
+      cwd,
+    };
     const window: FakeWindow = {
       id: this.#id("window"),
       label,
-      blocks: [{ id: this.#id("block"), creator: TERMINAL, cwd }],
+      blocks: [block],
+      focusedBlockId: block.id,
     };
     session.windows.push(window);
     return window;
@@ -148,6 +170,11 @@ export class FakeRex implements RexCaller {
         })),
       };
     }
+    if (method === "target.complete") {
+      // Answers without the connection being attached, as Rex does.
+      const session = this.#session(record(args.scope).session);
+      return { completions: this.#completions(session) };
+    }
     const session = this.#session(args.session_id);
     if (method === "session.attach") {
       this.#attached.add(session.id);
@@ -194,7 +221,7 @@ export class FakeRex implements RexCaller {
       windows: session.windows.map((window) => ({
         window_id: window.id,
         label: window.label,
-        focused_block_id: window.blocks[0]?.id,
+        focused_block_id: window.focusedBlockId ?? undefined,
         layers: [
           {
             blocks: window.blocks.map((block) => ({
@@ -205,6 +232,58 @@ export class FakeRex implements RexCaller {
         ],
       })),
     };
+  }
+
+  /** Every window and block of a session, once for each way of naming it. */
+  #completions(session: FakeSession): unknown[] {
+    const shortId = (id: string) => id.slice(id.indexOf(":") + 1);
+    const windows = session.windows.map((window, index) => ({
+      kind: "window",
+      session_id: session.id,
+      window_id: window.id,
+      label: window.label,
+      ordinal: index + 1,
+    }));
+    const blocks = session.windows.flatMap((window, index) =>
+      window.blocks.map((block) => ({
+        kind: "block",
+        session_id: session.id,
+        window_id: window.id,
+        block_id: block.id,
+        label: block.label,
+        where: `window ${index + 1}`,
+      })),
+    );
+    return [
+      ...windows.map((target) => ({
+        value: target.label,
+        form: "label",
+        target,
+      })),
+      ...windows.map((target) => ({
+        value: String(target.ordinal),
+        form: "ordinal",
+        target,
+      })),
+      // Rex lists short IDs in sorted order, not window order.
+      ...windows
+        .map((target) => ({
+          value: shortId(target.window_id),
+          form: "id",
+          target,
+        }))
+        .reverse(),
+      ...blocks.map((target) => ({
+        value: target.label,
+        form: "label",
+        target,
+      })),
+      ...blocks.map((target) => ({
+        value: shortId(target.block_id),
+        form: "id",
+        target,
+      })),
+    ];
   }
 
   /** Makes a window from the arguments of `new_window` or `initial_windows`. */
