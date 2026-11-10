@@ -62,10 +62,18 @@ export default experimental_defineHostEntry({
               error: null,
             };
           } catch (error) {
+            // A local project need not be a repository. Keep other failures
+            // visible, and leave the low-level rescue reader strict.
+            const message =
+              error instanceof Error ? error.message : String(error);
             return {
               sourcePath,
               refs: [],
-              error: error instanceof Error ? error.message : String(error),
+              error:
+                message ===
+                "Could not list rescue refs: fatal: not a git repository (or any of the parent directories): .git"
+                  ? null
+                  : message,
             };
           }
         }),
