@@ -1,21 +1,16 @@
 import { useRef, useState } from "react";
-import {
-  useBbNavigate,
-  experimental_ThreadTitleText as ThreadTitleText,
-} from "@get-bb/plugin-sdk/app";
+import { useBbNavigate } from "@get-bb/plugin-sdk/app";
 import { toast } from "sonner";
 import { rowState, type OverviewRow } from "../lib/overview.ts";
-import { age } from "../lib/render.ts";
-import { branchDescription } from "../lib/display.ts";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icon";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { CopyButton } from "./copy-button.tsx";
+import { RowAction } from "./row-action.tsx";
+import { WorktreeMetadata } from "./worktree-metadata.tsx";
 import { WorktreeRemoval } from "./worktree-removal.tsx";
 
 export function WorktreeRow({
@@ -50,133 +45,100 @@ export function WorktreeRow({
       setBusy(false);
     }
   }
-  const safety =
-    inspection === null
-      ? "UNKNOWN"
-      : inspection.safeToRemove
-        ? "SAFE"
-        : "UNSAVED";
+  const reasons = [
+    ...(state.badge ? [state.badge] : []),
+    ...(inspection?.reasons ?? []),
+  ];
   return (
-    <li className="flex min-w-0 flex-col gap-3 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="min-w-0 break-all text-sm font-medium">
-            {inspection?.branch ??
-              (inspection === null ? row.pathKey : "(detached)")}
-          </span>
+    <li
+      data-wt-row
+      className="group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 py-3"
+    >
+      <div
+        className="flex min-h-7 min-w-0 items-baseline gap-2 max-md:pointer-coarse:min-h-9"
+        data-wt-title
+      >
+        <span className="min-w-0 truncate text-sm font-medium leading-7 max-md:pointer-coarse:leading-9">
+          {inspection?.branch ??
+            (inspection === null ? row.pathKey : "(detached)")}
+        </span>
+        {state.kind !== "in-use" && (
           <Badge
-            variant={state.kind === "attention" ? "destructive" : "secondary"}
-            className="px-1.5 py-0 text-2xs font-normal"
+            variant="outline"
+            className="shrink-0 px-1.5 py-0 text-2xs font-normal leading-4"
           >
             {state.kind === "attention"
               ? "Needs attention"
               : state.kind === "retiring"
                 ? "Retiring"
-                : state.kind === "orphaned"
-                  ? "Orphaned"
-                  : "In use"}
+                : "Orphaned"}
           </Badge>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                tabIndex={inspection?.reasons.length ? 0 : undefined}
-                aria-label={
-                  inspection?.reasons.length
-                    ? `${safety}: ${inspection.reasons.join("; ")}`
-                    : safety
-                }
-              >
-                <Badge
-                  variant={safety === "UNSAVED" ? "destructive" : "outline"}
-                  className="gap-1 px-1.5 py-0 text-2xs font-normal"
-                >
-                  {safety}
-                  {inspection?.reasons.length ? (
-                    <Icon name="Info" className="size-3" />
-                  ) : null}
-                </Badge>
-              </span>
-            </TooltipTrigger>
-            {inspection !== null && inspection.reasons.length > 0 && (
-              <TooltipContent>
-                <div className="space-y-1">
-                  {inspection.reasons.map((reason) => (
-                    <p key={reason}>{reason}</p>
-                  ))}
-                </div>
-              </TooltipContent>
-            )}
-          </Tooltip>
-        </div>
-        <div className="flex min-w-0 items-center gap-1">
-          <p
-            className="truncate font-mono text-xs text-muted-foreground"
-            title={path}
-          >
-            {path}
-          </p>
-          <CopyButton text={path} label="Copy worktree path" />
-        </div>
-        {state.badge && (
-          <p
-            className={`text-xs ${state.kind === "attention" ? "text-destructive" : "text-muted-foreground"}`}
-          >
-            {state.badge}
-          </p>
         )}
-        {inspection && (
-          <p className="text-xs text-muted-foreground">
-            {branchDescription(inspection)} · last activity{" "}
-            {age(inspection.lastActivity, Date.now())}
-          </p>
-        )}
-        {row.threads.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1 pt-1">
-            {row.threads.map((thread) => (
-              <Button
-                key={thread.id}
-                variant="ghost"
-                size="sm"
-                className="h-6 max-md:pointer-coarse:h-9 min-w-0 max-w-full justify-start gap-1.5 px-1 text-xs font-normal text-muted-foreground"
-                onClick={() => navigate.toThread(thread.id)}
-                aria-label={`Open thread: ${thread.title}`}
-              >
-                <Icon name="MessageSquare" className="size-3.5" />
-                <span className="truncate">
-                  <ThreadTitleText title={thread.title} />
-                </span>
-                {thread.archived && (
-                  <span className="shrink-0 text-2xs">archived</span>
-                )}
-              </Button>
-            ))}
-          </div>
+        {inspection && !inspection.safeToRemove && (
+          <Badge
+            variant="outline"
+            className="shrink-0 px-1.5 py-0 text-2xs font-normal leading-4"
+          >
+            UNSAVED
+          </Badge>
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-2 self-end sm:self-start">
+      <div className="flex shrink-0 items-center gap-0.5">
         {row.threads[0] && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 max-md:pointer-coarse:h-9"
+          <RowAction
+            label="Open thread"
+            icon="ExternalLink"
             onClick={() => navigate.toThread(row.threads[0]!.id)}
-          >
-            Open thread
-          </Button>
+          />
         )}
-        <Button
+        <RowAction
           ref={removeButton}
-          variant="destructive"
-          size="sm"
-          className="h-7 px-2 max-md:pointer-coarse:h-9"
+          label="Remove worktree"
+          icon="Trash2"
+          destructive
           disabled={busy}
           onClick={() => {
             setError(null);
             setOpen(true);
           }}
-        >
-          {retry ? "Retry removal" : "Remove"}
-        </Button>
+        />
+        {retry && (
+          <RowAction
+            label="Retry removal"
+            icon="RotateCcw"
+            disabled={busy}
+            onClick={() => {
+              setError(null);
+              setOpen(true);
+            }}
+          />
+        )}
+      </div>
+      <div className="col-span-2 min-w-0 space-y-0.5">
+        <WorktreeMetadata row={row} />
+        <div className="flex h-6 max-md:pointer-coarse:h-9 min-w-0 items-center gap-1 text-muted-foreground">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <p
+                tabIndex={0}
+                className="min-w-0 truncate font-mono text-xs leading-4"
+              >
+                {path}
+              </p>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-[calc(100vw-2rem)] break-all">
+              {path}
+            </TooltipContent>
+          </Tooltip>
+          <span className="shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+            <CopyButton text={path} label="Copy worktree path" />
+          </span>
+        </div>
+        {reasons.length > 0 && (
+          <p className="text-xs leading-4 text-muted-foreground">
+            {reasons.join(" · ")}
+          </p>
+        )}
       </div>
       <WorktreeRemoval
         row={row}

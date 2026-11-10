@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  experimental_InfoSection as InfoSection,
-  useRealtime,
-  useRpc,
-} from "@get-bb/plugin-sdk/app";
+import { useRealtime, useRpc } from "@get-bb/plugin-sdk/app";
 import type { z } from "zod";
 import type { rpcContract } from "../server.ts";
 import { toast } from "sonner";
@@ -12,8 +8,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { beginRefresh, connectRefresh } from "./worktrees-refresh.ts";
 import { Loading } from "./loading.tsx";
 import { RescuedWork } from "./rescued-work.tsx";
-import { sortRows } from "../lib/overview.ts";
-import { WorktreeRow } from "./worktree-row.tsx";
+import { Fragment } from "react";
+import { ProjectWorktrees } from "./project-worktrees.tsx";
 
 type Overview = z.infer<typeof rpcContract.overview.output>;
 type Rescues = z.infer<typeof rpcContract.rescues.output>;
@@ -88,7 +84,10 @@ export function WorktreesPanel() {
       ids.add(rescue.projectId);
   return (
     <TooltipProvider>
-      <main className="mx-auto w-full max-w-4xl space-y-6 p-4 text-foreground sm:p-6">
+      <main className="mx-auto w-full box-border max-w-5xl space-y-4 px-4 pb-4 pt-3 text-foreground md:px-5 md:pt-4">
+        <p className="text-sm leading-5 text-muted-foreground">
+          Worktrees created by Worktree+, and what removing each would lose.
+        </p>
         {loading && data === null && <Loading label="Loading worktrees…" />}
         {error && (
           <EmptyStatePanel>
@@ -117,54 +116,30 @@ export function WorktreesPanel() {
           </EmptyStatePanel>
         )}
         {[...ids].map((projectId) => (
-          <InfoSection
-            key={projectId}
-            label={
-              data?.projects.find((project) => project.id === projectId)
-                ?.name ?? "Unknown project"
-            }
-          >
-            {data?.machines.map((machine) => {
-              const rows = sortRows(
-                machine.worktrees.filter(
-                  (row) =>
-                    (row.environment?.projectId ??
-                      row.projectId ??
-                      "unknown") === projectId,
-                ),
-                Date.now(),
-              );
-              if (rows.length === 0) return null;
-              return (
-                <div key={machine.hostId}>
-                  {multipleMachines && (
-                    <p className="py-2 text-xs text-muted-foreground">
-                      {machine.name}
-                    </p>
-                  )}
-                  <ul className="divide-y divide-border">
-                    {rows.map((row) => (
-                      <WorktreeRow
-                        key={row.pathKey}
-                        row={row}
-                        remove={async () => {
-                          try {
-                            const result = await rpc.call("removeWorktree", {
-                              hostId: machine.hostId,
-                              pathKey: row.pathKey,
-                            });
-                            if (result.status === "failed")
-                              throw new Error(result.message);
-                          } finally {
-                            await refresh();
-                          }
-                        }}
-                      />
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
+          <Fragment key={projectId}>
+            {data && (
+              <ProjectWorktrees
+                projectId={projectId}
+                title={
+                  data.projects.find((project) => project.id === projectId)
+                    ?.name ?? "Unknown project"
+                }
+                data={data}
+                multipleMachines={multipleMachines}
+                remove={async (hostId, pathKey) => {
+                  try {
+                    const result = await rpc.call("removeWorktree", {
+                      hostId,
+                      pathKey,
+                    });
+                    if (result.status === "failed")
+                      throw new Error(result.message);
+                  } finally {
+                    await refresh();
+                  }
+                }}
+              />
+            )}
             {rescues?.projects
               .filter(
                 (rescue) =>
@@ -175,6 +150,10 @@ export function WorktreesPanel() {
                 <RescuedWork
                   key={rescue.hostId}
                   rescue={rescue}
+                  projectName={
+                    data?.projects.find((project) => project.id === projectId)
+                      ?.name ?? "Unknown project"
+                  }
                   hostName={
                     data?.machines.find(
                       (machine) => machine.hostId === rescue.hostId,
@@ -182,7 +161,7 @@ export function WorktreesPanel() {
                   }
                 />
               ))}
-          </InfoSection>
+          </Fragment>
         ))}
       </main>
     </TooltipProvider>

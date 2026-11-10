@@ -4,12 +4,12 @@
 
 - `server.ts` — registers the provider and maps bb core's `create` and `remove` onto the host entry. No git or file work happens here.
 - `management.ts` — management RPC fetches and core-owned removal routing.
-- `components/` — Worktrees panel, project settings, compact rows and removal confirmation.
+- `components/` — Worktrees panel, project settings, compact rows and removal confirmation. Project containers use the registry Collapsible with browser-local collapse state; attention reopens them on load. Metadata and icon actions follow the bundled Automations layout.
 - `components/ui/` — vendored shadcn source from the `@bb` registry, pinned in `components.json` to the running bb release. Draw icons through its SDK wrapper; use host theme tokens and the shared toast, never a local Toaster.
 - `lib/utils.ts` / `lib/portal-scope.ts` — vendored UI support only; no lifecycle decisions.
 - `lib/overview.ts` — pure joins, state ordering and removal consequences.
 - `lib/removal-request.ts` — routes user removal requests through core or the orphan host path.
-- `lib/rescues.ts` / `lib/rescue-schema.ts` — host-only rescue discovery and its wire schema.
+- `lib/rescues.ts` / `lib/rescue-schema.ts` — host-only rescue discovery and its wire schema. The reader remains strict; host project listing suppresses the standard non-repository diagnostic and preserves other failures.
 - `lib/display.ts` — branch-state wording shared by the CLI and UI.
 - `app.tsx` — the frontend entry: the "Branch from:" control for the provider, built on bb's `experimental_BranchPicker`.
 - `project-settings.ts` — validated per-project KV storage and settings RPCs; invalid rows never fail launches.

@@ -13,6 +13,8 @@ export async function listRescues(
       "refs/wt-rescue/",
     ],
     signal,
+    // The project listing distinguishes Git's standard non-repository error.
+    { LC_ALL: "C" },
   );
   if (result.code !== 0)
     throw new Error(`Could not list rescue refs: ${result.stderr.trim()}`);

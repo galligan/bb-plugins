@@ -21,7 +21,7 @@ export function SettingsRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2.5 has-[[role=switch]]:flex-row has-[[role=switch]]:justify-between has-[[role=switch]]:gap-5 @min-[36rem]/settings:flex-row @min-[36rem]/settings:justify-between @min-[36rem]/settings:gap-5">
+    <div className="flex min-w-0 flex-col gap-2.5 has-[[role=switch]]:items-start has-[[role=switch]]:flex-row has-[[role=switch]]:justify-between has-[[role=switch]]:gap-5 @min-[36rem]/settings:items-baseline @min-[36rem]/settings:flex-row @min-[36rem]/settings:justify-between @min-[36rem]/settings:gap-5">
       <div className="min-w-0 flex-1">
         <label
           htmlFor={htmlFor}
