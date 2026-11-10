@@ -1,4 +1,4 @@
-import { experimental_defineHostEntry } from "@get-bb/plugin-sdk/host";
+import { experimental_defineHostEntry } from "@get-bb/plugin-sdk";
 
 import { graphiteHostContract } from "./lib/host-contract.ts";
 import { readHostStack } from "./lib/host-stack.ts";
