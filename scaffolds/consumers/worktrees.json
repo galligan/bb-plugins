@@ -1,0 +1,13 @@
+{
+  "id": "worktree-inventory-example",
+  "title": "Worktree inventory example",
+  "empty": "No worktrees found. Create one through BB, then refresh.",
+  "items": [
+    {
+      "id": "checkout-1",
+      "title": "Feature checkout with a long descriptive branch name",
+      "detail": "Read-only inventory example. This fixture cannot remove worktrees.",
+      "reviewed": false
+    }
+  ]
+}
