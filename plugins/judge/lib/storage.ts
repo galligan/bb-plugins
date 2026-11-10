@@ -18,6 +18,7 @@ export const MIGRATIONS = [
   `CREATE TABLE project_settings (project_id TEXT PRIMARY KEY, enabled INTEGER NOT NULL)`,
   `CREATE TABLE calibration_acceptance (set_id TEXT PRIMARY KEY, set_hash TEXT NOT NULL, fingerprints_json TEXT NOT NULL, test_run_id TEXT NOT NULL, accepted_at INTEGER NOT NULL)`,
   `ALTER TABLE steps ADD COLUMN ordinal INTEGER NOT NULL DEFAULT 0`,
+  `CREATE TABLE model_defaults (id INTEGER PRIMARY KEY CHECK(id = 1), default_id TEXT, private_id TEXT)`,
 ];
 
 export class PersistenceError extends Error {
@@ -53,11 +54,14 @@ export class JudgeRepository {
   saveModel(value: unknown): ModelConfig {
     const model = modelConfigSchema.parse(value);
     return persist(() => {
-      this.db
-        .prepare(
-          "INSERT INTO models(id, config_json) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET config_json = excluded.config_json",
-        )
-        .run(model.id, JSON.stringify(model));
+      this.db.transaction(() => {
+        this.db
+          .prepare(
+            "INSERT INTO models(id, config_json) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET config_json = excluded.config_json",
+          )
+          .run(model.id, JSON.stringify(model));
+        this.invalidateInference();
+      })();
       return model;
     });
   }
@@ -72,6 +76,68 @@ export class JudgeRepository {
             JSON.parse((row as { config_json: string }).config_json),
           ),
         ),
+    );
+  }
+
+  getModel(id: string): ModelConfig | null {
+    return persist(() => {
+      const row = this.db
+        .prepare("SELECT config_json FROM models WHERE id = ?")
+        .get(id) as { config_json: string } | undefined;
+      return row ? modelConfigSchema.parse(JSON.parse(row.config_json)) : null;
+    });
+  }
+
+  removeModel(id: string): void {
+    persist(() =>
+      this.db.transaction(() => {
+        this.db.prepare("DELETE FROM models WHERE id = ?").run(id);
+        this.db
+          .prepare(
+            "UPDATE model_defaults SET default_id = CASE WHEN default_id = ? THEN NULL ELSE default_id END, private_id = CASE WHEN private_id = ? THEN NULL ELSE private_id END",
+          )
+          .run(id, id);
+        this.invalidateInference();
+      })(),
+    );
+  }
+
+  getDefaults(): { defaultId: string | null; privateId: string | null } {
+    return persist(() => {
+      const row = this.db
+        .prepare(
+          "SELECT default_id, private_id FROM model_defaults WHERE id = 1",
+        )
+        .get() as
+        { default_id: string | null; private_id: string | null } | undefined;
+      return {
+        defaultId: row?.default_id ?? null,
+        privateId: row?.private_id ?? null,
+      };
+    });
+  }
+
+  setDefaults(value: {
+    defaultId: string | null;
+    privateId: string | null;
+  }): void {
+    persist(() =>
+      this.db.transaction(() => {
+        this.db
+          .prepare(
+            "INSERT INTO model_defaults(id, default_id, private_id) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET default_id = excluded.default_id, private_id = excluded.private_id",
+          )
+          .run(value.defaultId, value.privateId);
+        this.invalidateInference();
+      })(),
+    );
+  }
+
+  invalidateInference(): void {
+    persist(() =>
+      this.db.transaction(() => {
+        this.db.exec("DELETE FROM cache; DELETE FROM calibration_acceptance");
+      })(),
     );
   }
 

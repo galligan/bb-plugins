@@ -15,7 +15,7 @@
   },
   "bb": {
     "name": "Judge [Experimental]",
-    "description": "Typed judgments over BB state. Preparation scaffold; inference is not implemented.",
+    "description": "Typed judgments over BB state. Connection setup available; inference surfaces are in development.",
     "branding": {
       "icon": "Scale"
     },
