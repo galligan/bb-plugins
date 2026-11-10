@@ -95,6 +95,11 @@ const common = {
   schemaVersion: z.literal(1),
   id: idSchema,
   description: z.string().min(1).max(4096),
+  origin: z
+    .string()
+    .max(256)
+    .regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]*@\d+\.\d+\.\d+$/)
+    .optional(),
   model: idSchema.optional(),
   projects: z
     .union([z.literal("all"), z.array(idSchema).min(1).max(100)])
@@ -232,6 +237,7 @@ export function parseSet(value: unknown): QuestionSet {
     schemaVersion: raw.schemaVersion,
     id: raw.id,
     description: raw.description,
+    ...(raw.origin === undefined ? {} : { origin: raw.origin }),
     ...(raw.model ? { model: raw.model } : {}),
     projects: raw.projects,
     budgetMs: raw.budgetMs,

@@ -1,5 +1,7 @@
 # Question-set definitions
 
+An optional `origin: <template-id>@<major.minor.patch>` string records editable template provenance and participates in the canonical hash. Bundled template copies require a new target ID and carry authored cases without inherited calibration or activation. See [inert templates](TEMPLATES.md).
+
 Definitions are global plugin-owned records with `schemaVersion: 1`, a strict ID (1–128 letters/digits/underscore/hyphen, beginning with a letter/digit), and a nonempty description up to4096 characters. Optional settings are `model` (Judge model ID), `projects` (`all`, the default, or1–100 unique project IDs), `budgetMs` (1–30000, default5000), and `calibratedFor` (up to100 unique intended model IDs). The declaration does not confer calibration acceptance. All objects reject unknown fields.
 
 The existing spec example is valid shorthand: top-level `inputs`, `questions` and `outcomes` normalize to one step `main`. A multi-step definition instead declares an ordered `steps` array (1–16), with unique `id`, named `inputs`, `questions`, `outcomes`, optional `model`, and optional `when` on each step. Mixing shorthand and `steps` is invalid. Each step accepts1–64 inputs and1–64 questions; it can declare up to64 outcomes. The set must declare1–64 final outcomes. Questions use the existing strict noul/choice/score contract; no input text is interpolated into instructions.

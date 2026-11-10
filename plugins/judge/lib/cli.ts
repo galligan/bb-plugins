@@ -8,6 +8,7 @@ import {
 import { type JudgeApi, publicError } from "./api.ts";
 import { assertJson, LIMITS, ValidationError } from "./json.ts";
 import { questionCommands } from "./sets-cli.ts";
+import { templateCommands } from "./templates-cli.ts";
 
 const json = {
   type: "boolean",
@@ -67,6 +68,7 @@ export function registerCli(bb: BbPluginApi, api: JudgeApi): void {
         "Secrets belong in Settings → Installed plugins → Judge. Saving or checking readiness never calls a provider. Explicit asks and models check --probe can incur charges.",
       commands: {
         ...questionCommands(bb, api.sets),
+        ...templateCommands(api.templates),
         ask: cliCommand({
           summary: "Run a saved set or judge explicit JSON state",
           description:
