@@ -1,3 +1,4 @@
+import { branchDescription } from "./display.ts";
 import type { ListedWorktree } from "./host-contract.ts";
 
 /** "just now", "5h ago", "3d ago": coarse on purpose, for scanning a list. */
@@ -11,14 +12,6 @@ export function age(timestamp: number | null, now: number): string {
   return `${String(Math.floor(hours / 24))}d ago`;
 }
 
-const BRANCH_STATE = {
-  "no-commits": "no commits yet",
-  merged: "merged into base",
-  pushed: "pushed",
-  local: "local only",
-  detached: "detached HEAD",
-} as const;
-
 /** One worktree as a short block of text for `bb wt list`. */
 export function renderWorktree(entry: ListedWorktree, now: number): string {
   if (entry.status === "missing") {
@@ -28,10 +21,7 @@ export function renderWorktree(entry: ListedWorktree, now: number): string {
     return `UNKNOWN  ${entry.path}\n         ${entry.message}`;
   }
   const { inspection } = entry;
-  const branch =
-    inspection.branchState === "local"
-      ? `${BRANCH_STATE.local} (${String(inspection.unpushedCommits)} unpushed)`
-      : BRANCH_STATE[inspection.branchState];
+  const branch = branchDescription(inspection);
   const lines = [
     `${inspection.safeToRemove ? "SAFE   " : "UNSAVED"}  ${inspection.path}`,
     `         branch ${inspection.branch ?? "(detached)"}: ${branch}; last activity ${age(inspection.lastActivity, now)}`,

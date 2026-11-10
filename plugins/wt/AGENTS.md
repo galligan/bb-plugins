@@ -3,6 +3,12 @@
 `bb-plugin-wt` registers the "Worktree+" environment provider (id `wt`).
 
 - `server.ts` — registers the provider and maps bb core's `create` and `remove` onto the host entry. No git or file work happens here.
+- `management.ts` — management RPC fetches and core-owned removal routing.
+- `components/` — Worktrees panel and row confirmation.
+- `lib/overview.ts` — pure joins, state ordering and removal consequences.
+- `lib/removal-request.ts` — routes user removal requests through core or the orphan host path.
+- `lib/rescues.ts` / `lib/rescue-schema.ts` — host-only rescue discovery and its wire schema.
+- `lib/display.ts` — branch-state wording shared by the CLI and UI.
 - `app.tsx` — the frontend entry: the "Branch from:" control for the provider, built on bb's `experimental_BranchPicker`.
 - `lib/base-input.ts` — reads and writes that control's value.
 - `host.ts` — the host entry. Thin wiring from the RPC contract to `lib/worktree.ts`.
@@ -17,6 +23,9 @@
 - `lib/fixture.ts` — test support: a throwaway git repository.
 
 ## Invariants
+
+- Removal of a worktree with a bb environment MUST go through bb core, including retries. Only orphan records may call host removal directly.
+- Never transmit ignored-file contents or their hashes in management RPCs.
 
 - Run all git, filesystem and script work in the host entry. The server may be a different machine from the checkout.
 - MUST NOT run `.bb-env-setup.sh` or `.bb-env-teardown.sh`. bb core runs them for every environment created with `ownsPath: true`; running them here would run them twice.

@@ -3,6 +3,7 @@ import {
   type ExperimentalHostSignals,
 } from "@get-bb/plugin-sdk";
 import { z } from "zod";
+import { rescueSchema } from "./rescue-schema.ts";
 
 const failed = z.strictObject({
   status: z.literal("failed"),
@@ -30,16 +31,19 @@ export const listedWorktreeSchema = z.discriminatedUnion("status", [
   z.strictObject({
     status: z.literal("present"),
     pathKey: z.string().min(1),
+    sourcePath: z.string().optional(),
     inspection: inspectionSchema,
   }),
   z.strictObject({
     status: z.literal("missing"),
     pathKey: z.string().min(1),
+    sourcePath: z.string().optional(),
     path: z.string().min(1),
   }),
   z.strictObject({
     status: z.literal("unreadable"),
     pathKey: z.string().min(1),
+    sourcePath: z.string().optional(),
     path: z.string().min(1),
     message: z.string(),
   }),
@@ -94,8 +98,21 @@ export const hostContract = defineRpcContract({
     output: z.strictObject({ base: z.string().min(1).nullable() }),
     experimental_retryable: true,
   },
+  rescues: {
+    input: z.strictObject({ sourcePaths: z.array(z.string().min(1)) }),
+    output: z.object({
+      sources: z.array(
+        z.object({
+          sourcePath: z.string(),
+          refs: z.array(rescueSchema),
+          error: z.string().nullable(),
+        }),
+      ),
+    }),
+    experimental_retryable: true,
+  },
   list: {
-    input: z.strictObject({}),
+    input: z.strictObject({ includeSource: z.boolean().optional() }),
     output: z.strictObject({ worktrees: z.array(listedWorktreeSchema) }),
     experimental_retryable: true,
   },

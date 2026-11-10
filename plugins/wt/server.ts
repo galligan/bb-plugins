@@ -26,6 +26,8 @@ import {
   retireGraceMs,
 } from "./lib/retire.ts";
 
+import { managementContract, managementHandlers } from "./management.ts";
+
 export const PROVIDER_ID = "wt";
 const PLUGIN_ID = "wt";
 
@@ -41,6 +43,7 @@ export const inputsSchema = z
 
 /** Calls the frontend makes to this plugin's server. */
 export const rpcContract = defineRpcContract({
+  ...managementContract,
   /** The base a new worktree starts from when none is picked. */
   defaultBase: {
     input: z.strictObject({
@@ -180,6 +183,7 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
         return { status: "failed", message: messageOf(error) };
       } finally {
         reports.delete(operationId);
+        bb.realtime.publish("worktrees-changed", null);
       }
     },
 
@@ -207,11 +211,13 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
         return { status: "failed", message: messageOf(error) };
       } finally {
         reports.delete(operationId);
+        bb.realtime.publish("worktrees-changed", null);
       }
     },
   });
 
   bb.rpc.register(rpcContract, {
+    ...managementHandlers(bb, host),
     async defaultBase({ projectId, hostId }) {
       const project = await bb.sdk.projects.get({ projectId });
       const source = project.sources.find(
@@ -252,7 +258,9 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
                     {},
                     { hostId: machine.id, signal: ctx.signal },
                   )
-                ).worktrees,
+                ).worktrees.map(
+                  ({ sourcePath: _sourcePath, ...entry }) => entry,
+                ),
               })),
             );
             if (input.options.json === true) {
