@@ -23,6 +23,12 @@ export function ScriptSettings({
           runs the hooks itself.
         </p>
       )}
+      {plan.error !== null && !core && (
+        <p>
+          Detection is incomplete. Paste the complete script when choosing
+          Custom.
+        </p>
+      )}
       <fieldset disabled={disabled || core} className="space-y-4">
         {(["setup", "cleanup"] satisfies ("setup" | "cleanup")[]).map(
           (step) => {
@@ -50,7 +56,9 @@ export function ScriptSettings({
                           mode,
                           script:
                             mode === "custom" && current.script === null
-                              ? (plan[step] ?? "")
+                              ? plan.error === null
+                                ? (plan[step] ?? "")
+                                : ""
                               : current.script,
                         },
                       });
