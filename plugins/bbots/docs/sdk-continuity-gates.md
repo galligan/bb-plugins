@@ -29,6 +29,12 @@ A source-launched server and daemon on separate loopback ports, using copied iso
 
 This is a tested prototype, not a shipped public contract. [Maintainer alignment is requested on the related issue](https://github.com/get-bb/bb/issues/6134#issuecomment-6781783821) before an upstream feature PR, as BB's CONTRIBUTING.md requires. The broader issue requests mandatory runtime authorization and provider receipts; this prototype does not close it. Existing initiator classification and the explicit Send now policy override remain. The additive public queue payload kind `compact-first` needs compatibility review. Patched-provider completion, UI interactions, full Stop/override/restart coexistence and measured context reduction remain unverified. BOTS-18 and BOTS-3 remain incomplete; BOTS-4 remains unstarted.
 
+## Queue and Stop follow-up
+
+The [follow-up prototype at ceb5bca71](https://github.com/galligan/bb/commit/ceb5bca715285dc7b77237ff3575e56b1a42d6c6) adds five real-SQLite queue-contract tests. Cancellation, edits, grouped compaction and unrelated-thread admission pass. A native manual Stop arriving during admission reproduced one compaction submission when the request had previously waited on a plugin. Automatic compact-first drain now honors the existing manual-stop pause for that row. Explicit Send now remains the native override; a second regression fixes the false HTTP 409 that was returned after that override had already started compaction. The internal result distinguishes accepted compaction from a blocked core wait while retaining the public queued-follow-up response.
+
+All 61 focused server tests pass, along with affected server/public-SDK typechecks, type-aware lint, formatting and builds. The [upstream follow-up](https://github.com/get-bb/bb/issues/6134#issuecomment-6782222327) records this evidence. These are server tests with real SQLite and a fake host boundary, not a full live Stop/provider coexistence claim. See [capability follow-up](capability-followup.md) for the independently verified native Tasks route and home archive/restart behavior. Maintainer agreement and the broader support gate remain open.
+
 ## Minimum upstream acceptance
 
 First establish whether native compaction intentionally has a different admission surface. If a supported existing surface can authorize and cancel it while preserving genuine human dispatch, document that surface and reproduce it before proposing new APIs.
