@@ -1,9 +1,12 @@
+import type { ReactNode } from "react";
 import type { z } from "zod";
 import type { detectionSchema } from "../lib/detection-schema.ts";
 export function SetupDetection({
   plan,
+  children,
 }: {
   plan: z.infer<typeof detectionSchema>;
+  children?: ReactNode;
 }) {
   return (
     <section className="space-y-3">
@@ -20,14 +23,15 @@ export function SetupDetection({
             : "No scripts found"}
       </p>
       {plan.error && <p role="alert">{plan.error}</p>}
-      {(["setup", "cleanup"] satisfies ("setup" | "cleanup")[]).map((step) => (
-        <div key={step}>
-          <h4>{step === "setup" ? "Setup" : "Cleanup"}</h4>
-          <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-state-hover p-3 font-mono text-xs">
-            {plan[step] ?? "none"}
-          </pre>
-        </div>
-      ))}
+      {children ??
+        (["setup", "cleanup"] satisfies ("setup" | "cleanup")[]).map((step) => (
+          <div key={step}>
+            <h4>{step === "setup" ? "Setup" : "Cleanup"}</h4>
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-state-hover p-3 font-mono text-xs">
+              {plan[step] ?? "none"}
+            </pre>
+          </div>
+        ))}
       <h3 className="font-semibold">Copied files</h3>
       {!plan.sharedFiles.patternFile ? (
         <p>No .worktreeinclude in this project</p>

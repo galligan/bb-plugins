@@ -3,17 +3,32 @@ import { useRpc } from "@get-bb/plugin-sdk/app";
 import type { z } from "zod";
 import type { rpcContract } from "../server.ts";
 import { branchName, isValidBranchPrefix } from "../lib/branch-name.ts";
+import {
+  projectScriptsSchema,
+  type ProjectScripts,
+} from "../lib/script-overrides.ts";
+import { ScriptSettings } from "./script-settings.tsx";
 import { SetupDetection } from "./setup-detection.tsx";
 
 type Settings = z.infer<typeof rpcContract.projectSettings.output>;
 type Detection = z.infer<typeof rpcContract.detectSetup.output>;
-type Draft = { custom: boolean; prefixBranches: boolean; branchPrefix: string };
+const detectedScripts: ProjectScripts = {
+  setup: { mode: "detected", script: null },
+  cleanup: { mode: "detected", script: null },
+};
+type Draft = {
+  scripts: ProjectScripts;
+  custom: boolean;
+  prefixBranches: boolean;
+  branchPrefix: string;
+};
 function draftOf(settings: Settings): Draft {
   return {
     custom:
       settings.stored?.branchPrefix != null ||
       settings.stored?.prefixBranches != null,
     ...settings.effective,
+    scripts: settings.stored?.scripts ?? detectedScripts,
   };
 }
 export function ProjectForm({
@@ -67,7 +82,10 @@ export function ProjectForm({
       <p role="status">Loading project settings…</p>
     );
   const current = draft;
-  const valid = !current.custom || isValidBranchPrefix(current.branchPrefix);
+  const validPrefix =
+    !current.custom || isValidBranchPrefix(current.branchPrefix);
+  const valid =
+    validPrefix && projectScriptsSchema.safeParse(current.scripts).success;
   const effective = current.custom ? current : data.global;
   const preview = branchName({
     suggested: `${data.managedBranchPrefix}fix-login-bug-thr_example`,
@@ -84,6 +102,11 @@ export function ProjectForm({
         patch: {
           prefixBranches: current.custom ? current.prefixBranches : null,
           branchPrefix: current.custom ? current.branchPrefix : null,
+          scripts:
+            current.scripts.setup.mode === "detected" &&
+            current.scripts.cleanup.mode === "detected"
+              ? null
+              : current.scripts,
         },
       });
       setData(saved);
@@ -132,11 +155,11 @@ export function ProjectForm({
                 onChange={(event) =>
                   setDraft({ ...current, branchPrefix: event.target.value })
                 }
-                aria-invalid={!valid}
+                aria-invalid={!validPrefix}
               />
             </label>
             <p className="text-sm">Leave empty to use bb's branch prefix.</p>
-            {!valid && (
+            {!validPrefix && (
               <p role="alert">Not a valid start for a git branch name</p>
             )}
           </>
@@ -147,7 +170,16 @@ export function ProjectForm({
         </p>
       </fieldset>
       {detectionError && <p role="alert">Setup detection: {detectionError}</p>}
-      {detection && <SetupDetection plan={detection} />}
+      {detection && (
+        <SetupDetection plan={detection}>
+          <ScriptSettings
+            plan={detection}
+            value={current.scripts}
+            onChange={(scripts) => setDraft({ ...current, scripts })}
+            disabled={busy}
+          />
+        </SetupDetection>
+      )}
       {error && <p role="alert">{error}</p>}
       <button
         className="rounded border border-border px-3 py-1"

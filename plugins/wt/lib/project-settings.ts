@@ -1,3 +1,4 @@
+import { projectScriptsSchema } from "./script-overrides.ts";
 import { z } from "zod";
 import { isValidBranchPrefix } from "./branch-name.ts";
 export const branchSettingsSchema = z.object({
@@ -6,6 +7,7 @@ export const branchSettingsSchema = z.object({
 });
 export const projectSettingsSchema = z.object({
   version: z.literal(1),
+  scripts: projectScriptsSchema.nullable().optional(),
   prefixBranches: z.boolean().nullable().optional(),
   branchPrefix: z
     .string()

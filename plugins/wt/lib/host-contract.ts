@@ -3,6 +3,7 @@ import {
   type ExperimentalHostSignals,
 } from "@get-bb/plugin-sdk";
 import { z } from "zod";
+import { projectScriptsSchema } from "./script-overrides.ts";
 import { detectionSchema } from "./detection-schema.ts";
 import { rescueSchema } from "./rescue-schema.ts";
 
@@ -55,6 +56,7 @@ export type ListedWorktree = z.infer<typeof listedWorktreeSchema>;
 export const hostContract = defineRpcContract({
   resolve: {
     input: z.strictObject({
+      scripts: projectScriptsSchema.nullable().optional(),
       pathKey: z.string().min(1),
       sourcePath: z.string().min(1),
       branchName: z.string().min(1),

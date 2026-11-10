@@ -1,3 +1,4 @@
+import type { ProjectScripts } from "./script-overrides.ts";
 import { parse } from "smol-toml";
 import { z } from "zod";
 
@@ -42,4 +43,40 @@ export function resolveSetupPlan(repo: {
   return setup === null && cleanup === null
     ? { source: "none" }
     : { source: "codex", setup, cleanup };
+}
+
+/** bb hooks own both steps; overrides never cause the plugin to run alongside them. */
+export function effectiveScripts(
+  detected: SetupPlan,
+  overrides: ProjectScripts | null,
+):
+  | { source: "bb-hook" }
+  | {
+      source: "plugin";
+      setup: string | null;
+      cleanup: string | null;
+      origin: {
+        setup: "codex" | "custom" | "off" | "none";
+        cleanup: "codex" | "custom" | "off" | "none";
+      };
+    } {
+  if (detected.source === "bb-hook") return detected;
+  const resolve = (
+    step: "setup" | "cleanup",
+  ): { script: string | null; origin: "codex" | "custom" | "off" | "none" } => {
+    const override = overrides?.[step];
+    if (override?.mode === "off") return { script: null, origin: "off" };
+    if (override?.mode === "custom")
+      return { script: override.script, origin: "custom" };
+    const script = detected.source === "codex" ? detected[step] : null;
+    return { script, origin: script === null ? "none" : "codex" };
+  };
+  const setup = resolve("setup"),
+    cleanup = resolve("cleanup");
+  return {
+    source: "plugin",
+    setup: setup.script,
+    cleanup: cleanup.script,
+    origin: { setup: setup.origin, cleanup: cleanup.origin },
+  };
 }
