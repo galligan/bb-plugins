@@ -52,6 +52,27 @@ function options() {
   return { ...base, deadlineAt: performance.now() + 5000 };
 }
 
+test("nullable and partial documented usage preserves unknown input counts as null", async () => {
+  for (const usage of [
+    null,
+    {},
+    { output_tokens: 5 },
+    { input_tokens: null },
+    { input_tokens: null, output_tokens: null },
+    { input_tokens: 0, output_tokens: null },
+    { input_tokens: 12, output_tokens: null },
+    { input_tokens: 12 },
+  ]) {
+    const result = await systemOne({
+      ...options(),
+      fetcher: async () => Response.json({ ...response, usage }),
+    });
+    assert.equal(result.status, "ran");
+    if (result.status === "ran")
+      assert.equal(result.inputTokens, usage?.input_tokens ?? null);
+  }
+});
+
 test("System One exact POST/auth/body/redirect mapping preserves typed answers and provider identity", async () => {
   let calls = 0;
   const result = await systemOne({

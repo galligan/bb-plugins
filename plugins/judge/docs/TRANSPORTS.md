@@ -6,6 +6,7 @@ Checked 2026-11-10 against the official TypeSafe documentation through Context7 
 
 - [HTTP API reference](https://github.com/typesafe-docs/typesafeai/blob/main/docs/09-api-reference.md): `/v1/systemone`, model/state/questions request, answer fields, usage and documented HTTP error statuses.
 - [Endpoint/authentication cheat sheet](https://github.com/typesafe-docs/typesafeai/blob/main/docs/14-cheatsheet.md): POST, JSON, and Bearer API-key header.
+- [Python response contract](https://github.com/typesafe-docs/typesafeai/blob/main/docs/reference/python/responses.md): usage counts independently permit omission or null; known input counts, including zero, remain numbers. Missing/null input usage is reported as `null`.
 - [JavaScript builders](https://github.com/typesafe-docs/typesafeai/blob/main/docs/11-sdk-javascript.md): label-map choice criteria, ordered score rubric, structured entries and null support.
 - [Structured instructions](https://github.com/typesafe-docs/typesafeai/blob/main/docs/04-primitives/advanced-structure.md): JSON instruction objects referencing named state.
 
