@@ -62,6 +62,7 @@ export const rpcContract = defineRpcContract({
     output: z.discriminatedUnion("outcome", [
       stackedSchema,
       z.object({ outcome: z.literal("none"), reason: z.string() }),
+      z.object({ outcome: z.literal("unavailable"), reason: z.string() }),
     ]),
   },
 });

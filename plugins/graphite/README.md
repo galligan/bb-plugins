@@ -21,7 +21,7 @@ bb graphite restack | submit | sync | merge
 
 Plus a `graphite_stack` agent tool and a compact control in the thread header. The header shows the current branch's stack position and status; click to open a side-panel tab with lineage, restack warnings, and threads on each branch. In narrow windows BB moves the action into the thread menu. It appears only when the current branch belongs to a multi-branch stack.
 
-The UI targets BB 0.49.0 and public SDK 0.6.132, using the host header action and side-panel tab APIs. BB 0.49.0 renders that action as a text button without a custom icon or tooltip, so status is included in its label. The Git plugin (`bb--git`) supplies validated workspace status. Stack reads poll every 15 seconds because Graphite changes its database without a BB event; hidden documents and inactive stack panels do not poll.
+The UI targets BB 0.49.0 and public SDK 0.6.132, using the host header action and side-panel tab APIs. BB 0.49.0 renders that action as a text button without a custom icon or tooltip, so status is included in its label. The Git plugin (`bb--git`) supplies validated workspace status. Stack reads poll every 15 seconds because Graphite changes its database without a BB event; hidden documents and inactive stack panels do not poll. Temporary read failures retain the last stack and show a refresh failure; JSON reads distinguish `unavailable` from a successful `none` result.
 
 **Reads the stack from stored state, not from CLI output.** Graphite keeps its
 topology in a SQLite database inside your git directory, so the stack graph, each

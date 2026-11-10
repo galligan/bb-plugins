@@ -3,12 +3,7 @@ import { useRpc, useSdk } from "@get-bb/plugin-sdk/app";
 import type { PluginThreadActionDataInput } from "@get-bb/plugin-sdk/app";
 
 import type { rpcContract } from "@/server";
-import type { CurrentStack } from "@/lib/current-stack.ts";
-
-interface StackRead {
-  stack: CurrentStack | null;
-  error: boolean;
-}
+import { updateStackRead, type StackRead } from "@/lib/stack-read.ts";
 
 /** Refresh only visible headers or the selected stack panel, including split panes. */
 export function useCurrentStacks(
@@ -50,10 +45,7 @@ export function useCurrentStacks(
               new Map(
                 entries.map(({ threadId, stack }) => [
                   threadId,
-                  {
-                    stack: stack ?? previous.get(threadId)?.stack ?? null,
-                    error: stack === null,
-                  },
+                  updateStackRead(previous.get(threadId), stack),
                 ]),
               ),
           );

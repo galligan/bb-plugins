@@ -56,8 +56,9 @@ export type CurrentStack =
       warnings: string[];
       branches: CurrentStackBranch[];
     }
-  /** No stack to show: not a Graphite repo, branch untracked, or no environment. */
-  | { outcome: "none"; reason: string };
+  /** A successful read found no Graphite stack. */
+  | { outcome: "none"; reason: string }
+  | { outcome: "unavailable"; reason: string };
 
 function none(reason: string): CurrentStack {
   return { outcome: "none", reason };
@@ -188,7 +189,8 @@ export async function currentStack(
   request: CurrentStackRequest,
 ): Promise<CurrentStack> {
   const resolution = await resolveEnvironment(bb, request);
-  if (resolution.outcome !== "resolved") return none(resolution.reason);
+  if (resolution.outcome !== "resolved")
+    return { outcome: "unavailable", reason: resolution.reason };
   const environment = resolution.environment;
 
   let stack;
@@ -201,7 +203,7 @@ export async function currentStack(
         { hostId: environment.hostId, timeoutMs: 10_000 },
       );
   } catch {
-    return none("workspace host is unavailable");
+    return { outcome: "unavailable", reason: "workspace host is unavailable" };
   }
   if (stack.outcome === "none") return none(stack.reason);
 

@@ -206,7 +206,7 @@ describe("Git plugin status contract", () => {
     );
     assert.deepEqual(
       await currentStack(bb, { projectId: "project", threadId: "thread" }),
-      { outcome: "none", reason: "Git workspace status is unavailable" },
+      { outcome: "unavailable", reason: "Git workspace status is unavailable" },
     );
   });
 });
@@ -220,7 +220,7 @@ it("Git RPC rejection returns read and write failures without invoking the host"
   );
   const request = { projectId: "project", threadId: "thread" };
   assert.deepEqual(await currentStack(bb, request), {
-    outcome: "none",
+    outcome: "unavailable",
     reason: "Git workspace status is unavailable",
   });
   assert.deepEqual(

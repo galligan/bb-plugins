@@ -11,6 +11,8 @@ const MARK_OTHER = " ";
 
 /** One line per branch, offshoots indented under the branch they hang off. */
 export function renderStack(stack: CurrentStack): string {
+  if (stack.outcome === "unavailable")
+    return `Stack unavailable: ${stack.reason}`;
   if (stack.outcome !== "stacked") return `No stack: ${stack.reason}`;
 
   const lines: string[] = [

@@ -113,7 +113,7 @@ test("RPC and CLI route reads to the environment host and reject malformed host 
   assert.deepEqual(
     await bad.harness.behavior.callRpc("stack_current", request),
     {
-      outcome: "none",
+      outcome: "unavailable",
       reason: "workspace host is unavailable",
     },
   );
@@ -188,7 +188,7 @@ test("reload replaces registrations and disposal makes captured generations unus
   assert.deepEqual(
     await replacement.harness.behavior.callRpc("stack_current", request),
     {
-      outcome: "none",
+      outcome: "unavailable",
       reason: "no environment for this project",
     },
   );
@@ -266,9 +266,19 @@ test("Git RPC rejection preserves structured CLI failures and never calls the ho
   ]);
   assert.equal(read.exitCode, 1);
   assert.deepEqual(JSON.parse(read.stdout), {
-    outcome: "none",
+    outcome: "unavailable",
     reason: "Git workspace status is unavailable",
   });
+  const textRead = await harness.behavior.runCli([
+    "stack",
+    "--project",
+    "project",
+  ]);
+  assert.equal(textRead.exitCode, 1);
+  assert.match(
+    textRead.stdout,
+    /Stack unavailable: Git workspace status is unavailable/,
+  );
   const write = await harness.behavior.runCli([
     "restack",
     "--force",
