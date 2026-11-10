@@ -50,9 +50,7 @@ bun run test
 bun run build
 ```
 
-These root checks cover Graphite and future plugins. Linear is temporarily
-excluded from formatting, linting, type checks, tests, and builds until its
-existing package is brought up to the same standard.
+These root checks cover Graphite, Worktree+, and the repository scripts where applicable. Linear is temporarily excluded from formatting, linting, type checks, tests, and builds until its existing package is brought up to the same standard. See [development guidance](docs/dev/README.md) for SDK/host patterns, lifecycle lessons, and verification boundaries.
 
 For source development, clone this repository and install a package from its
 directory:

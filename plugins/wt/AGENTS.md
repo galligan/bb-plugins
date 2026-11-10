@@ -13,6 +13,7 @@
 - `lib/inspect.ts` — what removing a worktree would lose, and the rescue snapshot taken before removal.
 - `lib/render.ts` — text for `bb wt list`.
 - `lib/branch-name.ts` — the branch prefix rule.
+- `lib/retire.ts` — translates settings to core's retirement policy; the server reloads the plugin when that policy changes.
 - `lib/paths.ts` — worktree path layout and the containment check.
 - `lib/fixture.ts` — test support: a throwaway git repository.
 
@@ -24,6 +25,7 @@
 - MUST NOT delete a worktree folder by any means other than `git worktree remove`. If inspection, the rescue snapshot, or git fails, return `failed` and leave the folder.
 - MUST NOT touch the path of a record whose `state` is `planned`. A record becomes `owned` only after `createWorktree` created the worktree or verified the one at that path is its own. A granted claim is not ownership.
 - MUST NOT remove a worktree whose index has unresolved conflicts, that has a git operation in progress (rebase, merge, cherry-pick), or whose submodules hold unsaved work. None of these can be saved; return `failed`.
+- MUST NOT include ignored files in rescue snapshots. If an ignored file copied through `.worktreeinclude` was edited here, return `failed` and preserve the worktree; saving it to Git could expose secrets.
 - MUST NOT remove what is at a recorded path unless `isLaunchWorktree` confirms it. The test is the `wt-launch` marker in the worktree's git directory, not the checked-out branch: work in a worktree moves between branches, and a path can be reused after a manual removal.
 - MUST NOT write a shared file through a symlink that leads out of the worktree.
 - Write records through `writeRecord` only. It replaces the file atomically.
@@ -34,9 +36,11 @@
 - MUST NOT derive a worktree's folder from the bb project name. Use `repoLocation`.
 - Keep `inspectWorktree` read-only: no fetch, and no writes to the repository's objects or index.
 - Write the per-path-key record before mutating the repository. `create` must be resumable and `remove` must work from the path key alone.
+- Use core's `policy.retireGraceMs` for automatic retirement. Do not schedule a second removal loop or delete environments to implement the policy.
 - Keep `lib/` free of `@get-bb/plugin-sdk` runtime imports other than the contract helpers, so `node --test` runs without a daemon.
 
 ## Read first
 
 - The `bb-plugin-authoring` skill, `references/backend-events.md`, "Environment providers: core-owned lifecycle".
-- The `bb-plugin-dev` skill for destructive hazards.
+- [Lifecycle and data preservation](../../docs/dev/lifecycle.md) for the rationale and regression-test references behind destructive-operation guards.
+- [Verification](../../docs/dev/verification.md) for repository checks and isolated live testing.
