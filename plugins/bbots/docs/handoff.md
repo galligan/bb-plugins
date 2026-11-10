@@ -1,6 +1,8 @@
 # bb Bots Builder handoff
 
-Status: **IMPLEMENTATION RELEASED.** Matt explicitly said “Ok go.” in builder thread `thr_898bvuxcfi` on 2026-11-10 after the read-only acknowledgement. BOTS-3 is in progress; no Bots package has been scaffolded. See [capability evidence](capabilities.md) and the [native continuity gate](sdk-continuity-gates.md).
+Status: **IMPLEMENTATION RELEASED.** Matt explicitly said “Ok go.” in builder thread `thr_898bvuxcfi` on 2026-11-10 after the read-only acknowledgement. BOTS-3 is in review and incomplete; no Bots package has been scaffolded. See [capability evidence](capabilities.md) and the [native continuity gate](sdk-continuity-gates.md).
+
+Matt subsequently authorized the separately scoped BB core/SDK investigation and minimal fix. BOTS-18 owns the fix in `/Users/mg/.worktrees/gh/get-bb/bb/fix-bbots-native-context-admission`, branch `fix/bbots/native-context-admission`, based on `get-bb/bb@9816b9420d76b47c3cbff99fcc620c38527f0388`. The original BB primary checkout remains on its original main commit. Bots design and evidence are in draft [PR #82](https://github.com/galligan/bb-plugins/pull/82). Core prototype [f77480ca4](https://github.com/galligan/bb/commit/f77480ca428c466edd6e6c498617555d99125ac7) is published on Matt's existing fork and [awaits maintainer alignment](https://github.com/get-bb/bb/issues/6134#issuecomment-6781783821) before an upstream feature PR. Its focused tests and bounded source-runtime rejection smoke pass. BOTS-18 is in review, incomplete. Current support gates are not waived.
 
 ## Ownership and environment
 
@@ -24,7 +26,7 @@ Core contract: Bots / bb-plugin-bbots / bbots; default Bob and @Bob; persistent 
 
 Matt confirmed native per-thread Stop plus the background-maintenance toggle for v1. No bot-wide Pause is planned. New worker reports may wake an idle recipient through normal BB messaging, but must not resume the canceled assignment. Matt separately released the builder after its briefing.
 
-Keep task descriptions and specification aligned with verified constraints. Missing critical SDK capability blocks that support path; it does not permit undocumented imports, BB core edits or an unannounced reduction in continuity. BB core, sibling plugins and the separate Radio work are outside scope. Follow Bun checks and draft-PR rules when implementation is released.
+Keep task descriptions and specification aligned with verified constraints. Missing critical SDK capability blocks that support path; it does not permit undocumented imports or an unannounced reduction in continuity. BB core is authorized only for the separately scoped BOTS-18 admission/attribution fix. Sibling plugins and the separate Radio work remain outside scope. Follow Bun checks and draft-PR rules when implementation is released.
 
 ## Planning verification (before release)
 

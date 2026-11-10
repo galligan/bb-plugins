@@ -70,6 +70,12 @@ Durable evidence in the same thread-storage directory includes the probe source 
 
 Full product acceptance remains in [spec](spec.md), [memory](memory.md), and [continuity](continuity.md). No requirement was waived by this investigation.
 
+## Separately authorized core follow-up
+
+Matt authorized BOTS-18 to investigate and minimally fix BB core/SDK admission and caller attribution. The [prototype and verification](sdk-continuity-gates.md#authorized-core-prototype) now include a real source-runtime rejection smoke and a public fork commit. This adds evidence for a proposed core contract; installed BB 0.49.0 has not been replaced. Maintainer alignment, compatibility review and the remaining continuity/Stop/coexistence checks still gate supported Bots behavior.
+
 ## Repository verification
 
 `bun run verify` passed with Bun 1.3.14, Node 24.22.2 and actionlint 1.7.12: format, lint, workflow lint, types, tests and build. Linear is excluded by the repository runner and was not changed. All local relative links under `plugins/bbots` resolve. These checks validate the documentation change and existing packages; they do not convert the open runtime gate into supported Bots behavior.
+
+After the authorized core-prototype handoff, full `bun run verify` passed again. Its first run failed an unchanged Judge history deadline test (`history.test.ts:340`, expected one read, observed zero); that named test passed in isolation and the complete rerun passed without code changes. Both logs are retained as `verification-core-handoff.log` and `verification-core-handoff-retry.log`. No sibling test was changed or skipped.

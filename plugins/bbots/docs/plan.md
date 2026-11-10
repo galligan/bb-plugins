@@ -6,24 +6,27 @@
 
 BB Tasks project **Bots** (`BOTS`, ID `01M73NSQMGEYPWZ30WSR2CEYBP`), parent **BOTS-1**. The repository retains its BBP board link; this dedicated tracker is selected explicitly. Task descriptions contain intent, dependencies, acceptance and constraints. Installed CLI has no dependency-edge mutation; the following DAG is mirrored in task descriptions instead of pretending native blocking edges exist.
 
-| Task    | Work                                                                | Depends on                                |
-| ------- | ------------------------------------------------------------------- | ----------------------------------------- |
-| BOTS-2  | Review and finalize the Bots specification                          | —                                         |
-| BOTS-3  | Verify public SDK capabilities and establish support gates          | —                                         |
-| BOTS-4  | Scaffold the independent bbots package                              | BOTS-3                                    |
-| BOTS-5  | Implement minimal revisioned bot storage                            | BOTS-4                                    |
-| BOTS-6  | Create bot identity, persistent home and main conversation          | BOTS-3, BOTS-5                            |
-| BOTS-7  | Add models, SOUL.md and initial operating skills                    | BOTS-5, BOTS-6                            |
-| BOTS-8  | Implement owned working threads, contracts and native bot messaging | BOTS-6, BOTS-7                            |
-| BOTS-9  | Integrate bot task boards and tasks.md fallback                     | BOTS-3, BOTS-6, BOTS-7                    |
-| BOTS-10 | Implement memory and in-turn state capture                          | BOTS-5, BOTS-7, BOTS-9                    |
-| BOTS-11 | Implement the verified continuity preference ladder                 | BOTS-3, BOTS-8, BOTS-9, BOTS-10, BOTS-16  |
-| BOTS-12 | Implement bounded provider fallback with visible recovery           | BOTS-7, BOTS-11                           |
-| BOTS-13 | Add idle summaries and evidence-based dreaming                      | BOTS-3, BOTS-10                           |
-| BOTS-14 | Build remaining Bots management and thread surfaces                 | BOTS-8, BOTS-9, BOTS-10, BOTS-11, BOTS-17 |
-| BOTS-15 | Validate end-to-end continuity and complete reviewed PR delivery    | BOTS-12, BOTS-13, BOTS-14, BOTS-16        |
-| BOTS-16 | Implement checkpoints, restore and portable export                  | BOTS-5, BOTS-10                           |
-| BOTS-17 | Add the minimal Bots create/open surface                            | BOTS-6, BOTS-7                            |
+| Task    | Work                                                                | Depends on                                  |
+| ------- | ------------------------------------------------------------------- | ------------------------------------------- |
+| BOTS-2  | Review and finalize the Bots specification                          | —                                           |
+| BOTS-3  | Verify public SDK capabilities and establish support gates          | BOTS-18 (discovered native continuity gate) |
+| BOTS-4  | Scaffold the independent bbots package                              | BOTS-3                                      |
+| BOTS-5  | Implement minimal revisioned bot storage                            | BOTS-4                                      |
+| BOTS-6  | Create bot identity, persistent home and main conversation          | BOTS-3, BOTS-5                              |
+| BOTS-7  | Add models, SOUL.md and initial operating skills                    | BOTS-5, BOTS-6                              |
+| BOTS-8  | Implement owned working threads, contracts and native bot messaging | BOTS-6, BOTS-7                              |
+| BOTS-9  | Integrate bot task boards and tasks.md fallback                     | BOTS-3, BOTS-6, BOTS-7                      |
+| BOTS-10 | Implement memory and in-turn state capture                          | BOTS-5, BOTS-7, BOTS-9                      |
+| BOTS-11 | Implement the verified continuity preference ladder                 | BOTS-3, BOTS-8, BOTS-9, BOTS-10, BOTS-16    |
+| BOTS-12 | Implement bounded provider fallback with visible recovery           | BOTS-7, BOTS-11                             |
+| BOTS-13 | Add idle summaries and evidence-based dreaming                      | BOTS-3, BOTS-10                             |
+| BOTS-14 | Build remaining Bots management and thread surfaces                 | BOTS-8, BOTS-9, BOTS-10, BOTS-11, BOTS-17   |
+| BOTS-15 | Validate end-to-end continuity and complete reviewed PR delivery    | BOTS-12, BOTS-13, BOTS-14, BOTS-16          |
+| BOTS-16 | Implement checkpoints, restore and portable export                  | BOTS-5, BOTS-10                             |
+| BOTS-17 | Add the minimal Bots create/open surface                            | BOTS-6, BOTS-7                              |
+| BOTS-18 | Resolve native context admission and attribution in BB SDK          | Matt's separate authorization (received)    |
+
+BOTS-18: separately authorized minimal BB core/SDK admission and attribution fix. It unblocks the native continuity gate in BOTS-3 and uses a separate core checkout. It does not authorize sibling-plugin changes or installing an unreleased app into production. The tested fork prototype awaits upstream contract alignment; see [the gate disposition](sdk-continuity-gates.md#authorized-core-prototype). BOTS-18 and BOTS-3 remain incomplete, with BOTS-4 unstarted.
 
 ## Sequence and scope
 
