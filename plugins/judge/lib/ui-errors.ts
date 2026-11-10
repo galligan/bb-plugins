@@ -19,7 +19,7 @@ export function message(error: unknown): string {
     invalid_input: "Check the IDs, required fields, JSON and model limits.",
     invalid: "Check the IDs, required fields, JSON and model limits.",
     missing_set:
-      "Choose an existing saved set. Import sets with bb judge sets import.",
+      "Choose an existing saved set. Import sets with bb judge questions import.",
     missing_model: "Save this model first.",
     missing_trigger:
       "This binding no longer exists. Refresh bindings before editing or enabling it.",

@@ -67,6 +67,17 @@ test("real strict RPC preserves only safe actionable domain refusals; privacy/ca
           return true;
         },
       );
+    const command = message({ code: "invalid", message: "missing_set" }).match(
+      /bb judge ([a-z]+) ([a-z]+)/,
+    );
+    assert.ok(command);
+    const help = await h.harness.behavior.runCli([
+      command[1]!,
+      command[2]!,
+      "--help",
+    ]);
+    assert.equal(help.exitCode, 0);
+    assert.ok(help.stdout?.includes("--file"));
     assert.equal(h.bodies.length, calls);
     assert.equal(h.repository.evaluations.getAcceptance("synthetic"), null);
     assert.deepEqual(h.repository.getDefaults(), defaultsBefore);
