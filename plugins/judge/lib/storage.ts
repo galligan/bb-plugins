@@ -217,7 +217,7 @@ export class JudgeRepository {
 
   listRunSummaries(options: RunListOptions = {}) {
     return persist(() =>
-      this.runRows(options).map((row) =>
+      this.runRows(options, true).map((row) =>
         runSummarySchema.strip().parse(JSON.parse(row.summary_json)),
       ),
     );
@@ -225,6 +225,7 @@ export class JudgeRepository {
 
   private runRows(
     options: RunListOptions,
+    lookahead = false,
   ): { id: string; summary_json: string }[] {
     const { setId = null, threadId = null, limit = 20, before } = options;
     if (
@@ -251,7 +252,7 @@ export class JudgeRepository {
           timestamp,
           timestamp,
           before?.runId ?? "",
-          limit,
+          limit + (lookahead ? 1 : 0),
         ) as { id: string; summary_json: string }[];
       return rows;
     });

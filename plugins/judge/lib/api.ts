@@ -49,33 +49,39 @@ export class JudgeApi {
   }
   log(value: unknown) {
     const input = logSchema.parse(value);
-    const runs = this.repository.listRunSummaries(input);
+    const rows = this.repository.listRunSummaries(input);
+    const runs = rows.slice(0, input.limit);
     const last = runs.at(-1);
     return {
       runs,
       next:
-        runs.length === input.limit && last
+        rows.length > input.limit && last
           ? { startedAt: last.startedAt, runId: last.runId }
           : null,
     };
   }
   async check(id: string, probe = false, signal?: AbortSignal) {
     if (!probe) return this.models.readiness(id);
-    return this.models.checkModel(id, async () => {
-      const { result } = await this.inference.ask({
-        state: { publicSynthetic: true },
-        questions: {
-          ready: { type: "noul", instructions: "Is publicSynthetic true?" },
-        },
-        selection: { override: id, sensitive: false },
-        signal,
-      });
-      if (result.status === "ran") return "reachable";
-      if (result.code === "authentication_failed")
-        return "authentication_failed";
-      if (result.code === "unsupported_model") return "unsupported_model";
-      return "error";
-    });
+    return this.models.checkModel(
+      id,
+      async () => {
+        const { result } = await this.inference.ask({
+          state: { publicSynthetic: true },
+          questions: {
+            ready: { type: "noul", instructions: "Is publicSynthetic true?" },
+          },
+          selection: { override: id, sensitive: false },
+          signal,
+        });
+        if (result.status === "ran") return "reachable";
+        if (result.reason === "cancelled") return "cancelled";
+        if (result.code === "authentication_failed")
+          return "authentication_failed";
+        if (result.code === "unsupported_model") return "unsupported_model";
+        return "error";
+      },
+      signal,
+    );
   }
 }
 

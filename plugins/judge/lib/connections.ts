@@ -109,6 +109,7 @@ export const probeStatusSchema = z.enum([
   "reachable",
   "authentication_failed",
   "unsupported_model",
+  "cancelled",
   "error",
 ]);
 export type ProbeStatus = z.infer<typeof probeStatusSchema>;

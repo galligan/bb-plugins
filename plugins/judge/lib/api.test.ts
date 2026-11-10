@@ -278,6 +278,12 @@ test("model/log pagination is bounded and cursors preserve equal-timestamp runs"
       3,
     );
     assert.equal(second.next, null);
+    const terminal = (await harness.behavior.callRpc("log", { limit: 3 })) as {
+      runs: unknown[];
+      next: unknown;
+    };
+    assert.equal(terminal.runs.length, 3);
+    assert.equal(terminal.next, null);
     assert.ok(!JSON.stringify(first).includes("steps"));
     for (const limit of [0, 101, 1.5]) {
       await assert.rejects(harness.behavior.callRpc("log", { limit }));
@@ -290,6 +296,39 @@ test("model/log pagination is bounded and cursors preserve equal-timestamp runs"
     );
   } finally {
     await harness.lifecycle.dispose();
+  }
+});
+
+test("cancelled probes retain cancellation diagnostics and pre-abort never claims an attempt", async () => {
+  for (const preabort of [true, false]) {
+    const caller = new AbortController();
+    let calls = 0;
+    let upstreamSignal: AbortSignal | undefined;
+    const { harness, api } = await setup(async (_url, options) => {
+      calls++;
+      upstreamSignal = options?.signal ?? undefined;
+      queueMicrotask(() => caller.abort());
+      return new Promise<Response>(() => {});
+    });
+    try {
+      api.models.save({ id: "jev", connection: "typesafe", model: "fixture" });
+      if (preabort) caller.abort();
+      const result = await harness.behavior.runCli(
+        ["models", "check", "jev", "--probe", "--json"],
+        { signal: caller.signal },
+      );
+      assert.equal(result.exitCode, 0);
+      const diagnostic = JSON.parse(result.stdout);
+      assert.equal(diagnostic.status, "cancelled");
+      assert.equal(diagnostic.code, "cancelled");
+      assert.equal(diagnostic.tested, !preabort);
+      assert.equal(diagnostic.latencyMs === null, preabort);
+      assert.match(diagnostic.nextAction, /cancelled/);
+      assert.equal(calls, preabort ? 0 : 1);
+      if (!preabort) assert.equal(upstreamSignal?.aborted, true);
+    } finally {
+      await harness.lifecycle.dispose();
+    }
   }
 });
 
