@@ -63,17 +63,39 @@ Set `S` and `B` to `session.id` and `block.id`.
 
 The pane runs the user's login shell. That shell can be fish or another shell that does not read `sh` syntax.
 
+`rex block call -s "$S" -b "$B" process` prints JSON. Its `foreground.pid` and `foreground.name` are the program that has the pane now. That program is the shell when the shell is at its prompt.
+
 1. Read the pane: `rex capture -s "$S" -b "$B" --trim | tail -n 40`.
 2. If a program is running in the foreground, or text is typed at the prompt and not sent, do not type. Tell the user what the pane shows and ask how to proceed.
-3. Type the command with `rex send`, which types the text and does not press Enter.
-   - If the command is one program and its arguments, type it as it is: `rex send -s "$S" -b "$B" 'npm test'`.
-   - If the command uses shell syntax, such as a loop, a pipe, `&&`, `$(…)`, a redirect, or a variable, type it as `sh -c 'COMMAND'`, so that `sh` reads it and not the user's shell: `rex send -s "$S" -b "$B" "sh -c 'for i in 1 2 3; do echo \$i; done'"`. Your own shell reads the text first. Escape each `$` that `sh` in the pane must see.
-4. Press Enter: `rex send-key -s "$S" -b "$B" enter`.
+3. Run `rex block call -s "$S" -b "$B" process`. Keep `foreground.pid` as the shell's pid and `foreground.name` as the shell's name.
+4. Type the command and press Enter.
+   - If the command is one program and its arguments, type it as it is, then press Enter:
+
+     ```sh
+     rex send -s "$S" -b "$B" 'npm test'
+     rex send-key -s "$S" -b "$B" enter
+     ```
+
+   - If the command uses shell syntax, such as a loop, a pipe, `&&`, `$(…)`, a redirect, or a variable, type it as `sh -c 'COMMAND'`, so that `sh` reads it and not the user's shell. Give the text to `rex send` in a quoted heredoc:
+
+     ```sh
+     rex send -s "$S" -b "$B" <<'EOF'
+     sh -c 'for i in 1 2 3; do echo "it'\''s $i"; done'
+     EOF
+     ```
+
+     - The pane gets each character of a quoted heredoc as it is written. Do not escape `$`, `"`, or a backtick for your own shell.
+     - The newline that ends the heredoc presses Enter. Do not send `enter` again.
+     - Write each single quote in COMMAND as `'\''`.
+     - If the shell's name is `fish`, write each `\\` in COMMAND as `\\\\`. fish reads `\\` between single quotes as one `\`.
 5. Read the pane again to see the result. A command is finished when the shell prompt is back below its output.
-   - If the prompt is not back and the command is printing, the command is still running. Read again later, or tell the user that the command is still running.
-   - If the prompt is not back and nothing was printed, the shell is waiting for the rest of a command it read as unfinished. Clear the text you typed with `rex send-key -s "$S" -b "$B" ctrl+c`, then type the command again as `sh -c 'COMMAND'`.
-6. If you need the exit status, type the command as `sh -c 'COMMAND; echo "exit status: $?"'`. The screen does not show an exit status otherwise.
-7. Tell the user which command you ran in the Rex terminal.
+6. If the prompt is not back, run `rex block call -s "$S" -b "$B" process` again and compare `foreground.pid` with the shell's pid.
+   - If the two differ, the command is still running, also when it has printed nothing. Read again later, or tell the user that the command is still running. MUST NOT send `ctrl+c` because a command is silent.
+   - If the two are equal, the shell read the line as unfinished and is waiting for the rest. Clear the text you typed with `rex send-key -s "$S" -b "$B" ctrl+c`, then type the command again as `sh -c 'COMMAND'`.
+7. If you need the exit status, type the command as `sh -c 'COMMAND; echo "exit status: $?"'`. The screen does not show an exit status otherwise.
+8. Tell the user which command you ran in the Rex terminal.
+
+A command in `sh -c` runs in a child of the pane's shell. A directory change or a variable set in COMMAND ends with COMMAND. To change the directory or the environment for the commands that follow, type `cd DIR` or `export NAME=value` as a command of its own, not in `sh -c`. If the pane's shell reports an error for it, report the error to the user.
 
 MUST NOT leave text that you typed and did not run at the prompt. Clear it with `ctrl+c`.
 
