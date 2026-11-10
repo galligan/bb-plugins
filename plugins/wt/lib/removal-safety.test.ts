@@ -482,3 +482,34 @@ test("an edited ignored shared file blocks removal and stays out of git", async 
     false,
   );
 });
+
+test("a shared file changed only in the source checkout does not block removal", async (t) => {
+  const f = await fixture(t, {
+    ".gitignore": ".env\n",
+    ".worktreeinclude": ".env\n",
+  });
+  await writeFile(join(f.source, ".env"), "TOKEN=1\n");
+  const path = await provisioned(f);
+  await writeFile(join(f.source, ".env"), "TOKEN=rotated\n");
+
+  assert.deepEqual(await removeWorktree(f.env, { pathKey: KEY, path }), {
+    status: "removed",
+  });
+});
+
+test("without a recorded copy, a shared file that differs from the source blocks removal", async (t) => {
+  const f = await fixture(t, {
+    ".gitignore": ".env\n",
+    ".worktreeinclude": ".env\n",
+  });
+  await writeFile(join(f.source, ".env"), "TOKEN=1\n");
+  const path = await provisioned(f);
+  const file = join(f.env.dataDir, "worktrees", `${KEY}.json`);
+  const record: unknown = JSON.parse(await readFile(file, "utf8"));
+  assert.ok(typeof record === "object" && record !== null);
+  await writeFile(file, JSON.stringify({ ...record, sharedFiles: undefined }));
+  await writeFile(join(f.source, ".env"), "TOKEN=rotated\n");
+
+  const removed = await removeWorktree(f.env, { pathKey: KEY, path });
+  assert.equal(removed.status, "failed");
+});

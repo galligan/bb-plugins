@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import { z } from "zod";
 
 import {
+  contentHash,
   inspectWorktree,
   saveRescueSnapshot,
   type Inspection,
@@ -76,6 +77,10 @@ const recordSchema = z.strictObject({
   // `running` on entry means an earlier call was cut off mid-script and the
   // script's outcome is unknown; it is never replayed.
   setup: z.enum(["pending", "running", "done"]),
+  // Content hash of each shared file as it was copied in, by relative path.
+  // Tells an edit in the worktree apart from a later change in the source
+  // checkout. Absent on records written before this was tracked.
+  sharedFiles: z.record(z.string(), z.string()).optional(),
 });
 type WorktreeRecord = z.infer<typeof recordSchema>;
 
@@ -426,7 +431,14 @@ export async function createWorktree(
     });
     if (copied.length > 0) {
       env.report("step", `Copied ${String(copied.length)} shared file(s)`);
-      for (const file of copied) env.report("log", file);
+      const sharedFiles = { ...record.sharedFiles };
+      for (const file of copied) {
+        env.report("log", file);
+        const hash = await contentHash(join(path, file));
+        if (hash !== null) sharedFiles[file] = hash;
+      }
+      record = { ...record, sharedFiles };
+      await writeRecord(env, record);
     }
 
     if (record.setup === "running") {
@@ -523,6 +535,7 @@ export async function removeWorktree(
         path,
         sourcePath,
         mergeBaseBranch: record?.mergeBaseBranch ?? null,
+        copiedSharedFiles: record?.sharedFiles ?? {},
         signal: env.signal,
       });
       if (inspection.conflictedFiles > 0) {
@@ -620,6 +633,7 @@ export async function listWorktrees(
           path: record.path,
           sourcePath: record.sourcePath,
           mergeBaseBranch: record.mergeBaseBranch,
+          copiedSharedFiles: record.sharedFiles ?? {},
           signal: env.signal,
         }),
       });

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import {
   mkdtemp,
@@ -275,6 +276,14 @@ async function sameContent(a: string, b: string): Promise<boolean> {
   return left !== null && right !== null && left.equals(right);
 }
 
+/** SHA-256 of a file's content, or null when it cannot be read. */
+export async function contentHash(path: string): Promise<string | null> {
+  const content = await readFile(path).catch(() => null);
+  return content === null
+    ? null
+    : createHash("sha256").update(content).digest("hex");
+}
+
 /**
  * Reports what removing a worktree would lose. Read-only: it runs no fetch and
  * writes nothing to the repository, so "pushed" and "merged" reflect the remote refs as last
@@ -285,9 +294,16 @@ export async function inspectWorktree(options: {
   sourcePath: string;
   /** Branch the worktree's changes are compared against, when known. */
   mergeBaseBranch: string | null;
+  /**
+   * Content hash of each shared file as it was copied in, by relative path.
+   * Without one, a file counts as edited whenever it differs from the source
+   * checkout's copy, including when only the source changed.
+   */
+  copiedSharedFiles?: Readonly<Record<string, string>>;
   signal?: AbortSignal;
 }): Promise<Inspection> {
   const { path, sourcePath, mergeBaseBranch, signal } = options;
+  const copiedSharedFiles = options.copiedSharedFiles ?? {};
 
   // --no-optional-locks: do not refresh the index file while only reading.
   const status = await git(
@@ -339,9 +355,14 @@ export async function inspectWorktree(options: {
     signal,
   });
   for (const file of shared) {
-    if (!(await sameContent(join(path, file), join(sourcePath, file)))) {
-      editedSharedFiles.push(file);
-    }
+    // Unedited means the content also exists elsewhere, or never changed
+    // since it was copied (the source checkout may have moved on since).
+    const copiedHash = copiedSharedFiles[file];
+    const unedited =
+      (await sameContent(join(path, file), join(sourcePath, file))) ||
+      (copiedHash !== undefined &&
+        (await contentHash(join(path, file))) === copiedHash);
+    if (!unedited) editedSharedFiles.push(file);
   }
 
   const branchName = await out(path, ["branch", "--show-current"], signal);
