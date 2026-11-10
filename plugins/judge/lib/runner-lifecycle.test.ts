@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createFakePluginHost } from "@get-bb/plugin-sdk/testing";
+import { parseVerdict } from "./results.ts";
 import {
   definition,
   fixtureHostOptions,
@@ -256,6 +257,55 @@ test("successful and failed runs release every deadline timer", async (t) => {
     assert.equal(active.size, 0);
   } finally {
     for (const timer of active) realClear(timer);
+    await h.harness.lifecycle.dispose();
+  }
+});
+
+test("expiry during final verdict validation preserves completed answers and records a run-level failure", async (t) => {
+  let calls = 0;
+  let validating = false;
+  let offset = 0;
+  const h = await setup(async () => {
+    const response = Response.json({
+      model: "fixture",
+      answers: { q: { type: "noul", noul: 0.9 } },
+    });
+    if (++calls === 2) validating = true;
+    return response;
+  });
+  try {
+    const realNow = performance.now.bind(performance);
+    const realDate = Date.now.bind(Date);
+    t.mock.method(performance, "now", () => realNow() + offset);
+    // Simulate the remaining CPU budget expiring when the final record is assembled.
+    t.mock.method(Date, "now", () => {
+      if (validating) {
+        offset = 6000;
+        validating = false;
+      }
+      return realDate();
+    });
+    const result = await h.api.runner.run({
+      id: "synthetic",
+      threadId: "thread",
+    });
+    assert.equal(calls, 2);
+    assert.equal(result.complete, false);
+    assert.deepEqual(result.failure, { reason: "budget", code: "budget" });
+    assert.deepEqual(result.outcomes, {});
+    for (const step of Object.values(result.steps)) {
+      assert.equal(step.status, "ran");
+      if (step.status === "ran") {
+        assert.deepEqual(step.answers.q, { type: "noul", noul: 0.9 });
+        assert.ok(Object.keys(step.provenance).length);
+      }
+    }
+    assert.deepEqual(h.repository.getRun(result.runId), result);
+    assert.deepEqual(h.api.log({}).runs[0]?.failure, result.failure);
+    assert.throws(() => parseVerdict({ ...result, complete: true }));
+    const { failure: _failure, ...withoutFailure } = result;
+    assert.throws(() => parseVerdict(withoutFailure));
+  } finally {
     await h.harness.lifecycle.dispose();
   }
 });

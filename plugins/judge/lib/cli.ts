@@ -152,7 +152,8 @@ export function registerCli(bb: BbPluginApi, api: JudgeApi): void {
                   notPrivate: input.options["not-private"],
                   threadId,
                   projectId:
-                    input.options.thread === undefined
+                    input.options.thread === undefined ||
+                    input.options.thread === ctx.threadId
                       ? ctx.projectId
                       : undefined,
                 },

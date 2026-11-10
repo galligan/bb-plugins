@@ -24,7 +24,9 @@ export function outcomes(
     ]),
   );
 }
-export function unavailable(error: unknown): StepResult {
+export function unavailable(
+  error: unknown,
+): Extract<StepResult, { status: "unavailable" }> {
   if (error instanceof OperationAborted)
     return { status: "unavailable", reason: error.reason, code: error.reason };
   if (error instanceof SourceFailure)

@@ -433,3 +433,36 @@ test("assembled request bounds include questions and enclosing state depth, with
     await h.harness.lifecycle.dispose();
   }
 });
+
+test("ad hoc explicit current-thread attribution preserves the known project without assigning it to another thread", async () => {
+  const h = await setup();
+  try {
+    for (const threadId of ["thread", "different-thread"]) {
+      const result = await h.harness.behavior.runCli(
+        [
+          "ask",
+          "--thread",
+          threadId,
+          "--state",
+          "{}",
+          "--noul",
+          "Synthetic?",
+          "--not-private",
+          "--json",
+        ],
+        { threadId: "thread", projectId: "project" },
+      );
+      assert.equal(result.exitCode, 0);
+      const verdict = parseVerdict(JSON.parse(result.stdout));
+      assert.equal(verdict.threadId, threadId);
+      assert.equal(verdict.projectId, threadId === "thread" ? "project" : null);
+      assert.equal(
+        h.repository.getRun(verdict.runId)?.projectId,
+        verdict.projectId,
+      );
+    }
+    assert.equal(h.harness.inspection.sdk.callsTo("threads.get").length, 0);
+  } finally {
+    await h.harness.lifecycle.dispose();
+  }
+});

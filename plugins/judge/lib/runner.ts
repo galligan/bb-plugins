@@ -159,15 +159,20 @@ export class Runner {
               );
       }
       let final: Record<string, boolean> = {};
+      let failure: Verdict["failure"];
+      const failFinalization = (error: unknown) => {
+        const { reason, code } = unavailable(error);
+        failure = { reason, code };
+        stopped = true;
+        final = {};
+      };
       if (!stopped) {
         try {
           scope.assertActive();
           final = outcomes(set.outcomes, {}, earlier);
           scope.assertActive();
         } catch (error) {
-          steps[set.steps.at(-1)!.id] = unavailable(error);
-          stopped = true;
-          final = {};
+          failFinalization(error);
         }
       }
       const runId = randomUUID();
@@ -181,6 +186,7 @@ export class Runner {
           endedAt: Date.now(),
           complete: !stopped,
           calibrated: false,
+          ...(failure ? { failure } : {}),
           steps,
           outcomes: final,
         });
@@ -190,9 +196,7 @@ export class Runner {
         try {
           scope.assertActive();
         } catch (error) {
-          steps[set.steps.at(-1)!.id] = unavailable(error);
-          stopped = true;
-          final = {};
+          failFinalization(error);
           verdict = record();
         }
       }
