@@ -9,7 +9,7 @@ export interface AddressScope {
 }
 
 export function resolveAddress(
-  store: RadioStore,
+  store: Pick<RadioStore, "stationId" | "identities" | "projects" | "handles">,
   token: AddressToken,
   scope: AddressScope,
 ) {

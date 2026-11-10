@@ -1,6 +1,6 @@
 # Communication protocol
 
-This document describes intended behavior, not an implemented API. [Open decisions](decisions.md) identify semantics that still need agreement.
+The internal transmission/reply store described below is implemented. Receipt, response, subscription and delivery operations remain intended behavior, not available public APIs. [Open decisions](decisions.md) identify semantics that still need agreement.
 
 ## Transmissions
 
@@ -8,7 +8,15 @@ A transmission has an immutable ID, author actor, optional acting session, chann
 
 Create the tx, resolved references and local recipient snapshot in one transaction. An author/principal-scoped idempotency key binds the canonical request. Repeating the same request returns the original result; reusing the key with different input conflicts. Return `sent` only after durable acceptance. A lost response is an unknown outcome to the client until exact replay/lookup confirms it, not grounds for a new logical send.
 
-Replies are new txs linked to an existing accessible parent. Repeated replies use the same idempotency rules. Replying does not automatically acknowledge, commit or complete; an operation may explicitly combine a reply with one of those actions atomically. Cross-channel replies must not expose private parent content or invent access. Default reply audience and cross-channel policy remain open.
+Replies are new txs linked to an existing accessible parent. Repeated replies use the same idempotency rules. Replying does not automatically acknowledge, commit or complete; an operation may explicitly combine a reply with one of those actions atomically. Cross-channel replies must not expose private parent content or invent access. The initial internal store uses explicit recipients only: replies inherit no audience and must stay in the parent channel. Broader reply-routing policies remain open.
+
+## Implemented transmission limits and access
+
+The first store uses a 1–400 Unicode-code-point body budget with no inline exemptions and a 2000 UTF-16-code-unit raw cap. References live outside the body: at most 16 HTTP(S) URLs without embedded credentials or canonical local transmission/participant/channel refs. At most 100 direct recipients are accepted after deduplication. A quoted/code/escaped mention stays literal. `ch:` freezes a channel reference only; `@ch:` is rejected until the subscription layer can create the listener snapshot. No URL fetch or delivery happens on acceptance.
+
+Adapters supply authenticated caller, author, optional acting session and authorized project IDs separately from request fields. The author must belong to that caller and the session to that author. Project scope controls channel/history access; recipients are attention targets, not a private-message ACL. Structured local refs and reply parents must be accessible at creation. Participant IDs supplied explicitly require a handle in an accessible project (or their owning actor's handle); the station human remains globally addressable. A reference does not confer access to its target content on a future reader.
+
+Idempotency binds validated source content, channel, refs, deduplicated/sorted explicit recipient IDs, reply parent and acting session, within the authenticated author/principal namespace. Lookup precedes mutable handle resolution; replay returns the persisted result without retargeting after rename/reclaim. Replays still require author and posting-channel access. New sends resolve all body addresses and refs, then persist content, tokens, tags and recipients in one immediate SQLite transaction. Unknown/ambiguous/malformed input and failed recipient writes leave no accepted key. Reads never mark receipt. Channel scans use a monotonic server cursor with a 1–50 item limit (20 by default), `nextCursor` and `hasMore`; cursors do not depend on timestamps.
 
 ## Receipt and response facts
 

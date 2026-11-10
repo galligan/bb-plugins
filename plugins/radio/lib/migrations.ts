@@ -55,4 +55,27 @@ export const MIGRATIONS = [
     displaced_id TEXT REFERENCES participants(id),
     fallback_name TEXT
   ) STRICT`,
+  `CREATE TABLE transmissions (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    id TEXT NOT NULL UNIQUE,
+    author_id TEXT NOT NULL REFERENCES participants(id),
+    session_id TEXT REFERENCES participants(id),
+    channel_id TEXT NOT NULL REFERENCES channels(id),
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    reply_to_id TEXT REFERENCES transmissions(id),
+    refs_json TEXT NOT NULL,
+    tags_json TEXT NOT NULL,
+    tokens_json TEXT NOT NULL,
+    caller_key TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    request_json TEXT NOT NULL,
+    UNIQUE(caller_key, idempotency_key)
+  ) STRICT`,
+  `CREATE INDEX transmission_channel_cursor ON transmissions(channel_id, seq)`,
+  `CREATE TABLE transmission_recipients (
+    tx_id TEXT NOT NULL REFERENCES transmissions(id),
+    target_id TEXT NOT NULL REFERENCES participants(id),
+    PRIMARY KEY(tx_id, target_id)
+  ) STRICT`,
 ];

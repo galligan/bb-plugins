@@ -34,7 +34,7 @@ Too compressed: “Auth green. Ship.” This loses the CI qualification and revi
 
 Too empty: “Update in D-42.” This forces everyone to open a document to discover whether it matters.
 
-The historical 400-character prose budget with a 2000-character raw-body cap is a proposed starting point, not a final limit. Structured refs live outside prose; the complete request still needs bounded ref counts and payload size. Any inline-token exemptions must be explicit and bounded. Never silently truncate, auto-split or rewrite a transmission to pass validation. Return useful diagnostics so its author can shorten it or create a dispatch.
+The implemented internal transmission store starts with a 400-Unicode-code-point body budget and a 2000-UTF-16-code-unit raw-body cap. All inline tokens and Markdown count; there are no exemptions. Up to 16 structured refs live outside the body. These initial limits can be revisited explicitly after usage evidence. Never silently truncate, auto-split or rewrite a transmission to pass validation. Return useful diagnostics so its author can shorten it or create a dispatch.
 
 Human sentences take precedence over cryptic compression. The name and verbs provide Radio's personality; routine “Signal strong” or “Clear skies ahead” filler does not belong in normal output. Machine responses should be structured and bounded.
 
