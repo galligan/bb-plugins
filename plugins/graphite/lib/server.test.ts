@@ -22,7 +22,9 @@ function setup(options: CreateFakePluginHostOptions = {}) {
             branchName: "feature",
           },
         ],
-        status: async () => ({
+      },
+      plugins: {
+        callRpc: async () => ({
           outcome: "available",
           workspace: {
             checkout: { kind: "branch", branchName: "feature" },
@@ -111,7 +113,7 @@ test("RPC and CLI route reads to the environment host and reject malformed host 
   assert.deepEqual(
     await bad.harness.behavior.callRpc("stack_current", request),
     {
-      outcome: "none",
+      outcome: "unavailable",
       reason: "workspace host is unavailable",
     },
   );
@@ -138,7 +140,7 @@ test(
       },
     });
     t.after(() => harness.lifecycle.dispose());
-    harness.inspection.sdk.stub("environments.status", async () => ({
+    harness.inspection.sdk.stub("plugins.callRpc", async () => ({
       outcome: "available",
       workspace: {
         checkout: { kind: "branch", branchName: "feature" },
@@ -186,7 +188,7 @@ test("reload replaces registrations and disposal makes captured generations unus
   assert.deepEqual(
     await replacement.harness.behavior.callRpc("stack_current", request),
     {
-      outcome: "none",
+      outcome: "unavailable",
       reason: "no environment for this project",
     },
   );
@@ -247,4 +249,43 @@ test("RPC rejects malformed joined thread output instead of returning an invalid
       threads: [{ id: "thread", title: "Working on feature" }],
     },
   ]);
+});
+
+test("Git RPC rejection preserves structured CLI failures and never calls the host", async (t) => {
+  const { bb, harness } = setup();
+  t.after(() => harness.lifecycle.dispose());
+  harness.inspection.sdk.stub("plugins.callRpc", async () => {
+    throw new Error("Git plugin is disabled");
+  });
+  await plugin(bb);
+  const read = await harness.behavior.runCli([
+    "stack",
+    "--json",
+    "--project",
+    "project",
+  ]);
+  assert.equal(read.exitCode, 1);
+  assert.deepEqual(JSON.parse(read.stdout), {
+    outcome: "unavailable",
+    reason: "Git workspace status is unavailable",
+  });
+  const textRead = await harness.behavior.runCli([
+    "stack",
+    "--project",
+    "project",
+  ]);
+  assert.equal(textRead.exitCode, 1);
+  assert.match(
+    textRead.stdout,
+    /Stack unavailable: Git workspace status is unavailable/,
+  );
+  const write = await harness.behavior.runCli([
+    "restack",
+    "--force",
+    "--project",
+    "project",
+  ]);
+  assert.equal(write.exitCode, 1);
+  assert.match(write.stderr, /Git workspace status is unavailable/);
+  assert.equal(harness.inspection.experimental_hostRpcCalls.length, 0);
 });

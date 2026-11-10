@@ -4,6 +4,7 @@
 // This is the only place the two sides meet. `lib/stack/` stays free of the SDK.
 
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import { z } from "zod";
 
 import { graphiteHostContract } from "./host-contract.ts";
 
@@ -55,12 +56,9 @@ export type CurrentStack =
       warnings: string[];
       branches: CurrentStackBranch[];
     }
-  /** No stack to show: not a Graphite repo, branch untracked, or no environment. */
-  | { outcome: "none"; reason: string };
-
-function none(reason: string): CurrentStack {
-  return { outcome: "none", reason };
-}
+  /** A successful read found no Graphite stack. */
+  | { outcome: "none"; reason: string }
+  | { outcome: "unavailable"; reason: string };
 
 /** The environment a command should act on: the thread's when there is one. */
 export interface ResolvedEnvironment {
@@ -131,7 +129,36 @@ export async function resolveEnvironment(
     };
 
   // Branch and working-tree state come from BB, never from a git call here.
-  const status = await bb.sdk.environments.status({ environmentId: chosen.id });
+  const status = await bb.sdk.plugins
+    .callRpc({
+      pluginId: "bb--git",
+      method: "workspaceStatus",
+      input: { environmentId: chosen.id },
+      outputSchema: z.discriminatedUnion("outcome", [
+        z.object({
+          outcome: z.literal("available"),
+          workspace: z.object({
+            checkout: z.discriminatedUnion("kind", [
+              z.object({ kind: z.literal("branch"), branchName: z.string() }),
+              z.object({ kind: z.literal("detached") }),
+              z.object({ kind: z.literal("unborn") }),
+              z.object({ kind: z.literal("unknown") }),
+            ]),
+            workingTree: z.object({ state: z.string() }),
+          }),
+        }),
+        z.object({
+          outcome: z.enum(["unavailable", "not_applicable", "failed"]),
+        }),
+      ]),
+    })
+    .catch(() => null);
+  if (status === null) {
+    return {
+      outcome: "unavailable",
+      reason: "Git workspace status is unavailable",
+    };
+  }
   if (status.outcome !== "available") {
     return { outcome: "unavailable", reason: `environment ${status.outcome}` };
   }
@@ -158,7 +185,8 @@ export async function currentStack(
   request: CurrentStackRequest,
 ): Promise<CurrentStack> {
   const resolution = await resolveEnvironment(bb, request);
-  if (resolution.outcome !== "resolved") return none(resolution.reason);
+  if (resolution.outcome !== "resolved")
+    return { outcome: "unavailable", reason: resolution.reason };
   const environment = resolution.environment;
 
   let stack;
@@ -171,9 +199,9 @@ export async function currentStack(
         { hostId: environment.hostId, timeoutMs: 10_000 },
       );
   } catch {
-    return none("workspace host is unavailable");
+    return { outcome: "unavailable", reason: "workspace host is unavailable" };
   }
-  if (stack.outcome === "none") return none(stack.reason);
+  if (stack.outcome !== "stacked") return stack;
 
   // Which thread is working on which branch — the join neither tool has alone.
   // Graphite cannot see BB's threads; BB does not know the branches form a stack.

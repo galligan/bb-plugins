@@ -10,7 +10,7 @@ The read path and write verbs are implemented. The September 2026 plan records h
 - `lib/current-stack.ts` — joins the host's stack with BB threads.
 - `lib/gt.ts`, `lib/verbs.ts` — host-side `gt` execution and the server-side guard.
 - `server.ts` — the RPC, `bb graphite …`, and the `graphite_stack` agent tool.
-- `app.tsx`, `components/stack/` — the composer banner.
+- `app.tsx`, `components/stack/` — the thread-header action and lineage panel.
 
 ## Read first
 
@@ -26,7 +26,7 @@ The read path and write verbs are implemented. The September 2026 plan records h
 - Read stack topology from the Graphite metadata database at
   `<git-common-dir>/.graphite_metadata.db`. MUST NOT parse `gt` output. MUST NOT read
   `refs/branch-metadata/*`; those refs are obsolete as of Graphite CLI `1.8.6`.
-- Read branch, head SHA, and dirty state through BB's environment-aware Git service. This package's current `lib/current-stack.ts` calls the retired `bb.sdk.environments.status` compatibility API; new SDK work should use the Git plugin's `workspaceStatus` contract. Preserve response validation and write guards when migrating. MUST NOT shell out to `git status` or `git rev-parse` for facts the service already returns.
+- Read branch, head SHA, and dirty state through BB's environment-aware Git service. `lib/current-stack.ts` reads the Git plugin's `workspaceStatus` contract through `bb.sdk.plugins.callRpc`. Preserve response validation and write guards when migrating. MUST NOT shell out to `git status` or `git rev-parse` for facts the service already returns.
 - MUST NOT invoke `gt` in a form that can prompt. See the command reference in
   `docs/agents/graphite.md`.
 - MUST NOT run a destructive `gt` or `git` operation without first checking environment Git status. Refuse when `workspace.workingTree.state` is `dirty_uncommitted`, `committed_unmerged`, or `dirty_and_committed_unmerged`, and when it is a state this list does not name. Allow `clean` and `untracked`. The predicate is `blocksWrite` in `lib/verbs.ts`; preserve its allow-list when migrating the status API.
@@ -42,9 +42,7 @@ The read path and write verbs are implemented. The September 2026 plan records h
 - `docs/` otherwise is for people.
 - State what is verified and what is not. When a fact comes from a specific version,
   name the version.
-- Prefer a CLI command over a UI panel until a decision exists that a human cannot
-  make from `--json` output. The stack banner earns its place: position and lineage
-  are not readable from a JSON array.
+- Prefer a CLI command over a UI panel until a decision exists that a human cannot make from `--json` output. The stack action earns its place: position and lineage are not readable from a JSON array.
 - Keep a surface thin. Anything a second surface could want belongs in `lib/`.
 
 ## Verification

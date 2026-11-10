@@ -2,7 +2,7 @@
 //
 // Three surfaces over one collector, so they cannot disagree:
 //
-//   - `stack_current` RPC, which app.tsx draws above the composer
+//   - `stack_current` RPC, which the thread header and panel render
 //   - `bb graphite …`, for a terminal and for agents through the generated
 //     plugin-commands skill
 //   - a `graphite_stack` agent tool, for a thread that wants the snapshot
@@ -62,6 +62,7 @@ export const rpcContract = defineRpcContract({
     output: z.discriminatedUnion("outcome", [
       stackedSchema,
       z.object({ outcome: z.literal("none"), reason: z.string() }),
+      z.object({ outcome: z.literal("unavailable"), reason: z.string() }),
     ]),
   },
 });
@@ -114,7 +115,7 @@ export default async function plugin(bb: BbPluginApi) {
         completed: "Read the Graphite stack",
       },
     },
-    parameters: z.object({}),
+    parameters: { type: "object", properties: {}, additionalProperties: false },
     async execute(_input, { threadId, projectId }) {
       if (projectId == null) {
         return {

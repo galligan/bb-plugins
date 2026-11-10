@@ -2,7 +2,7 @@
 //
 // Every verb refuses on a working tree that could lose work. That is the hazard
 // `bb-plugin-dev` names — a restack or a sync over uncommitted work is not
-// recoverable from inside BB — and the check comes from `environments.status`,
+// recoverable from inside BB — and the check comes from the Git plugin's `workspaceStatus`,
 // never from a git call of our own.
 
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
