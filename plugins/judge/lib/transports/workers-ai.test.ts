@@ -41,6 +41,37 @@ const result = {
   },
 };
 const envelope = { success: true, result, errors: [], messages: [] };
+test("both selectors normalize bounded context diagnostics on HTTP400/422 before envelope rejection", async () => {
+  for (const model of ["clef", "clef-flash"])
+    for (const status of [400, 422])
+      for (const field of ["errors", "messages"]) {
+        for (const context of [true, false]) {
+          const diagnostic = context
+            ? {
+                code: "context_length_exceeded",
+                message: "Context window exceeded; private body",
+              }
+            : { code: 1, message: "Unrelated private failure" };
+          const response = await workersAI({
+            ...options(model),
+            fetcher: async () =>
+              Response.json(
+                { ...envelope, success: false, [field]: [diagnostic] },
+                { status },
+              ),
+          });
+          assert.equal(response.status, "unavailable");
+          if (response.status === "unavailable") {
+            assert.equal(response.reason, context ? "too_large" : "error");
+            assert.equal(
+              response.code,
+              context ? "provider_context_limit" : `http_${status}`,
+            );
+          }
+          assert.ok(!JSON.stringify(response).includes("private"));
+        }
+      }
+});
 function options(model = "clef") {
   return {
     model: modelConfigSchema.parse({
