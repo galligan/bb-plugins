@@ -10,7 +10,18 @@
     "types": ["node"],
     "noEmit": true,
     "skipLibCheck": false,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./*"]
+    }
   },
-  "include": ["server.ts", "host.ts", "app.tsx", "lib", "tests"]
+  "include": [
+    "server.ts",
+    "host.ts",
+    "app.tsx",
+    "lib",
+    "tests",
+    "components",
+    "hooks"
+  ]
 }

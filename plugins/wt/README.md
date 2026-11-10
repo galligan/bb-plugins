@@ -109,6 +109,8 @@ It also reports where the branch's commits stand: `no commits yet`, `merged into
 
 ## Worktrees panel
 
+The Worktrees panel and Projects settings use bb’s version-matched UI components, including themed controls, copy buttons and a removal confirmation dialog.
+
 Open **Worktrees** in bb's navigation (`/plugins/wt/worktrees`) to see Worktree+ records on connected machines, grouped by project and machine. Rows show safety reasons, commit state, last activity and links to owning threads, including archived ones. Records without a recognizable project appear under **Unknown project**. A machine that cannot be read has its own error; use **Refresh** to try again. The visible page refreshes every 30 seconds and after provider changes.
 
 **Remove** asks for confirmation and explains which work can be rescued and which conditions block removal. A fresh inspection after cleanup decides whether removal can proceed. Environments are removed through bb core, which may refuse while threads are live or stopping; **Retry removal** asks core to retry failed teardown. Orphan records use the same fail-closed host removal path. There is no force action.
@@ -131,3 +133,7 @@ bun run check        # tsc
 bun run build        # bb plugin build
 bb plugin install .  # install this checkout into the running bb
 ```
+
+The root dev dependency on `@get-bb/plugin-sdk` also supplies `bb-app`’s offline build shim. Keep it aligned with Worktree+’s SDK pin: the CLI resolves its ambient SDK, which Bun may otherwise hoist from another plugin. To verify the published CLI independently of a running app, use `env -u BB_CLI bun run --cwd plugins/wt build` from the root.
+
+For live UI regression checks, first create a disposable Worktree+ fixture whose path key starts with `bbp25-ui-qa-`. Run `bb browser-automation run SESSION --script-file ABSOLUTE_PATH_TO_plugins/wt/tests/bb-ui.browser.js --script-host HOST` against the local app on port 38886. The script checks compact project and branch selection, Escape/focus return, the native header, and confirmation cancellation on that fixture. It changes unsaved drafts and the remembered project selection; it never saves settings or requests removal. Remove your disposable fixture afterward through the normal fail-closed path.

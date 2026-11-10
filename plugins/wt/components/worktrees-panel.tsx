@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRealtime, useRpc } from "@get-bb/plugin-sdk/app";
+import {
+  experimental_InfoSection as InfoSection,
+  useRealtime,
+  useRpc,
+} from "@get-bb/plugin-sdk/app";
 import type { z } from "zod";
 import type { rpcContract } from "../server.ts";
-import { restoreCommand } from "../lib/rescue-schema.ts";
+import { toast } from "sonner";
+import { EmptyState, EmptyStatePanel } from "@/components/ui/empty-state";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { beginRefresh, connectRefresh } from "./worktrees-refresh.ts";
+import { Loading } from "./loading.tsx";
+import { RescuedWork } from "./rescued-work.tsx";
 import { sortRows } from "../lib/overview.ts";
 import { WorktreeRow } from "./worktree-row.tsx";
 
@@ -16,6 +25,7 @@ export function WorktreesPanel() {
   const [loading, setLoading] = useState(false);
   const sequence = useRef(0);
   const refresh = useCallback(async () => {
+    const endRefresh = beginRefresh();
     const request = ++sequence.current;
     setLoading(true);
     try {
@@ -27,14 +37,24 @@ export function WorktreesPanel() {
         setData(overview);
         setRescues(rescues);
         setError(null);
+        for (const machine of overview.machines)
+          if (machine.error !== null)
+            toast.error(`${machine.name}: ${machine.error}`, {
+              id: `wt-machine-${machine.hostId}`,
+            });
       }
     } catch (error) {
-      if (request === sequence.current)
-        setError(error instanceof Error ? error.message : String(error));
+      if (request === sequence.current) {
+        const message = error instanceof Error ? error.message : String(error);
+        setError(message);
+        toast.error(message, { id: "wt-overview-error" });
+      }
     } finally {
+      endRefresh();
       if (request === sequence.current) setLoading(false);
     }
   }, [rpc]);
+  useEffect(() => connectRefresh(refresh), [refresh]);
   useEffect(() => {
     void refresh();
     const whenVisible = () => {
@@ -67,113 +87,104 @@ export function WorktreesPanel() {
     if (rescue.refs.length > 0 || rescue.error !== null)
       ids.add(rescue.projectId);
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-6 text-foreground">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Worktrees</h1>
-        <button
-          className="rounded border border-border px-3 py-1"
-          onClick={() => void refresh()}
-          disabled={loading}
-        >
-          Refresh
-        </button>
-      </header>
-      {loading && data === null && <p role="status">Loading worktrees…</p>}
-      {error && <p role="alert">{error}</p>}
-      {data?.machines
-        .filter((machine) => machine.error !== null)
-        .map((machine) => (
-          <p role="alert" key={machine.hostId}>
-            {machine.name}: {machine.error}
-          </p>
+    <TooltipProvider>
+      <main className="mx-auto w-full max-w-4xl space-y-6 p-4 text-foreground sm:p-6">
+        {loading && data === null && <Loading label="Loading worktrees…" />}
+        {error && (
+          <EmptyStatePanel>
+            <EmptyState
+              icon="AlertTriangle"
+              message="Could not load worktrees. Refresh to try again."
+            />
+          </EmptyStatePanel>
+        )}
+        {data?.machines
+          .filter((machine) => machine.error !== null)
+          .map((machine) => (
+            <EmptyState
+              key={machine.hostId}
+              icon="AlertTriangle"
+              message={`${machine.name}: worktrees unavailable`}
+            />
+          ))}
+        {data && !hasRows && (
+          <EmptyStatePanel>
+            <EmptyState
+              icon="FolderGit"
+              message="No Worktree+ worktrees."
+              className="justify-center"
+            />
+          </EmptyStatePanel>
+        )}
+        {[...ids].map((projectId) => (
+          <InfoSection
+            key={projectId}
+            label={
+              data?.projects.find((project) => project.id === projectId)
+                ?.name ?? "Unknown project"
+            }
+          >
+            {data?.machines.map((machine) => {
+              const rows = sortRows(
+                machine.worktrees.filter(
+                  (row) =>
+                    (row.environment?.projectId ??
+                      row.projectId ??
+                      "unknown") === projectId,
+                ),
+                Date.now(),
+              );
+              if (rows.length === 0) return null;
+              return (
+                <div key={machine.hostId}>
+                  {multipleMachines && (
+                    <p className="py-2 text-xs text-muted-foreground">
+                      {machine.name}
+                    </p>
+                  )}
+                  <ul className="divide-y divide-border">
+                    {rows.map((row) => (
+                      <WorktreeRow
+                        key={row.pathKey}
+                        row={row}
+                        remove={async () => {
+                          try {
+                            const result = await rpc.call("removeWorktree", {
+                              hostId: machine.hostId,
+                              pathKey: row.pathKey,
+                            });
+                            if (result.status === "failed")
+                              throw new Error(result.message);
+                          } finally {
+                            await refresh();
+                          }
+                        }}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+            {rescues?.projects
+              .filter(
+                (rescue) =>
+                  rescue.projectId === projectId &&
+                  (rescue.refs.length > 0 || rescue.error !== null),
+              )
+              .map((rescue) => (
+                <RescuedWork
+                  key={rescue.hostId}
+                  rescue={rescue}
+                  hostName={
+                    data?.machines.find(
+                      (machine) => machine.hostId === rescue.hostId,
+                    )?.name ?? rescue.hostId
+                  }
+                />
+              ))}
+          </InfoSection>
         ))}
-      {data && !hasRows && <p>No Worktree+ worktrees.</p>}
-      {[...ids].map((projectId) => (
-        <section className="space-y-3" key={projectId}>
-          <h2 className="text-lg font-semibold">
-            {data?.projects.find((project) => project.id === projectId)?.name ??
-              "Unknown project"}
-          </h2>
-          {data?.machines.map((machine) => {
-            const rows = sortRows(
-              machine.worktrees.filter(
-                (row) =>
-                  (row.environment?.projectId ?? row.projectId ?? "unknown") ===
-                  projectId,
-              ),
-              Date.now(),
-            );
-            if (rows.length === 0) return null;
-            return (
-              <div key={machine.hostId} className="space-y-2">
-                {multipleMachines && <h3>{machine.name}</h3>}
-                <ul className="space-y-3">
-                  {rows.map((row) => (
-                    <WorktreeRow
-                      key={row.pathKey}
-                      row={row}
-                      remove={async () => {
-                        try {
-                          const result = await rpc.call("removeWorktree", {
-                            hostId: machine.hostId,
-                            pathKey: row.pathKey,
-                          });
-                          if (result.status === "failed")
-                            throw new Error(result.message);
-                        } finally {
-                          await refresh();
-                        }
-                      }}
-                    />
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-          {rescues?.projects
-            .filter(
-              (rescue) =>
-                rescue.projectId === projectId &&
-                (rescue.refs.length > 0 || rescue.error !== null),
-            )
-            .map((rescue) => (
-              <section key={rescue.hostId} className="space-y-2">
-                <h3 className="font-semibold">
-                  Rescued work ·{" "}
-                  {data?.machines.find(
-                    (machine) => machine.hostId === rescue.hostId,
-                  )?.name ?? rescue.hostId}
-                </h3>
-                {rescue.error && <p role="alert">{rescue.error}</p>}
-                <ul>
-                  {rescue.refs.map((ref) => (
-                    <li key={ref.ref} className="my-2 space-y-1">
-                      <p>
-                        {ref.subject} · {ageLabel(ref.createdAt)}
-                      </p>
-                      <p className="break-all font-mono text-xs">
-                        {ref.ref} · {ref.commit}
-                      </p>
-                      <label className="block text-sm">
-                        Restore in the source checkout
-                        <input
-                          aria-label={`Restore command for ${ref.ref}`}
-                          className="block w-full rounded border border-border bg-background p-2 font-mono text-xs"
-                          readOnly
-                          value={restoreCommand(ref.ref)}
-                          onFocus={(event) => event.currentTarget.select()}
-                        />
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-        </section>
-      ))}
-    </main>
+      </main>
+    </TooltipProvider>
   );
-}
-function ageLabel(timestamp: number) {
-  return new Date(timestamp).toLocaleString();
 }
