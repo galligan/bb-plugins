@@ -95,13 +95,10 @@ async function openRelay(socketPath: string) {
     "/api/data",
     "rex.data.terminal.v1",
   );
-  // What the relay only carries through to the stream it returns.
-  const carried = { sessionLabel: "bb", created: false };
   const stream = await relay({
     control,
     data,
     hello: new Uint8Array(17).fill(1),
-    ...carried,
   });
   return { data, stream };
 }
