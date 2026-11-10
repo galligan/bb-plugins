@@ -39,11 +39,18 @@ A new branch is named `<prefix><slug>-thr_<thread id>`. bb supplies the slug and
 
 The prefix comes from the first of these that is set:
 
-1. This plugin's **Branch prefix** setting.
-2. bb's own branch prefix (Settings → General).
-3. `bb/`.
+1. The project's custom **Branch prefix**, when configured in the plugin's **Projects** section.
+2. This plugin's global **Branch prefix** setting.
+3. bb's own branch prefix (Settings → General).
+4. `bb/`.
 
 So a worktree branch always has a prefix, even when bb is configured with none. Turn off **Prefix worktree branches** to use bb's suggested name unchanged. Both settings are under Settings → Installed plugins → Worktree+, or `bb plugin config wt set <key> <value>` with keys `branchPrefix` and `prefixBranches`.
+
+## Project settings
+
+Settings → Installed plugins → Worktree+ → **Projects** lists local checkouts on connected machines and remembers your last choice in this browser. Choose **Use global setting** or **Custom for this project** under Branch naming. Custom settings override the global prefix toggle and prefix, with a live example for “Fix login bug”. An explicit empty project prefix defers to bb's own prefix, then `bb/`. Save changes explicitly; resetting to global deletes a row when no overrides remain. Stored settings are validated on read, and unreadable or unsupported rows fall back to globals with one warning per project per plugin load.
+
+**Setup and cleanup** shows scripts detected **as of the current checkout**, whether bb core owns the hooks, and which files `.worktreeinclude` would copy (names only). A new worktree reads its committed copy, so its scripts may differ. Each displayed script is capped at 16 KB with a truncation notice. Ignored or symlinked Codex configurations are withheld from the display; no ignored-file contents or hashes are returned.
 
 ## Base branch
 

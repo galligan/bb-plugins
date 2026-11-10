@@ -10,6 +10,11 @@
 - `lib/rescues.ts` / `lib/rescue-schema.ts` — host-only rescue discovery and its wire schema.
 - `lib/display.ts` — branch-state wording shared by the CLI and UI.
 - `app.tsx` — the frontend entry: the "Branch from:" control for the provider, built on bb's `experimental_BranchPicker`.
+- `project-settings.ts` — validated per-project KV storage and settings RPCs; invalid rows never fail launches.
+- `lib/project-settings.ts` — versioned settings schema and pure branch-setting precedence.
+- `lib/read-setup-plan.ts` — host-only setup-plan reader shared by lifecycle and detection.
+- `lib/detection.ts` / `lib/detection-schema.ts` — read-only, bounded setup display; shared file names only, never ignored config contents.
+- `tests/` — SDK harness tests for launch and settings wiring, separate from SDK-free library tests.
 - `lib/base-input.ts` — reads and writes that control's value.
 - `host.ts` — the host entry. Thin wiring from the RPC contract to `lib/worktree.ts`.
 - `lib/worktree.ts` — resolve, create and remove. Takes its root, data directory and reporter as arguments, so tests run it against a temporary repository.

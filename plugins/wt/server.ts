@@ -26,6 +26,12 @@ import {
   retireGraceMs,
 } from "./lib/retire.ts";
 
+import {
+  projectContract,
+  projectHandlers,
+  projectSettingsStore,
+} from "./project-settings.ts";
+import { effectiveBranchSettings } from "./lib/project-settings.ts";
 import { managementContract, managementHandlers } from "./management.ts";
 
 export const PROVIDER_ID = "wt";
@@ -44,6 +50,7 @@ export const inputsSchema = z
 /** Calls the frontend makes to this plugin's server. */
 export const rpcContract = defineRpcContract({
   ...managementContract,
+  ...projectContract,
   /** The base a new worktree starts from when none is picked. */
   defaultBase: {
     input: z.strictObject({
@@ -114,6 +121,8 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
     }
   });
 
+  const projectStore = projectSettingsStore(bb);
+
   const reports = new Map<string, PluginEnvironmentProviderProgress>();
   host.experimental_onSignal("progress", ({ payload }) => {
     const report = reports.get(payload.operationId);
@@ -136,10 +145,15 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
 
     async create(context) {
       const hostId = context.host.id;
-      const [{ prefixBranches, branchPrefix }, config] = await Promise.all([
+      const [global, project, config] = await Promise.all([
         settings.get(),
+        projectStore.read(context.thread.projectId),
         bb.sdk.system.config(),
       ]);
+      const { prefixBranches, branchPrefix } = effectiveBranchSettings(
+        global,
+        project,
+      );
       const resolved = await host.call(
         "resolve",
         {
@@ -218,6 +232,7 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
 
   bb.rpc.register(rpcContract, {
     ...managementHandlers(bb, host),
+    ...projectHandlers(bb, host, projectStore, () => settings.get()),
     async defaultBase({ projectId, hostId }) {
       const project = await bb.sdk.projects.get({ projectId });
       const source = project.sources.find(

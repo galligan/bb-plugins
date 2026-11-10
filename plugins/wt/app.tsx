@@ -8,6 +8,7 @@ import {
   type PluginEnvironmentProviderInputsProps,
 } from "@get-bb/plugin-sdk/app";
 
+import { ProjectsSettings } from "./components/projects-settings.tsx";
 import { WorktreesPanel } from "./components/worktrees-panel.tsx";
 
 import { readBase, toInputs } from "./lib/base-input.ts";
@@ -57,6 +58,12 @@ function BaseBranchInput({
 }
 
 export default definePluginApp((app) => {
+  app.slots.settingsSection({
+    id: "projects",
+    title: "Projects",
+    description: "Branch naming and detected setup for each project.",
+    component: ProjectsSettings,
+  });
   app.slots.navPanel({
     id: "worktrees",
     title: "Worktrees",
