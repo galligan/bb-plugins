@@ -1,6 +1,6 @@
 # Communication protocol
 
-The internal transmission/reply store described below is implemented. Receipt, response, subscription and delivery operations remain intended behavior, not available public APIs. [Open decisions](decisions.md) identify semantics that still need agreement.
+The internal transmission/reply store described below is implemented. Explicit recipient confirmation, ack, standby and squelch facts are also implemented internally. Commitments/claims, subscriptions and delivery remain planned; no public communication APIs are available yet. [Open decisions](decisions.md) identify semantics that still need agreement.
 
 ## Transmissions
 
@@ -28,7 +28,7 @@ These facts are not a single global status enum or mandatory progression. They a
 | `received` | Delivery adapter or recipient confirmation | Actual tx content reached a particular recipient session/client            |
 | `ack`      | Participant                                | Explicit confirmation of receipt and understanding, without a work promise |
 | `wilco`    | Participant                                | Acceptance of responsibility; opens a commitment                           |
-| `standby`  | Participant                                | Pending semantic decision; proposed waiting/unable to accept yet           |
+| `standby`  | Participant                                | Waiting/unable to accept yet; no work commitment                           |
 | `squelch`  | Participant                                | Dismiss from that participant's attention view                             |
 | `done`     | Commitment owner                           | Close a commitment with a result/proof                                     |
 | `abandon`  | Commitment owner                           | Close without success, with a reason                                       |
@@ -41,13 +41,19 @@ Separate content retrieval from recording a recipient receipt. History/search/ad
 
 Keep receipt evidence per session/endpoint, even when addressing an actor. A bot-wide read summary must not hide unresolved commitments from its other sessions. Reply existence is derived from linked txs and author identity, not conflated with ack or completion. No literal `read`/`seen` product state is required in the initial vocabulary; future UI read cursors would be separate from receipt and obligations.
 
+## Implemented response-fact contract
+
+`responses.record` accepts one explicit `received`, `ack`, `standby` (optional reason) or `squelch` fact, with tx ID, canonical target ID and scoped idempotency key. The authenticated invoking actor can act for itself or its exact acting session; another session owned by that actor remains a separate target. Actor receipt requires a concrete owned session, while human confirmation may use the human endpoint. Received events carry `recipient-confirmation` provenance, never a client-supplied claim of transport evidence. Reconfirming the same tx/target/endpoint returns its original event without inflating the count. Changed key input conflicts and failed writes roll back event, receipt and key together.
+
+Ordinary reads and summary/history calls never confirm receipt; ack also never synthesizes receipt. Authorized channel participants may record facts for themselves even outside the frozen audience; that does not add a recipient or change its denominator. Summaries cover the exact frozen target IDs. Actor/session responses cover only their exact target; there is no implicit mixed-target coverage. Standby records waiting with no commitment, and squelch never closes responsibility or waives required responses. Events retain actor/session/timestamp provenance through reopen and are available in project-authorized cursor pages of at most 50. Commitment operations follow in the next layer; no execution/wake is implied.
+
 ## Commitments and claims
 
 A commitment records its owner actor or specifically addressed session, originating tx, acting-session provenance, opening event and eventual closure. `done` requires a concise result or accessible evidence ref. `abandon` requires a reason. Closure does not erase the original tx or another participant's commitment.
 
-The original Radio used `standby` for “working on it.” The current proposal is waiting/not ready to accept, with a reason or checkpoint where useful. This remains unresolved; implementation must not silently choose a meaning. `standby` and `squelch` do not implicitly close an existing commitment.
+Matt resolved `standby` as waiting/not ready to accept, with a reason or checkpoint where useful; it does not open a work commitment. `standby` and `squelch` do not implicitly close an existing commitment.
 
-Distinguish ordinary discussion from explicitly exclusive work requests. Multiple participants may independently commit to discussion or nonexclusive work. For an exclusive unassigned request, `wilco` can atomically claim the request and open the commitment; concurrent callers yield one winner, with idempotent replay for that winner. Explicit release/abandon must define whether the request reopens; that disposition is an open product decision.
+Distinguish ordinary discussion from explicitly exclusive work requests. Multiple participants may independently commit to discussion or nonexclusive work. For an exclusive unassigned request, `wilco` can atomically claim the request and open the commitment; concurrent callers yield one winner, with idempotent replay for that winner. Matt resolved abandonment to leave an exclusive request closed to new claims until its original author explicitly reopens it; no automatic reopening is allowed.
 
 No automatic lease expiry, silent takeover or stale-success inference. Stalled responsibilities stay visible. Explicit delegation/waiver records who changed the owner or required response; actor aliases alone do not grant authority. General task scheduling belongs outside Radio.
 
