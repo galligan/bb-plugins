@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import { z } from "zod";
 
 import {
+  contentHash,
   inspectWorktree,
   saveRescueSnapshot,
   type Inspection,
@@ -76,6 +77,10 @@ const recordSchema = z.strictObject({
   // `running` on entry means an earlier call was cut off mid-script and the
   // script's outcome is unknown; it is never replayed.
   setup: z.enum(["pending", "running", "done"]),
+  // Content hash of each shared file as it was copied in, by relative path.
+  // Tells an edit in the worktree apart from a later change in the source
+  // checkout. Absent on records written before this was tracked.
+  sharedFiles: z.record(z.string(), z.string()).optional(),
 });
 type WorktreeRecord = z.infer<typeof recordSchema>;
 
@@ -426,7 +431,14 @@ export async function createWorktree(
     });
     if (copied.length > 0) {
       env.report("step", `Copied ${String(copied.length)} shared file(s)`);
-      for (const file of copied) env.report("log", file);
+      const sharedFiles = { ...record.sharedFiles };
+      for (const file of copied) {
+        env.report("log", file);
+        const hash = await contentHash(join(path, file));
+        if (hash !== null) sharedFiles[file] = hash;
+      }
+      record = { ...record, sharedFiles };
+      await writeRecord(env, record);
     }
 
     if (record.setup === "running") {
@@ -523,6 +535,7 @@ export async function removeWorktree(
         path,
         sourcePath,
         mergeBaseBranch: record?.mergeBaseBranch ?? null,
+        copiedSharedFiles: record?.sharedFiles ?? {},
         signal: env.signal,
       });
       if (inspection.conflictedFiles > 0) {
@@ -540,29 +553,26 @@ export async function removeWorktree(
           `Not removing ${path}: submodule work cannot be saved automatically (${inspection.unsavedSubmodules.join(", ")}). Commit and push it there, then delete again.`,
         );
       }
+      if (inspection.editedSharedFiles.length > 0) {
+        // These exist nowhere else, and they are ignored because they tend to
+        // hold secrets, so they are never written into git to save them.
+        return failed(
+          `Not removing ${path}: ignored files edited here exist nowhere else and are not saved to git, since they may hold secrets (${inspection.editedSharedFiles.join(", ")}). Copy what you need to ${sourcePath}, or discard the edits, then delete again.`,
+        );
+      }
       if (
         inspection.changedFiles > 0 ||
         inspection.untrackedFiles > 0 ||
-        inspection.unreferencedHead ||
-        inspection.editedSharedFiles.length > 0
+        inspection.unreferencedHead
       ) {
         const ref = await saveRescueSnapshot({
           path,
           branch: inspection.branch,
           now: env.now?.() ?? new Date(),
-          // Edited copies of shared files exist nowhere else, and removal can
-          // run on a timer with nobody watching.
-          ignoredFiles: inspection.editedSharedFiles,
           signal: env.signal,
         });
         env.report("step", `Saved uncommitted work to ${ref}`);
         env.report("log", `Restore it with: git checkout ${ref} -- .`);
-        if (inspection.editedSharedFiles.length > 0) {
-          env.report(
-            "log",
-            `Includes edited ignored files: ${inspection.editedSharedFiles.join(", ")}`,
-          );
-        }
       }
 
       env.report("step", `Removing worktree at ${path}`);
@@ -623,6 +633,7 @@ export async function listWorktrees(
           path: record.path,
           sourcePath: record.sourcePath,
           mergeBaseBranch: record.mergeBaseBranch,
+          copiedSharedFiles: record.sharedFiles ?? {},
           signal: env.signal,
         }),
       });

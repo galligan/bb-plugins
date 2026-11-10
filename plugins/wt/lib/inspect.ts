@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import {
   mkdtemp,
@@ -275,6 +276,34 @@ async function sameContent(a: string, b: string): Promise<boolean> {
   return left !== null && right !== null && left.equals(right);
 }
 
+/** The subset of `files` (relative to `path`) that git ignores. */
+async function ignoredAmong(
+  path: string,
+  files: readonly string[],
+  signal?: AbortSignal,
+): Promise<string[]> {
+  const ignored: string[] = [];
+  for (const file of files) {
+    // One path per call: exit 0 is ignored, 1 is not, anything else failed.
+    const checked = await git(path, ["check-ignore", "-q", "--", file], signal);
+    if (checked.code === 0) ignored.push(file);
+    else if (checked.code !== 1) {
+      throw new Error(
+        `git check-ignore failed in ${path}: ${checked.stderr.trim()}`,
+      );
+    }
+  }
+  return ignored;
+}
+
+/** SHA-256 of a file's content, or null when it cannot be read. */
+export async function contentHash(path: string): Promise<string | null> {
+  const content = await readFile(path).catch(() => null);
+  return content === null
+    ? null
+    : createHash("sha256").update(content).digest("hex");
+}
+
 /**
  * Reports what removing a worktree would lose. Read-only: it runs no fetch and
  * writes nothing to the repository, so "pushed" and "merged" reflect the remote refs as last
@@ -285,9 +314,16 @@ export async function inspectWorktree(options: {
   sourcePath: string;
   /** Branch the worktree's changes are compared against, when known. */
   mergeBaseBranch: string | null;
+  /**
+   * Content hash of each shared file as it was copied in, by relative path.
+   * Without one, a file counts as edited whenever it differs from the source
+   * checkout's copy, including when only the source changed.
+   */
+  copiedSharedFiles?: Readonly<Record<string, string>>;
   signal?: AbortSignal;
 }): Promise<Inspection> {
   const { path, sourcePath, mergeBaseBranch, signal } = options;
+  const copiedSharedFiles = options.copiedSharedFiles ?? {};
 
   // --no-optional-locks: do not refresh the index file while only reading.
   const status = await git(
@@ -338,10 +374,17 @@ export async function inspectWorktree(options: {
     worktreePath: path,
     signal,
   });
-  for (const file of shared) {
-    if (!(await sameContent(join(path, file), join(sourcePath, file)))) {
-      editedSharedFiles.push(file);
-    }
+  // A shared file git does not ignore is an ordinary untracked file: status
+  // counts it and the rescue snapshot saves it.
+  for (const file of await ignoredAmong(path, shared, signal)) {
+    // Unedited means the content also exists elsewhere, or never changed
+    // since it was copied (the source checkout may have moved on since).
+    const copiedHash = copiedSharedFiles[file];
+    const unedited =
+      (await sameContent(join(path, file), join(sourcePath, file))) ||
+      (copiedHash !== undefined &&
+        (await contentHash(join(path, file))) === copiedHash);
+    if (!unedited) editedSharedFiles.push(file);
   }
 
   const branchName = await out(path, ["branch", "--show-current"], signal);
@@ -483,21 +526,18 @@ const RESCUE_IDENTITY = [
  * on disk survives too. An index with unresolved conflicts cannot be written
  * as a tree, so this throws for one; `conflictedFiles` reports that up front.
  *
- * Ignored files are not included, except the ones named in `ignoredFiles`
- * (the shared files edited here, which exist nowhere else). Submodule contents
- * are not included. The ref name is unique per snapshot and an existing ref is
+ * Ignored files are never included: they are where secrets live, and a
+ * snapshot is a git object that can be pushed. Submodule contents are not
+ * included either. The ref name is unique per snapshot and an existing ref is
  * never overwritten.
  */
 export async function saveRescueSnapshot(options: {
   path: string;
   branch: string | null;
   now: Date;
-  /** Ignored files to save anyway, relative to `path`. */
-  ignoredFiles?: readonly string[];
   signal?: AbortSignal;
 }): Promise<string> {
   const { path, signal } = options;
-  const ignoredFiles = options.ignoredFiles ?? [];
   const scratch = await mkdtemp(join(tmpdir(), "wt-rescue-"));
   try {
     const must = async (
@@ -536,9 +576,6 @@ export async function saveRescueSnapshot(options: {
     const env = { GIT_INDEX_FILE: join(scratch, "worktree") };
     await must(["read-tree", "HEAD"], env);
     await must(["add", "--all"], env);
-    if (ignoredFiles.length > 0) {
-      await must(["add", "--force", "--", ...ignoredFiles], env);
-    }
     const commit = await commitTree(
       await must(["write-tree"], env),
       parents,
