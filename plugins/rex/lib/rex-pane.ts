@@ -146,7 +146,7 @@ export async function openPane(options: {
 }
 
 /** Completes the data handshake, then passes every stream byte to `body`. */
-function relay(options: {
+export function relay(options: {
   control: RexControl;
   data: WebSocket;
   hello: Uint8Array;
