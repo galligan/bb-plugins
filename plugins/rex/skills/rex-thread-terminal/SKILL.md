@@ -92,8 +92,8 @@ The pane runs the user's login shell. That shell can be fish or another shell th
 6. If the prompt is not back, run `rex block call -s "$S" -b "$B" process` again and compare `foreground.pid` with the shell's pid.
    - If the two differ, the command is still running, also when it has printed nothing. Read again later, or tell the user that the command is still running. MUST NOT send `ctrl+c` because a command is silent.
    - If the two are equal, the shell itself has the pane. Either the shell is running a command that is part of the shell, such as `read`, `wait`, or `source`, or the shell read the line as unfinished and is waiting for the rest.
-     - If the command you typed is part of the shell, or the pane shows text below the line you typed, the command is still running or is asking for input. Do not send `ctrl+c`. Tell the user what the pane shows.
-     - Otherwise the line is unfinished. Clear the text you typed with `rex send-key -s "$S" -b "$B" ctrl+c`, then type the command again as `sh -c 'COMMAND'`.
+     - If the command you typed is part of the shell, or the pane shows output or a question below the line you typed, the command is still running or is asking for input. Do not send `ctrl+c`. Tell the user what the pane shows.
+     - Otherwise the line is unfinished. The pane shows nothing below the line you typed, or only the shell's continuation prompt on an empty line, such as `>` in bash or `for>` in zsh. A continuation prompt is not output. Clear the text you typed with `rex send-key -s "$S" -b "$B" ctrl+c`, then type the command again as `sh -c 'COMMAND'`.
 7. If you need the exit status, type the command as `sh -c 'COMMAND; echo "exit status: $?"'`. The screen does not show an exit status otherwise.
 8. Tell the user which command you ran in the Rex terminal.
 
