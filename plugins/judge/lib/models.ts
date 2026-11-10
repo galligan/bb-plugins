@@ -80,6 +80,10 @@ export class ModelService {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
+  configurationGeneration(): number {
+    this.active();
+    return this.generation;
+  }
   /** Gate writes first; committed transactions must not report a notification failure. */
   mutateDefinitions<T>(write: () => T): T {
     this.active();

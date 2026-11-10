@@ -85,7 +85,11 @@ export class Runner {
     };
   }
 
-  async run(value: unknown, signal?: AbortSignal): Promise<Verdict> {
+  async run(
+    value: unknown,
+    signal?: AbortSignal,
+    options: { deadlineAt?: number } = {},
+  ): Promise<Verdict> {
     const start = performance.now();
     const startedAt = Date.now();
     const input = runSchema.parse(value);
@@ -95,7 +99,10 @@ export class Runner {
     validateOverrides(input, set);
     const changed = new AbortController();
     const unsubscribe = this.models.onInvalidate(() => changed.abort());
-    const deadlineAt = start + set.budgetMs;
+    const deadlineAt = Math.min(
+      start + set.budgetMs,
+      options.deadlineAt ?? Infinity,
+    );
     const scope = new Deadline({
       deadlineAt,
       signals: [signal, this.disposal.signal, changed.signal],
@@ -176,6 +183,19 @@ export class Runner {
         }
       }
       const runId = randomUUID();
+      const acceptance = stopped
+        ? null
+        : this.repository.evaluations.getAcceptance(set.id);
+      const fingerprints = Object.values(steps).flatMap((step) =>
+        step.status === "ran" ? [step.resolvedModel.fingerprint] : [],
+      );
+      const calibrated =
+        !stopped &&
+        fingerprints.length > 0 &&
+        acceptance?.setHash === saved.hash &&
+        fingerprints.every((fingerprint) =>
+          acceptance.modelFingerprints.includes(fingerprint),
+        );
       const record = () =>
         parseVerdict({
           runId,
@@ -185,7 +205,7 @@ export class Runner {
           startedAt,
           endedAt: Date.now(),
           complete: !stopped,
-          calibrated: false,
+          calibrated: !stopped && calibrated,
           ...(failure ? { failure } : {}),
           steps,
           outcomes: final,

@@ -14,6 +14,8 @@ import { SetService } from "./sets.ts";
 import { SourceService } from "./sources/service.ts";
 import { Runner } from "./runner.ts";
 import { TemplateService } from "./templates.ts";
+import { EvaluationService } from "./evaluation.ts";
+import { CalibrationService } from "./calibration.ts";
 
 export function publicError(error: unknown): string {
   if (error instanceof PersistenceError) return "persistence_failed";
@@ -31,6 +33,8 @@ export class JudgeApi {
   readonly sources: SourceService;
   readonly runner: Runner;
   readonly templates: TemplateService;
+  readonly evaluations: EvaluationService;
+  readonly calibration: CalibrationService;
   constructor(
     models: ModelService,
     repository: JudgeRepository,
@@ -52,8 +56,17 @@ export class JudgeApi {
       this.sources,
       sdk,
     );
+    this.evaluations = new EvaluationService(
+      repository,
+      this.sets,
+      models,
+      this.runner,
+    );
+    this.calibration = new CalibrationService(repository, this.sets, models);
   }
   dispose(): void {
+    this.evaluations.dispose();
+    this.calibration.dispose();
     this.runner.dispose();
     this.sources.dispose();
     this.inference.dispose();
@@ -122,6 +135,16 @@ export function registerRpc(bb: BbPluginApi, api: JudgeApi): void {
     }
   }
   bb.rpc.register(rpcContract, {
+    test: (input, ctx) =>
+      safe(() => api.evaluations.test(input, ctx.experimental_signal)),
+    "tests.get": (input) =>
+      safe(() => api.repository.evaluations.getReport(input.id)),
+    "calibration.accept": (input, ctx) =>
+      safe(() =>
+        api.calibration.accept(input.id, input.run, ctx.experimental_signal),
+      ),
+    "calibration.get": (input, ctx) =>
+      safe(() => api.calibration.get(input.id, ctx.experimental_signal)),
     "templates.list": () => safe(() => api.templates.list()),
     "templates.use": (input) =>
       safe(() => api.templates.use(input.template, input.id)),
