@@ -68,14 +68,20 @@ export function registerCli(bb: BbPluginApi, api: JudgeApi): void {
       commands: {
         ...questionCommands(bb, api.sets),
         ask: cliCommand({
-          summary: "Judge explicit JSON state; private by default",
+          summary: "Run a saved set or judge explicit JSON state",
           description:
-            "Supply --noul or --questions (a complete typed question-map JSON). --not-private declares only this explicit state public; it changes no stored policy. Unavailable is a typed logged verdict, not a CLI failure.",
+            "Supply a saved set ID, or --state with --noul/--questions. --not-private declares only ad hoc state public and cannot apply to saved sources. Unavailable is a typed logged verdict, not a CLI failure.",
+          positionals: [
+            {
+              name: "set",
+              description: "Saved question-set ID",
+              required: false,
+            },
+          ],
           options: {
             json,
             state: {
               type: "string",
-              required: true,
               description:
                 "JSON state (64 KiB per input; 256 KiB complete request)",
             },
@@ -89,19 +95,48 @@ export function registerCli(bb: BbPluginApi, api: JudgeApi): void {
             },
             model: {
               type: "string",
-              description: "Explicit Judge model ID; otherwise global default",
+              description:
+                "Model override; otherwise step, set, then global default",
+            },
+            thread: {
+              type: "string",
+              description: "Explicit thread context; otherwise calling thread",
             },
             "not-private": {
               type: "boolean",
               description: "Declare this explicit ad hoc state public",
             },
           },
-          constraints: [
-            { kind: "exactly-one", options: ["noul", "questions"] },
-          ],
           run: (input, ctx) =>
-            output(input.options.json, () =>
-              api.asks.ask(
+            output(input.options.json, () => {
+              const threadId = input.options.thread ?? ctx.threadId;
+              if (input.positionals.set !== undefined) {
+                if (
+                  input.options.state !== undefined ||
+                  input.options.noul !== undefined ||
+                  input.options.questions !== undefined ||
+                  input.options["not-private"]
+                )
+                  throw new ValidationError("saved_set_arguments");
+                return api.runner.run(
+                  {
+                    id: input.positionals.set,
+                    threadId,
+                    ...(input.options.thread === undefined
+                      ? { projectId: ctx.projectId }
+                      : {}),
+                    model: input.options.model,
+                  },
+                  ctx.signal,
+                );
+              }
+              if (
+                input.options.state === undefined ||
+                (input.options.noul === undefined) ===
+                  (input.options.questions === undefined)
+              )
+                throw new ValidationError("ad_hoc_arguments");
+              return api.asks.ask(
                 {
                   state: parseJson(input.options.state),
                   questions:
@@ -115,12 +150,15 @@ export function registerCli(bb: BbPluginApi, api: JudgeApi): void {
                       : parseJson(input.options.questions!),
                   model: input.options.model,
                   notPrivate: input.options["not-private"],
-                  threadId: ctx.threadId,
-                  projectId: ctx.projectId,
+                  threadId,
+                  projectId:
+                    input.options.thread === undefined
+                      ? ctx.projectId
+                      : undefined,
                 },
                 ctx.signal,
-              ),
-            ),
+              );
+            }),
         }),
         "models list": cliCommand({
           summary: "List model configurations and defaults without credentials",
