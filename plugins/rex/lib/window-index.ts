@@ -47,3 +47,28 @@ export class ThreadWindowIndex {
     }
   }
 }
+
+/**
+ * Calls `attempt` after `everyMs`, and again each time it rejects, until it
+ * resolves. Returns a function that stops it for good: nothing is scheduled
+ * after that, not even by an attempt that was already under way.
+ */
+export function retryUntilDone(
+  attempt: () => Promise<void>,
+  everyMs: number,
+): () => void {
+  let stopped = false;
+  let timer: NodeJS.Timeout | null = null;
+  const later = () => {
+    if (stopped) return;
+    timer = setTimeout(() => {
+      timer = null;
+      attempt().then(() => {}, later);
+    }, everyMs);
+  };
+  later();
+  return () => {
+    stopped = true;
+    if (timer !== null) clearTimeout(timer);
+  };
+}

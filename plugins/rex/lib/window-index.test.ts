@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { ThreadWindowIndex } from "./window-index.ts";
+import { retryUntilDone, ThreadWindowIndex } from "./window-index.ts";
 
 /** Stored records, in memory. */
 function storage(threads: string[]) {
@@ -67,4 +67,60 @@ test("hands out a list that later changes do not alter", () => {
   const threads = index.threads();
   index.delete("thr_one");
   assert.deepEqual(threads, ["thr_one"]);
+});
+
+/** Lets promise callbacks that are already due run. */
+const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test("tries again each time an attempt fails, and stops once one succeeds", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let attempts = 0;
+  retryUntilDone(() => {
+    attempts += 1;
+    return attempts < 3
+      ? Promise.reject(new Error("not yet"))
+      : Promise.resolve();
+  }, 1000);
+
+  assert.equal(attempts, 0, "the first attempt waits its turn too");
+  for (const expected of [1, 2, 3, 3, 3]) {
+    t.mock.timers.tick(1000);
+    await settle();
+    assert.equal(attempts, expected);
+  }
+});
+
+test("schedules nothing more once stopped, even by an attempt under way", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let attempts = 0;
+  let fail = () => {};
+  const stop = retryUntilDone(() => {
+    attempts += 1;
+    return new Promise<void>((_, reject) => {
+      fail = () => reject(new Error("storage is unavailable"));
+    });
+  }, 1000);
+
+  t.mock.timers.tick(1000);
+  assert.equal(attempts, 1);
+  // The plugin is disposed while that attempt is still reading.
+  stop();
+  fail();
+  await settle();
+  t.mock.timers.tick(10_000);
+  await settle();
+  assert.equal(attempts, 1);
+});
+
+test("stops before the first attempt when stopped at once", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let attempts = 0;
+  const stop = retryUntilDone(() => {
+    attempts += 1;
+    return Promise.resolve();
+  }, 1000);
+  stop();
+  t.mock.timers.tick(5000);
+  await settle();
+  assert.equal(attempts, 0);
 });

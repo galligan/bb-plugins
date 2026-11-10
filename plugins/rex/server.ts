@@ -31,7 +31,7 @@ import { targetCli } from "./lib/target-command.ts";
 import { listWindows } from "./lib/rex-directory.ts";
 import { openPane, type PaneStream } from "./lib/rex-pane.ts";
 import { findRexSocket } from "./lib/rex-socket.ts";
-import { ThreadWindowIndex } from "./lib/window-index.ts";
+import { retryUntilDone, ThreadWindowIndex } from "./lib/window-index.ts";
 import { setTargetSchema, targetExists, type Targets } from "./lib/targets.ts";
 import {
   THREAD_VIEW_KEY_PREFIX,
@@ -404,8 +404,10 @@ export default async function plugin(bb: BbPluginApi) {
   // Catch up once: close the window of every recorded thread that bb says is
   // archived or deleted. A thread bb cannot be asked about keeps its window:
   // a failed request must not end the programs running in it.
+  let disposed = false;
   const catchUp = async () => {
     for (const threadId of threadsWithWindow.threads()) {
+      if (disposed) return;
       const thread = await bb.sdk.threads.get({ threadId }).catch(() => null);
       if (thread === null) continue;
       if (thread.archivedAt !== null || thread.deletedAt !== null) {
@@ -413,20 +415,17 @@ export default async function plugin(bb: BbPluginApi) {
       }
     }
   };
-  if (indexLoaded) {
-    void catchUp();
-  } else {
-    // The records could not be read when the plugin loaded. Read them again
-    // every so often until they can be, then catch up.
-    let retry: NodeJS.Timeout | null = null;
-    const readLater = () => {
-      retry = setTimeout(() => {
-        void threadsWithWindow.load(storedWindows).then(catchUp, readLater);
+  // If the records could not be read when the plugin loaded, they are read
+  // again every so often until they can be, and the catch-up follows.
+  const stopRetrying = indexLoaded
+    ? null
+    : retryUntilDone(async () => {
+        await threadsWithWindow.load(storedWindows);
+        await catchUp();
       }, INDEX_RETRY_MS);
-    };
-    readLater();
-    bb.onDispose(() => {
-      if (retry !== null) clearTimeout(retry);
-    });
-  }
+  bb.onDispose(() => {
+    disposed = true;
+    stopRetrying?.();
+  });
+  if (indexLoaded) void catchUp();
 }
