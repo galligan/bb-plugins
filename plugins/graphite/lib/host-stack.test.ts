@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 
-import { summarizeStack } from "./host-stack.ts";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { createFixture } from "./stack/fixture.ts";
+import { METADATA_FILENAME } from "./stack/metadata.ts";
+
+import { readHostStack, summarizeStack } from "./host-stack.ts";
 import type { StackSnapshot } from "./stack/types.ts";
 
 it("reports Graphite migration changes in the returned stack", () => {
@@ -39,4 +44,21 @@ it("reports Graphite migration changes in the returned stack", () => {
     assert.match(result.warnings[0], /new_migration/);
     assert.match(result.warnings[1], /missing parent \(feature\)/);
   }
+});
+
+it("distinguishes missing Graphite metadata from unreadable metadata", async (t) => {
+  const fixture = await createFixture();
+  t.after(() => fixture.dispose());
+  assert.deepEqual(await readHostStack(fixture.path, "main"), {
+    outcome: "none",
+    reason: "no graphite metadata",
+  });
+  writeFileSync(
+    join(fixture.path, ".git", METADATA_FILENAME),
+    "not a SQLite database",
+  );
+  assert.deepEqual(await readHostStack(fixture.path, "main"), {
+    outcome: "unavailable",
+    reason: "metadata unreadable",
+  });
 });

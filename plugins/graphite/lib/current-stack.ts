@@ -60,10 +60,6 @@ export type CurrentStack =
   | { outcome: "none"; reason: string }
   | { outcome: "unavailable"; reason: string };
 
-function none(reason: string): CurrentStack {
-  return { outcome: "none", reason };
-}
-
 /** The environment a command should act on: the thread's when there is one. */
 export interface ResolvedEnvironment {
   readonly id: string;
@@ -205,7 +201,7 @@ export async function currentStack(
   } catch {
     return { outcome: "unavailable", reason: "workspace host is unavailable" };
   }
-  if (stack.outcome === "none") return none(stack.reason);
+  if (stack.outcome !== "stacked") return stack;
 
   // Which thread is working on which branch — the join neither tool has alone.
   // Graphite cannot see BB's threads; BB does not know the branches form a stack.

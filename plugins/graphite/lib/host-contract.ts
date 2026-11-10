@@ -19,6 +19,7 @@ const branchSchema = z.object({
 
 const stackResultSchema = z.discriminatedUnion("outcome", [
   z.object({ outcome: z.literal("none"), reason: z.string() }),
+  z.object({ outcome: z.literal("unavailable"), reason: z.string() }),
   z.object({
     outcome: z.literal("stacked"),
     branch: z.string(),

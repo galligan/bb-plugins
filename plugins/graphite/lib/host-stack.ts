@@ -81,7 +81,10 @@ export async function readHostStack(
     return summarizeStack(await readStack({ repoPath }), branchName);
   } catch (cause) {
     if (cause instanceof StackReadError) {
-      return { outcome: "none", reason: cause.code.replaceAll("_", " ") };
+      return {
+        outcome: cause.code === "metadata_unreadable" ? "unavailable" : "none",
+        reason: cause.code.replaceAll("_", " "),
+      };
     }
     throw cause;
   }
