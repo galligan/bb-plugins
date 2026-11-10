@@ -34,7 +34,11 @@ export function StackPanel({ threadId }: ExperimentalThreadActionTabProps) {
     );
   if (stack === null)
     return <p className="text-sm text-muted-foreground">Loading stack…</p>;
-  if (stack.outcome !== "stacked" || stack.total < 2)
+  if (
+    stack.outcome !== "stacked" ||
+    (stack.total < 2 &&
+      stack.branches.every((branch) => branch.offshoots.length === 0))
+  )
     return (
       <p className="text-sm text-muted-foreground">
         No Graphite stack for this thread.

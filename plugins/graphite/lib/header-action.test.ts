@@ -64,3 +64,35 @@ test("a failed refresh retains the loaded action and labels the stale read", () 
     null,
   );
 });
+
+test("a 1/1 spine keeps its header action hidden even when it has offshoots", () => {
+  const fork: CurrentStack = {
+    ...stack,
+    position: 1,
+    total: 1,
+    placement: "bottom",
+    branches: [
+      {
+        name: "main",
+        isCurrent: true,
+        needsRestack: false,
+        isStale: false,
+        threads: [],
+        offshoots: [
+          {
+            name: "child",
+            column: 1,
+            parent: null,
+            needsRestack: false,
+            isStale: false,
+            threads: [],
+          },
+        ],
+      },
+    ],
+  };
+  assert.equal(
+    stackHeaderAction(fork, () => assert.fail("hidden action ran")),
+    null,
+  );
+});
