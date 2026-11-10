@@ -94,7 +94,13 @@ export default async function plugin(bb: BbPluginApi) {
 
   // The threads the plugin has made a window for, kept in memory as well as
   // in storage, because the instructions hook below cannot wait for storage.
-  const threadsWithWindow = new Set<string>();
+  // It is read here, before anything is registered, so that no agent session
+  // starts while it is still empty and no archive is undone by a late read.
+  const threadsWithWindow = new Set(
+    (await bb.storage.kv.list(THREAD_WINDOW_KEY_PREFIX)).map((key) =>
+      key.slice(THREAD_WINDOW_KEY_PREFIX.length),
+    ),
+  );
   const windows: ThreadWindowStore = {
     get: (threadId) =>
       bb.storage.kv.get<unknown>(THREAD_WINDOW_KEY_PREFIX + threadId),
@@ -378,9 +384,9 @@ export default async function plugin(bb: BbPluginApi) {
   // archived or deleted. A thread bb cannot be asked about keeps its window:
   // a failed request must not end the programs running in it.
   void (async () => {
-    for (const key of await bb.storage.kv.list(THREAD_WINDOW_KEY_PREFIX)) {
-      const threadId = key.slice(THREAD_WINDOW_KEY_PREFIX.length);
-      threadsWithWindow.add(threadId);
+    // A close removes its thread from the set, which a set allows while it
+    // is being walked.
+    for (const threadId of threadsWithWindow) {
       const thread = await bb.sdk.threads.get({ threadId }).catch(() => null);
       if (thread === null) continue;
       if (thread.archivedAt !== null || thread.deletedAt !== null) {
