@@ -60,11 +60,13 @@ Each source returns `{ value, sensitive, provenance }` or a typed failure. Prove
 | `thread.lastAssistantText`                      | Trigger's idle payload when present, otherwise `threads.output`; null is absent, not an empty successful source       |
 | `thread.commands`                               | Bounded descending `threads.events.list` over completed command items; expose command, exitCode, durationMs, sequence |
 | `thread.commandOutput`                          | Same selection with available output and truncation flag; truncated upstream evidence must be disclosed               |
-| `thread.recentUserMessages`                     | Prompt history/timeline projection after the compatibility gate is satisfied                                          |
-| `thread.goal`                                   | Latest updated/cleared goal event after the compatibility gate is satisfied                                           |
+| `thread.recentUserMessages`                     | Bounded user-origin request-event projection; the pinned prompt-history method lacks per-entry origin and cursors     |
+| `thread.goal`                                   | Latest updated/cleared goal event, preserving clears as absent evidence                                               |
 | `git.changedFiles`, `git.status`, `git.diff`    | Validated public `bb--git` RPC against the thread environment; explicit uncommitted or branch target                  |
 | `project.name`, `provider.id`, `provider.model` | Explicit projection from relevant public DTOs; unavailable fields do not become guessed values                        |
 | `event.*`                                       | Allowlisted fields of the normalized trigger payload; no arbitrary wildcard serialization                             |
+
+Recent user-message collection uses `client/turn/requested` events with explicit user origin, no plugin/system/cross-thread/retry attribution, and supported visible text. This is bounded request history, not a promise of accepted or complete provider conversation history. Mixed input groups and unsupported content remain unavailable. See [source evidence](SOURCES.md).
 
 Missing thread/environment, disabled Git plugin, unavailable host, missing evidence, or unsupported provider history returns `source_unavailable` with a bounded diagnostic code. No host wake, shell fallback, or cross-thread inference is implicit.
 
