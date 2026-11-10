@@ -1,6 +1,6 @@
 # Judge implementation spec
 
-Status: ready for staged implementation; runtime is not implemented. Baseline: BB 0.49.0 / public SDK 0.6.132. This document supersedes conflicting details in [the original proposal](original-proposal.txt). See [compatibility evidence](COMPATIBILITY.md) and [delivery gates](IMPLEMENTATION.md).
+Status: staged implementation underway; connection settings and offline foundations are implemented, inference surfaces are not yet available. Baseline: BB 0.49.0 / public SDK 0.6.132. This document supersedes conflicting details in [the original proposal](original-proposal.txt). See [compatibility evidence](COMPATIBILITY.md) and [delivery gates](IMPLEMENTATION.md).
 
 ## Goal and scope
 
@@ -22,7 +22,7 @@ Fixed connection types:
 - `cloudflare`: `cloudflareAccountId`, secret `cloudflareApiToken`; Workers AI endpoint selected from `clef` or `clef-flash`.
 - `custom`: configured API root `customBaseUrl`, optional secret `customApiKey`; append `/v1/systemone` exactly once. Require an explicit reachable HTTP(S) endpoint; reject embedded credentials, query, and fragment. Disable redirects to avoid forwarding credentials or private data to another destination. Local addresses refer to the BB server machine.
 
-A model record contains `id`, `connection`, provider `model`, `allowPrivate` (default false), and limits validated for that endpoint. A changed connection or model configuration changes its fingerprint. No keys appear in documents, hashes, logs, metadata, or frontend results. A settings change invalidates affected cache entries.
+A model record contains `id`, `connection`, provider `model`, `allowPrivate` (default false), and limits validated for that endpoint. A changed connection or model configuration changes its fingerprint. No keys appear in documents, hashes, logs, metadata, or frontend results. A settings change invalidates affected cache entries. The public settings API does not expose a credential revision, so opaque connection generations change on settings edits and plugin reload. Reload conservatively invalidates inference cache and calibration acceptance; users must accept calibration again afterward. This avoids storing or hashing key material while preserving model/default settings and BB-owned credentials.
 
 Resolution: call override → step model → set model → configured global default. There is no implicit working model on installation. A sensitive step may fall back once to `privateDefault`, which must exist and itself allow private input. Otherwise return `private_not_allowed`. Record requested and resolved model identities and fallback reason. Apply the guard before cache access as well as network access.
 

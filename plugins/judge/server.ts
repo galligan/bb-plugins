@@ -1,6 +1,10 @@
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import { createModelService } from "./lib/models.ts";
+import { openJudgeStorage } from "./lib/storage.ts";
 
-// Preparation scaffold: register capabilities as their implementation lands.
-export default function judge(bb: BbPluginApi): void {
-  bb.log.info("Judge scaffold loaded; inference is not implemented.");
+export default async function judge(bb: BbPluginApi): Promise<void> {
+  await createModelService(bb, openJudgeStorage(bb.storage));
+  bb.log.info(
+    "Judge settings loaded; explicit inference is not implemented yet.",
+  );
 }

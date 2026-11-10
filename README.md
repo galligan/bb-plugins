@@ -16,7 +16,7 @@ from this repository without a separate distribution branch.
 
 ## In preparation
 
-[Judge](plugins/judge) has a minimal buildable scaffold and an implementation spec for typed judgments over BB state. Inference and triggers are not implemented, and it is not listed in the install collection.
+[Judge](plugins/judge) has native connection settings, offline contracts/storage/privacy foundations, and an implementation spec for typed judgments over BB state. Inference surfaces and triggers are not implemented, and it is not listed in the install collection.
 
 ## Install
 
