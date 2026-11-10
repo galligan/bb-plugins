@@ -28,8 +28,7 @@ This is the current design baseline from discussion with Matt. “Agreed” reco
 
 ## Proposed defaults
 
-- 400-character prose budget with a bounded raw body, structured refs and explicit oversize diagnostics.
-- Immutable txs; editable dispatches represented by revisions.
+- Editable dispatches represented by revisions.
 - Snapshot broadcast recipients at send time; deduplicate identical recipient IDs, not distinct sessions belonging to one actor.
 - Project-main-channel listening by default for BB threads; subchannel subscriptions explicit.
 - Mute pauses future channel audience inclusion and passive surfacing, not direct mentions or existing obligations.
@@ -46,6 +45,10 @@ Matt approved the identity/addressing layer on 2026-11-10, including these defau
 - Manual handles come first. Ordinary participant renames retain aliases; explicit human reclaim atomically displaces the prior holder to a unique fallback and removes conflicting aliases. Historical canonical targets remain unchanged.
 - Start with project channels plus one subchannel level. Project/channel IDs survive renames.
 - Backslash-escaped mentions, quoted text, inline code and fenced code do not expand recipients. Unknown/ambiguous addresses require useful diagnostics and qualified choices.
+
+## Initial transmission defaults
+
+Under Matt's continuing implementation authorization, the first internal transmission layer uses immutable txs, a 400-code-point body budget without inline exemptions, 2000 raw UTF-16 units, 16 refs, 100 direct recipients and 50-item maximum scans. Replies use explicit audiences only and stay in their parent channel. Project scope is the channel/history access boundary; direct recipients express attention, not private-message ACLs. Source request replay precedes mutable address resolution. Channel broadcasts wait for the subscription layer's atomic listener snapshot. These are initial implementation choices; broader reply routing, audience coverage and delivery policy remain open below.
 
 ## Unresolved product decisions
 

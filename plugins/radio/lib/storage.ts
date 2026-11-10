@@ -3,6 +3,7 @@ import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { IdentityRegistry } from "./identity-registry.ts";
 import { ProjectRegistry } from "./project-registry.ts";
 import { HandleRegistry } from "./handles.ts";
+import { Transmissions } from "./transmissions.ts";
 import { MIGRATIONS } from "./migrations.ts";
 export { MIGRATIONS } from "./migrations.ts";
 
@@ -13,6 +14,7 @@ export interface RadioStore {
   readonly identities: IdentityRegistry;
   readonly projects: ProjectRegistry;
   readonly handles: HandleRegistry;
+  readonly transmissions: Transmissions;
 }
 
 export function openRadioStorage(storage: Storage): RadioStore {
@@ -31,11 +33,15 @@ export function openRadioStorage(storage: Storage): RadioStore {
     if (!station) throw new Error("Radio station initialization failed");
     const identities = new IdentityRegistry(db, station.id);
     const projects = new ProjectRegistry(db);
-    return Object.freeze({
+    const domain = {
       stationId: station.id,
       identities,
       projects,
       handles: new HandleRegistry(db, identities, projects),
+    };
+    return Object.freeze({
+      ...domain,
+      transmissions: new Transmissions(db, domain),
     });
   })();
 }
