@@ -36,4 +36,23 @@ export const MIGRATIONS = [
       AND name NOT GLOB '*[^a-z0-9-]*' AND name NOT LIKE '%--%'
       AND substr(name, 1, 1) != '-' AND substr(name, -1) != '-'))
   ) STRICT`,
+  `CREATE TABLE handles (
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 64 AND name NOT IN ('user', 'ch')
+      AND name NOT GLOB '*[^a-z0-9-]*' AND name NOT LIKE '%--%'
+      AND substr(name, 1, 1) != '-' AND substr(name, -1) != '-'),
+    target_id TEXT NOT NULL REFERENCES participants(id),
+    is_primary INTEGER NOT NULL CHECK(is_primary IN (0, 1)),
+    PRIMARY KEY(project_id, name)
+  ) STRICT`,
+  `CREATE UNIQUE INDEX primary_handle ON handles(project_id, target_id) WHERE is_primary = 1`,
+  `CREATE TABLE handle_reassignments (
+    id INTEGER PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    human_id TEXT NOT NULL REFERENCES participants(id),
+    target_id TEXT NOT NULL REFERENCES participants(id),
+    name TEXT NOT NULL,
+    displaced_id TEXT REFERENCES participants(id),
+    fallback_name TEXT
+  ) STRICT`,
 ];

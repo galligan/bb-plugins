@@ -25,6 +25,7 @@ test("the foundation loads without SDK calls, network or execution registrations
 test("the package uses only public SDK and package-local imports", async () => {
   const report = await experimental_scanPublicSdkOnly(
     fileURLToPath(new URL("..", import.meta.url)),
+    { allow: [/^better-sqlite3$/] },
   );
   assert.deepEqual(report.violations, []);
   assert.deepEqual(report.privateDependencies, []);

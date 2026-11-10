@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { IdentityRegistry } from "./identity-registry.ts";
 import { ProjectRegistry } from "./project-registry.ts";
+import { HandleRegistry } from "./handles.ts";
 import { MIGRATIONS } from "./migrations.ts";
 export { MIGRATIONS } from "./migrations.ts";
 
@@ -11,6 +12,7 @@ export interface RadioStore {
   readonly stationId: string;
   readonly identities: IdentityRegistry;
   readonly projects: ProjectRegistry;
+  readonly handles: HandleRegistry;
 }
 
 export function openRadioStorage(storage: Storage): RadioStore {
@@ -27,10 +29,13 @@ export function openRadioStorage(storage: Storage): RadioStore {
       .prepare<[], { id: string }>("SELECT id FROM station WHERE singleton = 1")
       .get();
     if (!station) throw new Error("Radio station initialization failed");
+    const identities = new IdentityRegistry(db, station.id);
+    const projects = new ProjectRegistry(db);
     return Object.freeze({
       stationId: station.id,
-      identities: new IdentityRegistry(db, station.id),
-      projects: new ProjectRegistry(db),
+      identities,
+      projects,
+      handles: new HandleRegistry(db, identities, projects),
     });
   })();
 }
