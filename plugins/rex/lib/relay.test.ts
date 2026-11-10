@@ -121,23 +121,30 @@ test("stops reading from Rex while the viewer is behind, and loses nothing", asy
     );
     assert.equal(server.seen.dataClosed, null, "the stream is still open");
 
-    // A viewer that reads gets every byte, in order.
+    // A viewer that reads gets every byte of every chunk, in order.
     const reader = stream.body.getReader();
+    const counted = Array.from({ length: CHUNKS }, () => 0);
     let received = 0;
     let last = 0;
     while (received < CHUNKS * CHUNK_BYTES) {
       const { done, value } = await reader.read();
       assert.equal(done, false, `ended after ${received} bytes`);
       if (value === undefined) continue;
-      for (const at of [0, value.length - 1]) {
-        const number = value[at] ?? -1;
-        assert.ok(number >= last, `chunk ${number} after chunk ${last}`);
-        last = number;
+      for (const number of value) {
+        if (number !== last) {
+          assert.ok(number > last, `chunk ${number} after chunk ${last}`);
+          last = number;
+        }
+        counted[number] = (counted[number] ?? 0) + 1;
       }
       received += value.length;
     }
-    assert.equal(received, CHUNKS * CHUNK_BYTES);
-    assert.equal(last, CHUNKS - 1);
+    // A chunk repeated in place of another would leave the total right and
+    // these counts wrong.
+    assert.deepEqual(
+      counted,
+      Array.from({ length: CHUNKS }, () => CHUNK_BYTES),
+    );
     assert.equal(data.isPaused, false, "reading resumed");
     await reader.cancel();
   } finally {
