@@ -16,7 +16,7 @@ The adapter sends the configured provider model explicitly, uses the native secr
 
 A bounded 400/422 context-window error or HTTP 413 becomes `too_large`. Context-code/message recognition is a tested normalization rule, not an assertion that every provider emits those exact codes. Other upstream bodies, errors, request state and credentials are never copied to diagnostics. Deadlines use monotonic time; request timeout includes response validation, and whole-run/caller/disposal limits also apply during model resolution. Streams and timers/listeners are cleaned up on completion and failure. There are no retries.
 
-The adapters are offline implementation modules. No public ask is registered until the CLI/RPC stage. Live Jev and compatible-custom endpoint verification remains outstanding; no supported model version or latency is inferred from these fixture tests. Real-key entry remains the dedicated BBP-12 GUI checkpoint.
+The adapters are wired to the explicit CLI/RPC ask services, with offline boundary tests. One tiny credentialed public Jev request now passed for pinned/returned jev-1.13.0; see [live evidence](LIVE-VERIFICATION.md). This evidence is separate from fixtures. Compatible-custom endpoint verification remains outstanding.
 
 ## Workers AI
 
