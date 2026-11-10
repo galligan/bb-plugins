@@ -32,11 +32,7 @@ import {
   type PaneInput,
 } from "./pane-input.ts";
 import { openRexSocket, RexControl, toBuffer } from "./rex-control.ts";
-import {
-  ensureThreadWindow,
-  type ThreadForWindow,
-  type ThreadWindowStore,
-} from "./thread-window.ts";
+import { ensureThreadWindow, type EnsureOptions } from "./thread-window.ts";
 
 const DATA_SUBPROTOCOL = "rex.data.terminal.v1";
 const HANDSHAKE_TIMEOUT_MS = 10_000;
@@ -86,15 +82,12 @@ const ownedBlocksSchema = z.object({
 });
 
 /**
- * Opens the terminal of `thread`'s own Rex window, making the window, and the
- * session labelled `sessionLabel` if need be, the first time.
+ * Opens the terminal of a thread's own Rex window, making the window, and
+ * the session labelled `sessionLabel` if need be, the first time.
  */
-export async function openPane(options: {
-  socketPath: string;
-  sessionLabel: string;
-  thread: ThreadForWindow;
-  windows: ThreadWindowStore;
-}): Promise<PaneStream> {
+export async function openPane(
+  options: EnsureOptions & { socketPath: string },
+): Promise<PaneStream> {
   const control = await RexControl.connect(options.socketPath);
   try {
     const window = await ensureThreadWindow(control, options);

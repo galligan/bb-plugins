@@ -95,7 +95,9 @@ function isGone(error: unknown): boolean {
 
 // Two requests for the same thread must not both find no window and both
 // make one, and two for different threads must not both find the session
-// missing and both create it. Lookups are quick, so they simply take turns.
+// missing and both create it. Closing takes its turn with them too, so an
+// archive that arrives while a window is being made waits, then closes it.
+// Lookups are quick, so they all simply take turns.
 let turns: Promise<unknown> = Promise.resolve();
 
 function inTurn<T>(task: () => Promise<T>): Promise<T> {
@@ -104,32 +106,37 @@ function inTurn<T>(task: () => Promise<T>): Promise<T> {
   return result;
 }
 
+/** What finding or making a thread's window needs. */
+export interface EnsureOptions {
+  sessionLabel: string;
+  /**
+   * Reads the thread, and throws if it may not have a window, such as when
+   * it is archived. It is called once the request's turn has come, so that a
+   * thread archived while the request waited gets no window.
+   */
+  loadThread: () => Promise<ThreadForWindow>;
+  windows: ThreadWindowStore;
+}
+
 /**
- * Finds the window the plugin made for `thread`, or makes it: in the session
- * labelled `sessionLabel`, which is created with this window as its first if
- * no session has that label. Brings the window's label back in line with the
- * thread's title.
+ * Finds the window the plugin made for the thread, or makes it: in the
+ * session labelled `sessionLabel`, which is created with this window as its
+ * first if no session has that label. Brings the window's label back in line
+ * with the thread's title.
  */
 export function ensureThreadWindow(
   rex: RexCaller,
-  options: {
-    sessionLabel: string;
-    thread: ThreadForWindow;
-    windows: ThreadWindowStore;
-  },
+  options: EnsureOptions,
 ): Promise<ThreadWindow> {
   return inTurn(() => ensure(rex, options));
 }
 
 async function ensure(
   rex: RexCaller,
-  options: {
-    sessionLabel: string;
-    thread: ThreadForWindow;
-    windows: ThreadWindowStore;
-  },
+  options: EnsureOptions,
 ): Promise<ThreadWindow> {
-  const { sessionLabel, thread, windows } = options;
+  const { sessionLabel, windows } = options;
+  const thread = await options.loadThread();
   const windowLabel = threadWindowLabel(thread.title, thread.id);
 
   const list = await rex.call("session.list", undefined, sessionListSchema);
@@ -156,6 +163,7 @@ async function ensure(
     );
   }
   let made: ThreadWindow;
+  let undo: () => Promise<unknown>;
   if (choice.kind === "missing") {
     const created = await rex.call(
       "session.create",
@@ -168,6 +176,12 @@ async function ensure(
     const [first] = created.initial_windows;
     const { client_id } = await attach(rex, created.session_id);
     made = toWindow(created.session_id, first, windowLabel, client_id);
+    undo = () =>
+      rex.call(
+        "session.destroy",
+        { session_id: created.session_id },
+        z.unknown(),
+      );
   } else {
     const { client_id } = await attach(rex, choice.sessionId);
     const created = await rex.call(
@@ -182,11 +196,24 @@ async function ensure(
       newWindowSchema,
     );
     made = toWindow(choice.sessionId, created, windowLabel, client_id);
+    undo = () =>
+      rex.call(
+        "session.close_window",
+        { session_id: choice.sessionId, window_id: created.window_id },
+        z.unknown(),
+      );
   }
-  await windows.set(thread.id, {
-    sessionId: made.sessionId,
-    windowId: made.windowId,
-  });
+  try {
+    await windows.set(thread.id, {
+      sessionId: made.sessionId,
+      windowId: made.windowId,
+    });
+  } catch (error) {
+    // A window with no record could never be found again or closed with
+    // its thread, so it is not left behind.
+    await undo().catch(() => {});
+    throw error;
+  }
   return made;
 }
 
@@ -245,15 +272,20 @@ async function useExisting(
  * Closes the window the plugin made for the thread, if it made one, and
  * forgets it. Closing a window ends the programs running in it. Returns
  * whether there was a record. A window that is already gone counts as closed.
+ *
+ * `connect` is called only when there is a record, so a thread that never
+ * used Rex costs no connection.
  */
-export function closeThreadWindow(
-  rex: RexCaller,
-  options: { threadId: string; windows: ThreadWindowStore },
-): Promise<boolean> {
+export function closeThreadWindow(options: {
+  threadId: string;
+  windows: ThreadWindowStore;
+  connect: () => Promise<{ rex: RexCaller; close(): void }>;
+}): Promise<boolean> {
   return inTurn(async () => {
     const { threadId, windows } = options;
     const record = recordSchema.safeParse(await windows.get(threadId));
     if (!record.success) return false;
+    const { rex, close } = await options.connect();
     try {
       await attach(rex, record.data.sessionId);
       await rex.call(
@@ -267,6 +299,8 @@ export function closeThreadWindow(
     } catch (error) {
       // Anything else leaves the record, so a later attempt can close it.
       if (!isGone(error)) throw error;
+    } finally {
+      close();
     }
     await windows.delete(threadId);
     return true;

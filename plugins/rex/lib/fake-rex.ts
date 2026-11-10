@@ -156,6 +156,10 @@ export class FakeRex implements RexCaller {
         "conflict",
       );
     }
+    if (method === "session.destroy") {
+      this.sessions.splice(this.sessions.indexOf(session), 1);
+      return {};
+    }
     if (method === "session.new_window") {
       const window = this.#make(session, args);
       if (args.focus !== false) session.activeWindowId = window.id;

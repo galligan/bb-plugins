@@ -44,8 +44,19 @@ const ensure = (
 ) =>
   ensureThreadWindow(rex, {
     sessionLabel,
-    thread,
+    loadThread: () => Promise.resolve(thread),
     windows: store.windows,
+  });
+
+const close = (
+  rex: FakeRex,
+  store: ReturnType<typeof storage>,
+  threadId: string,
+) =>
+  closeThreadWindow({
+    threadId,
+    windows: store.windows,
+    connect: () => Promise.resolve({ rex, close: () => {} }),
   });
 
 test("creates the session with the thread's window as its first", async () => {
@@ -225,7 +236,7 @@ test("ignores a stored record that is not one", async () => {
   const junk = { get: () => Promise.resolve({ sessionId: 7 }) };
   const window = await ensureThreadWindow(rex, {
     sessionLabel: "bb",
-    thread: THREAD,
+    loadThread: () => Promise.resolve(THREAD),
     windows: { ...store.windows, ...junk },
   });
   assert.equal(window.windowLabel, LABEL);
@@ -238,10 +249,7 @@ test("closes the window it made for a thread, and forgets it", async () => {
   await ensure(rex, store);
   await ensure(rex, store, { id: "thr_two", title: "Another", cwd: null });
 
-  const closed = await closeThreadWindow(rex, {
-    threadId: "thr_one",
-    windows: store.windows,
-  });
+  const closed = await close(rex, store, "thr_one");
   assert.equal(closed, true);
   assert.deepEqual(
     session.windows.map((made) => made.label),
@@ -255,13 +263,18 @@ test("closes nothing for a thread it made no window for", async () => {
   const rex = new FakeRex();
   const session = rex.addSession("bb", ["Never used Rex [thr_three]"]);
   const store = storage();
-  const closed = await closeThreadWindow(rex, {
+  let connected = false;
+  const closed = await closeThreadWindow({
     threadId: "thr_three",
     windows: store.windows,
+    connect: () => {
+      connected = true;
+      return Promise.resolve({ rex, close: () => {} });
+    },
   });
   assert.equal(closed, false);
   assert.equal(session.windows.length, 1, "a matching label is not a record");
-  assert.deepEqual(rex.methods, []);
+  assert.equal(connected, false, "Rex is not contacted");
 });
 
 test("forgets a window that was already closed in Rex", async () => {
@@ -271,19 +284,13 @@ test("forgets a window that was already closed in Rex", async () => {
   const session = rex.sessions[0];
   assert.ok(session !== undefined);
   session.windows.length = 0;
-  assert.equal(
-    await closeThreadWindow(rex, {
-      threadId: "thr_one",
-      windows: store.windows,
-    }),
-    true,
-  );
+  assert.equal(await close(rex, store, "thr_one"), true);
   assert.equal(store.records.size, 0);
 
   // And one whose whole session is gone.
   await ensure(rex, store);
   rex.sessions.length = 0;
-  await closeThreadWindow(rex, { threadId: "thr_one", windows: store.windows });
+  await close(rex, store, "thr_one");
   assert.equal(store.records.size, 0);
 });
 
@@ -294,11 +301,89 @@ test("keeps the record when the close fails for another reason", async () => {
   const failing = {
     call: () => Promise.reject(new PaneError("rex_unreachable", "no answer")),
   };
+  let closedConnection = false;
   await assert.rejects(
-    closeThreadWindow(failing, {
+    closeThreadWindow({
       threadId: "thr_one",
       windows: store.windows,
+      connect: () =>
+        Promise.resolve({
+          rex: failing,
+          close: () => {
+            closedConnection = true;
+          },
+        }),
     }),
   );
   assert.equal(store.records.has("thr_one"), true);
+  assert.equal(closedConnection, true);
 });
+
+test("an archive that arrives while the window is being made closes it", async () => {
+  const rex = new FakeRex();
+  const session = rex.addSession("bb", ["mine"]);
+  const store = storage();
+  // The close is asked for before the window, or its record, exists.
+  const [window, closed] = await Promise.all([
+    ensure(rex, store),
+    close(rex, store, "thr_one"),
+  ]);
+  assert.equal(window.windowLabel, LABEL);
+  assert.equal(closed, true);
+  assert.deepEqual(
+    session.windows.map((made) => made.label),
+    ["mine"],
+  );
+  assert.equal(store.records.size, 0);
+});
+
+test("makes no window for a thread that was archived while it waited its turn", async () => {
+  const rex = new FakeRex();
+  const store = storage();
+  let archived = false;
+  const first = ensure(rex, store, { ...THREAD, id: "thr_other" });
+  const second = ensureThreadWindow(rex, {
+    sessionLabel: "bb",
+    loadThread: () =>
+      archived
+        ? Promise.reject(new PaneError("bad_thread", "archived"))
+        : Promise.resolve(THREAD),
+    windows: store.windows,
+  });
+  archived = true;
+  await first;
+  await assert.rejects(second, /archived/);
+  assert.equal(store.records.has("thr_one"), false);
+  assert.equal(rex.sessions[0]?.windows.length, 1);
+});
+
+for (const existing of [true, false]) {
+  test(`leaves no window behind when its record cannot be stored, in ${existing ? "an existing" : "a new"} session`, async () => {
+    const rex = new FakeRex();
+    if (existing) rex.addSession("bb", ["mine"]);
+    const store = storage();
+    const failing = {
+      ...store.windows,
+      set: () => Promise.reject(new Error("storage is full")),
+    };
+    await assert.rejects(
+      ensureThreadWindow(rex, {
+        sessionLabel: "bb",
+        loadThread: () => Promise.resolve(THREAD),
+        windows: failing,
+      }),
+      /storage is full/,
+    );
+    assert.deepEqual(
+      rex.sessions.map((session) => session.windows.map((made) => made.label)),
+      existing ? [["mine"]] : [],
+    );
+
+    // A retry, with storage working, makes exactly one.
+    await ensure(rex, store);
+    const labels = rex.sessions.flatMap((session) =>
+      session.windows.map((made) => made.label),
+    );
+    assert.equal(labels.filter((label) => label === LABEL).length, 1);
+  });
+}

@@ -59,7 +59,7 @@ function toPaneError(error: unknown): PaneError {
   );
 }
 
-/** Whether `path` is a directory on this machine, where the Rex server is. */
+/** Whether `path` is a directory on this machine. */
 async function isLocalDirectory(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isDirectory();
@@ -100,16 +100,28 @@ export default async function plugin(bb: BbPluginApi) {
         "This thread is archived, and its Rex window was closed with it. Unarchive the thread to use Rex here.",
       );
     }
-    // The shell starts in the thread's workspace when that is a directory
-    // the Rex server can see. A thread on another machine has a path that
-    // means nothing here, so it gets the default directory.
+    // The shell starts in the thread's workspace when that is on this
+    // machine, where the Rex server is. A workspace on another machine has a
+    // path that means something else here, even if a directory of the same
+    // name exists, so such a thread gets the default directory.
     let cwd: string | null = null;
     if (thread.environmentId !== null) {
-      const environment = await bb.sdk.environments
-        .get({ environmentId: thread.environmentId })
-        .catch(() => null);
+      const [environment, config] = await Promise.all([
+        bb.sdk.environments
+          .get({ environmentId: thread.environmentId })
+          .catch(() => null),
+        bb.sdk.system.config().catch(() => null),
+      ]);
       const path = environment?.path ?? null;
-      if (path !== null && (await isLocalDirectory(path))) cwd = path;
+      const here = config?.primaryHostId ?? null;
+      if (
+        path !== null &&
+        here !== null &&
+        environment?.hostId === here &&
+        (await isLocalDirectory(path))
+      ) {
+        cwd = path;
+      }
     }
     return { id: threadId, title: thread.title ?? thread.titleFallback, cwd };
   }
@@ -137,7 +149,7 @@ export default async function plugin(bb: BbPluginApi) {
       pane = await openPane({
         socketPath: await findRexSocket(),
         sessionLabel: label,
-        thread: await threadForWindow(threadId),
+        loadThread: () => threadForWindow(threadId),
         windows,
       });
     } catch (error) {
@@ -208,23 +220,26 @@ export default async function plugin(bb: BbPluginApi) {
    * deleted. A thread that never used Rex has no record, and Rex is not
    * contacted for it.
    */
-  async function closeWindowOf(threadId: string): Promise<void> {
-    if ((await windows.get(threadId)) === undefined) return;
-    const control = await RexControl.connect(await findRexSocket());
-    try {
-      await closeThreadWindow(control, { threadId, windows });
-    } finally {
-      control.close();
-    }
-  }
-
-  const closeForEvent = (threadId: string) =>
-    closeWindowOf(threadId).catch((error: unknown) => {
-      // The record stays, and the next load of the plugin tries again.
-      bb.log.warn(
-        `could not close the Rex window of ${threadId}: ${toPaneError(error).message}`,
-      );
+  const closeWindowOf = (threadId: string) =>
+    closeThreadWindow({
+      threadId,
+      windows,
+      connect: async () => {
+        const control = await RexControl.connect(await findRexSocket());
+        return { rex: control, close: () => control.close() };
+      },
     });
+
+  const closeForEvent = (threadId: string): Promise<void> =>
+    closeWindowOf(threadId).then(
+      () => {},
+      (error: unknown) => {
+        // The record stays, and the next load of the plugin tries again.
+        bb.log.warn(
+          `could not close the Rex window of ${threadId}: ${toPaneError(error).message}`,
+        );
+      },
+    );
   bb.events.on("thread.archived", ({ thread }) => closeForEvent(thread.id));
   bb.events.on("thread.deleted", ({ thread }) => closeForEvent(thread.id));
 
