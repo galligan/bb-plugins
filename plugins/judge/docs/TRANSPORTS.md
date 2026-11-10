@@ -1,0 +1,22 @@
+# Transport verification
+
+## System One / Jev / compatible custom endpoints
+
+Checked 2026-11-10 against the official TypeSafe documentation through Context7 (`/typesafe-docs/typesafeai`):
+
+- [HTTP API reference](https://github.com/typesafe-docs/typesafeai/blob/main/docs/09-api-reference.md): `/v1/systemone`, model/state/questions request, answer fields, usage and documented HTTP error statuses.
+- [Endpoint/authentication cheat sheet](https://github.com/typesafe-docs/typesafeai/blob/main/docs/14-cheatsheet.md): POST, JSON, and Bearer API-key header.
+- [JavaScript builders](https://github.com/typesafe-docs/typesafeai/blob/main/docs/11-sdk-javascript.md): label-map choice criteria, ordered score rubric, structured entries and null support.
+- [Structured instructions](https://github.com/typesafe-docs/typesafeai/blob/main/docs/04-primitives/advanced-structure.md): JSON instruction objects referencing named state.
+
+`lib/transports/systemone.test.ts` records synthetic JSON fixtures derived from these schemas. They are not captured credentialed responses. They cover all three primitives, fractional scores and their rubric, missing usage, actual returned provider model identity, malformed batches, invalid JSON/UTF-8, HTTP/auth failures, context errors, request/streamed-response byte limits, timeout and budget. `lib/inference.test.ts` verifies privacy refusal before dispatch, private fallback, caller/disposal/configuration aborts, and boundary failures.
+
+The adapter sends the configured provider model explicitly, uses the native secret only in the server-side Bearer header, and makes exactly one request. Redirects are disabled. A custom endpoint receives the same payload; optional authentication is omitted when no key is configured. A URL alone does not establish compatibility with arbitrary Ollama or llama.cpp servers.
+
+A bounded 400/422 context-window error or HTTP 413 becomes `too_large`. Context-code/message recognition is a tested normalization rule, not an assertion that every provider emits those exact codes. Other upstream bodies, errors, request state and credentials are never copied to diagnostics. Deadlines use monotonic time; request timeout includes response validation, and whole-run/caller/disposal limits also apply during model resolution. Streams and timers/listeners are cleaned up on completion and failure. There are no retries.
+
+The adapters are offline implementation modules. No public ask is registered until the CLI/RPC stage. Live Jev and compatible-custom endpoint verification remains outstanding; no supported model version or latency is inferred from these fixture tests. Real-key entry remains the dedicated BBP-12 GUI checkpoint.
+
+## Workers AI
+
+The adapter and its primary-source fixtures are a separate staged delivery. Clef/Clef-flash live support is not yet claimed.
