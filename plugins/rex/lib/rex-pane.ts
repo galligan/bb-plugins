@@ -59,8 +59,10 @@ export interface PaneStream extends Relay {
   /** Names this open pane to the tab, which sends it back with its input. */
   readonly id: string;
   readonly sessionLabel: string;
-  /** The label of the thread's window, as it is in Rex. */
+  /** The label of the window shown, as it is in Rex. */
   readonly windowLabel: string;
+  /** Whether that is the window the plugin made for the thread. */
+  readonly ownWindow: boolean;
   /** Whether the tab should report its panel's size and the app's colors. */
   readonly claimsPane: boolean;
   /**
@@ -82,8 +84,9 @@ const ownedBlocksSchema = z.object({
 });
 
 /**
- * Opens the terminal of a thread's own Rex window, making the window, and
- * the session labelled `sessionLabel` if need be, the first time.
+ * Opens the terminal of the Rex window a thread shows: the one picked for
+ * it, or else its own, which is made the first time, with the session
+ * labelled `sessionLabel` if need be.
  */
 export async function openPane(
   options: EnsureOptions & { socketPath: string },
@@ -104,8 +107,9 @@ export async function openPane(
         )
         .catch(() => {});
     const claim = new PaneClaim({
-      // The window is one the plugin made for this thread.
-      mayClaim: true,
+      // Only in the window the plugin made for this thread, never in one
+      // the person picked for it.
+      mayClaim: window.own,
       clientId: window.clientId,
       resize: (size) =>
         ask("resize", {
@@ -151,8 +155,9 @@ export async function openPane(
     return {
       ...stream,
       id: randomUUID(),
-      sessionLabel: options.sessionLabel,
+      sessionLabel: window.sessionLabel,
       windowLabel: window.windowLabel,
+      ownWindow: window.own,
       claimsPane: claim.mayClaim,
       input: (events) => deliver(control, block, claim, events),
     };

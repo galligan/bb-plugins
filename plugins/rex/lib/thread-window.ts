@@ -9,7 +9,8 @@
 //
 // Every way a thread can come to use Rex goes through `ensureThreadWindow`,
 // so the Rex tab and an agent asking for the thread's terminal land in the
-// same window.
+// same window. That is the thread's own window unless the person picked
+// another for it: see thread-view.ts.
 
 import { z } from "zod";
 
@@ -22,6 +23,11 @@ import {
   sessionViewSchema,
   SHELL_FLAVOR,
 } from "./session.ts";
+import {
+  threadViewSchema,
+  type ThreadView,
+  type ThreadViewStore,
+} from "./thread-view.ts";
 import { threadWindowLabel } from "./window-label.ts";
 
 /** The storage key prefix a thread's window record is kept under. */
@@ -51,13 +57,20 @@ export interface ThreadForWindow {
   cwd: string | null;
 }
 
-/** A thread's window and the terminal pane to use in it. */
+/** The window a thread shows and the terminal pane to use in it. */
 export interface ThreadWindow {
   sessionId: string;
   windowId: string;
   blockId: string;
+  /** The label of the window's session. */
+  sessionLabel: string;
   /** The window's label, as it now is in Rex. */
   windowLabel: string;
+  /**
+   * Whether this is the window the plugin made for the thread. Only such a
+   * window may have its pane claimed and resized.
+   */
+  own: boolean;
   /**
    * The ID of the connection's client in the session. Rex takes changes to a
    * session only from a connection attached to it, so finding or making the
@@ -116,12 +129,15 @@ export interface EnsureOptions {
    */
   loadThread: () => Promise<ThreadForWindow>;
   windows: ThreadWindowStore;
+  views: ThreadViewStore;
 }
 
 /**
- * Finds the window the plugin made for the thread, or makes it: in the
- * session labelled `sessionLabel`, which is created with this window as its
- * first if no session has that label. Brings the window's label back in line
+ * Finds the window the thread shows. If the person picked one for it and it
+ * is still there, that is the window. Otherwise it is the window the plugin
+ * made for the thread, which is made now if need be: in the session labelled
+ * `sessionLabel`, itself created with this window as its first if no session
+ * has that label. The thread's own window has its label brought back in line
  * with the thread's title.
  */
 export function ensureThreadWindow(
@@ -135,18 +151,45 @@ async function ensure(
   rex: RexCaller,
   options: EnsureOptions,
 ): Promise<ThreadWindow> {
-  const { sessionLabel, windows } = options;
+  const { sessionLabel, windows, views } = options;
   const thread = await options.loadThread();
   const windowLabel = threadWindowLabel(thread.title, thread.id);
 
   const list = await rex.call("session.list", undefined, sessionListSchema);
-  const live = (list.sessions ?? []).map((session) => session.session_id);
+  const labels = new Map(
+    (list.sessions ?? []).map((session) => [session.session_id, session.label]),
+  );
 
   const record = recordSchema.safeParse(await windows.get(thread.id));
-  if (record.success && live.includes(record.data.sessionId)) {
-    const existing = await useExisting(rex, record.data, windowLabel);
+  const view = threadViewSchema.safeParse(await views.get(thread.id));
+  const pick = view.success ? view.data : null;
+  const picksOwnWindow =
+    pick !== null &&
+    record.success &&
+    pick.sessionId === record.data.sessionId &&
+    pick.windowId === record.data.windowId;
+
+  if (pick !== null && !picksOwnWindow) {
+    const picked = await usePicked(rex, pick, labels.get(pick.sessionId));
+    if (picked !== null) return picked;
+    // The picked window is gone. The thread goes back to its own.
+    await views.delete(thread.id);
+  }
+
+  const ownLabel = record.success
+    ? labels.get(record.data.sessionId)
+    : undefined;
+  if (record.success && ownLabel !== undefined) {
+    const existing = await useExisting(rex, record.data, {
+      sessionLabel: ownLabel,
+      windowLabel,
+      // A pick of the thread's own window is a pick of one of its panes.
+      preferredBlockId: picksOwnWindow ? pick.blockId : null,
+    });
     if (existing !== null) return existing;
   }
+  // A pane picked in a window that no longer exists means nothing now.
+  if (picksOwnWindow) await views.delete(thread.id);
 
   // No window yet, or the one recorded was closed in Rex: make one.
   const layout = {
@@ -174,7 +217,10 @@ async function ensure(
     );
     const [first] = created.initial_windows;
     const { client_id } = await attach(rex, created.session_id);
-    made = toWindow(created.session_id, first, windowLabel, client_id);
+    made = toWindow(created.session_id, first, client_id, {
+      sessionLabel,
+      windowLabel,
+    });
   } else {
     const { client_id } = await attach(rex, choice.sessionId);
     const created = await rex.call(
@@ -188,7 +234,10 @@ async function ensure(
       },
       newWindowSchema,
     );
-    made = toWindow(choice.sessionId, created, windowLabel, client_id);
+    made = toWindow(choice.sessionId, created, client_id, {
+      sessionLabel,
+      windowLabel,
+    });
   }
   try {
     await windows.set(thread.id, {
@@ -215,8 +264,8 @@ async function ensure(
 function toWindow(
   sessionId: string,
   created: z.infer<typeof newWindowSchema> | undefined,
-  windowLabel: string,
   clientId: string,
+  labels: { sessionLabel: string; windowLabel: string },
 ): ThreadWindow {
   const blockId = created?.block_ids[0];
   if (created === undefined || blockId === undefined) {
@@ -226,7 +275,8 @@ function toWindow(
     sessionId,
     windowId: created.window_id,
     blockId,
-    windowLabel,
+    ...labels,
+    own: true,
     clientId,
   };
 }
@@ -235,8 +285,13 @@ function toWindow(
 async function useExisting(
   rex: RexCaller,
   record: ThreadWindowRecord,
-  windowLabel: string,
+  options: {
+    sessionLabel: string;
+    windowLabel: string;
+    preferredBlockId: string | null;
+  },
 ): Promise<ThreadWindow | null> {
+  const { sessionLabel, windowLabel } = options;
   const { client_id: clientId, view } = await attach(rex, record.sessionId);
   const window = (view.windows ?? []).find(
     (candidate) => candidate.window_id === record.windowId,
@@ -253,14 +308,58 @@ async function useExisting(
       z.unknown(),
     );
   }
-  const pane = chooseWindowPane(view, record.windowId);
+  const pane = chooseWindowPane(
+    view,
+    record.windowId,
+    options.preferredBlockId,
+  );
   if (pane.kind === "none") {
     throw new PaneError(
       "no_terminal",
       `This thread's Rex window has no terminal to use. ${pane.reason}`,
     );
   }
-  return { ...record, blockId: pane.blockId, windowLabel, clientId };
+  return {
+    ...record,
+    blockId: pane.blockId,
+    sessionLabel,
+    windowLabel,
+    own: true,
+    clientId,
+  };
+}
+
+/**
+ * The window picked for the thread, or null if it or its session is gone.
+ * Nothing about the window is changed: it is not the plugin's.
+ */
+async function usePicked(
+  rex: RexCaller,
+  pick: ThreadView,
+  sessionLabel: string | undefined,
+): Promise<ThreadWindow | null> {
+  if (sessionLabel === undefined) return null;
+  const { client_id: clientId, view } = await attach(rex, pick.sessionId);
+  const window = (view.windows ?? []).find(
+    (candidate) => candidate.window_id === pick.windowId,
+  );
+  if (window === undefined) return null;
+  const pane = chooseWindowPane(view, pick.windowId, pick.blockId);
+  if (pane.kind === "none") {
+    throw new PaneError(
+      "no_terminal",
+      `The Rex window picked for this thread has no terminal to show. ${pane.reason} Pick another window, or go back to the thread's own.`,
+    );
+  }
+  return {
+    sessionId: pick.sessionId,
+    windowId: pick.windowId,
+    blockId: pane.blockId,
+    sessionLabel,
+    windowLabel: window.label ?? "",
+    own: false,
+    clientId,
+  };
 }
 
 /**

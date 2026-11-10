@@ -22,6 +22,11 @@ function storage() {
   const records = new Map<string, ThreadWindowRecord>();
   return {
     records,
+    views: {
+      get: () => Promise.resolve(undefined),
+      set: () => Promise.resolve(),
+      delete: () => Promise.resolve(),
+    },
     windows: {
       get: (threadId: string) => Promise.resolve(records.get(threadId)),
       set: (threadId: string, record: ThreadWindowRecord) => {
@@ -46,6 +51,7 @@ const ensure = (
     sessionLabel,
     loadThread: () => Promise.resolve(thread),
     windows: store.windows,
+    views: store.views,
   });
 
 const close = (
@@ -77,7 +83,9 @@ test("creates the session with the thread's window as its first", async () => {
     sessionId: session.id,
     windowId: session.windows[0]?.id,
     blockId: session.windows[0]?.blocks[0]?.id,
+    sessionLabel: "bb",
     windowLabel: LABEL,
+    own: true,
     clientId: "client:test",
   });
   assert.deepEqual(rex.methods, [
@@ -238,6 +246,7 @@ test("ignores a stored record that is not one", async () => {
     sessionLabel: "bb",
     loadThread: () => Promise.resolve(THREAD),
     windows: { ...store.windows, ...junk },
+    views: store.views,
   });
   assert.equal(window.windowLabel, LABEL);
 });
@@ -349,6 +358,7 @@ test("makes no window for a thread that was archived while it waited its turn", 
         ? Promise.reject(new PaneError("bad_thread", "archived"))
         : Promise.resolve(THREAD),
     windows: store.windows,
+    views: store.views,
   });
   archived = true;
   await first;
@@ -371,6 +381,7 @@ for (const existing of [true, false]) {
         sessionLabel: "bb",
         loadThread: () => Promise.resolve(THREAD),
         windows: failing,
+        views: store.views,
       }),
       /storage is full/,
     );
@@ -408,6 +419,7 @@ test("undoing a new session's window spares a window someone else opened there",
       sessionLabel: "bb",
       loadThread: () => Promise.resolve(THREAD),
       windows: failing,
+      views: store.views,
     }),
   );
   assert.deepEqual(

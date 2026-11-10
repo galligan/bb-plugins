@@ -80,6 +80,43 @@ test("takes the focused block of the window asked for, on any layer", () => {
   });
 });
 
+test("takes the pane asked for when it is a terminal in the window", () => {
+  assert.deepEqual(chooseWindowPane(view(), "window:b", "block:b1"), {
+    kind: "terminal",
+    blockId: "block:b1",
+  });
+});
+
+test("falls back to the focused pane when the one asked for is not there", () => {
+  // Gone, in another window, or not a terminal.
+  for (const asked of ["block:gone", "block:a1"]) {
+    assert.deepEqual(chooseWindowPane(view(), "window:b", asked), {
+      kind: "terminal",
+      blockId: "block:b2",
+    });
+  }
+  const mixed = view({
+    windows: [
+      {
+        window_id: "window:c",
+        focused_block_id: "block:c1",
+        layers: [
+          {
+            blocks: [
+              terminal("block:c1"),
+              { block_id: "block:c2", creator_name: "com.example.other" },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  assert.deepEqual(chooseWindowPane(mixed, "window:c", "block:c2"), {
+    kind: "terminal",
+    blockId: "block:c1",
+  });
+});
+
 test("reports a window that is not in the session", () => {
   assert.deepEqual(chooseWindowPane(view(), "window:gone"), {
     kind: "none",
