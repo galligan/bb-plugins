@@ -329,6 +329,20 @@ test("dispatch byte/title limits fail clearly and bounded lists omit Markdown pa
     );
     assert.equal(page.hasMore, true);
     assert.equal("markdown" in page.items[0]!, false);
+    f.store.dispatches.revise(f.context, {
+      id: maximum.id,
+      expectedRevision: 1,
+      title: "Edited earlier document",
+      markdown: "Updated",
+      idempotencyKey: "edit-earlier",
+    });
+    const refreshed = f.store.dispatches.list(f.context.scope, {
+      channelId: f.project.channelId,
+      limit: 1,
+    });
+    assert.equal(refreshed.items[0]!.revision, 2);
+    assert.equal(refreshed.items[0]!.title, "Edited earlier document");
+    assert.equal(refreshed.nextCursor, page.nextCursor);
     const last = f.store.dispatches.list(f.context.scope, {
       channelId: f.project.channelId,
       after: page.nextCursor,

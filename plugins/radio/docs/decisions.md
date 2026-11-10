@@ -51,7 +51,7 @@ Under Matt's continuing implementation authorization, the first internal transmi
 
 ## Initial dispatch defaults
 
-The internal store keeps immutable Markdown revisions under stable document IDs in the plugin database. Original authors and the explicit station human can revise, recording editor/session provenance; an expected current revision is required. Titles are bounded to 120 UTF-16 units, Markdown to 65536 UTF-8 bytes, and lists to 50 titles without content. Reads and transmission refs check project access. A latest dispatch ref pins the selected revision at tx acceptance, and exact replay retains it. External URL refs are never fetched automatically. Deletion, collaborative editing and synchronization are deferred.
+The internal store keeps immutable Markdown revisions under stable document IDs in the plugin database. Original authors and the explicit station human can revise, recording editor/session provenance; an expected current revision is required. Titles are bounded to 120 UTF-16 units, Markdown to 65536 UTF-8 bytes, and lists to 50 titles without content. List cursors paginate document creation order, not revision changes; refresh/read observes edits. Reads and transmission refs check project access. A latest dispatch ref pins the selected revision at tx acceptance, and exact replay retains it. External URL refs are never fetched automatically. Deletion, collaborative editing and synchronization are deferred.
 
 ## Unresolved product decisions
 
