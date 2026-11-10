@@ -14,6 +14,7 @@ Persistent collaborators for BB, independent of the selected sidebar. The first 
 - [Review dispositions](docs/review.md): Fable findings and the resulting corrections.
 - [Builder handoff](docs/handoff.md): ownership, release status, environment and next steps.
 - [Public capability verification](docs/capabilities.md): current declarations, bounded runtime evidence and open support gates.
+- [Capability follow-up](docs/capability-followup.md): queue/Stop regressions, native board routing and unmanaged home archive/restart evidence.
 - [Native continuity admission gate](docs/sdk-continuity-gates.md): focused reproduction and the required upstream contract investigation.
 
 The dedicated BB Tasks project is **Bots**, prefix **BOTS**, stable project ID `01M73NSQMGEYPWZ30WSR2CEYBP`. It is intentionally not linked in place of the repository's existing BBP tracker. Tasks are the source of implementation intent; keep them and these documents aligned as constraints are verified.
