@@ -513,3 +513,16 @@ test("without a recorded copy, a shared file that differs from the source blocks
   const removed = await removeWorktree(f.env, { pathKey: KEY, path });
   assert.equal(removed.status, "failed");
 });
+
+test("an edited shared file git does not ignore is rescued, not a blocker", async (t) => {
+  const f = await fixture(t, { ".worktreeinclude": "notes.txt\n" });
+  await writeFile(join(f.source, "notes.txt"), "draft\n");
+  const path = await provisioned(f);
+  await writeFile(join(path, "notes.txt"), "edited\n");
+
+  assert.deepEqual(await removeWorktree(f.env, { pathKey: KEY, path }), {
+    status: "removed",
+  });
+  const [ref] = rescueRefs(f.source);
+  assert.equal(git(f.source, "show", `${ref ?? ""}:notes.txt`), "edited");
+});

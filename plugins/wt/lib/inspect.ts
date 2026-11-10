@@ -276,6 +276,26 @@ async function sameContent(a: string, b: string): Promise<boolean> {
   return left !== null && right !== null && left.equals(right);
 }
 
+/** The subset of `files` (relative to `path`) that git ignores. */
+async function ignoredAmong(
+  path: string,
+  files: readonly string[],
+  signal?: AbortSignal,
+): Promise<string[]> {
+  const ignored: string[] = [];
+  for (const file of files) {
+    // One path per call: exit 0 is ignored, 1 is not, anything else failed.
+    const checked = await git(path, ["check-ignore", "-q", "--", file], signal);
+    if (checked.code === 0) ignored.push(file);
+    else if (checked.code !== 1) {
+      throw new Error(
+        `git check-ignore failed in ${path}: ${checked.stderr.trim()}`,
+      );
+    }
+  }
+  return ignored;
+}
+
 /** SHA-256 of a file's content, or null when it cannot be read. */
 export async function contentHash(path: string): Promise<string | null> {
   const content = await readFile(path).catch(() => null);
@@ -354,7 +374,9 @@ export async function inspectWorktree(options: {
     worktreePath: path,
     signal,
   });
-  for (const file of shared) {
+  // A shared file git does not ignore is an ordinary untracked file: status
+  // counts it and the rescue snapshot saves it.
+  for (const file of await ignoredAmong(path, shared, signal)) {
     // Unedited means the content also exists elsewhere, or never changed
     // since it was copied (the source checkout may have moved on since).
     const copiedHash = copiedSharedFiles[file];
