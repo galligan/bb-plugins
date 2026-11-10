@@ -55,7 +55,7 @@ async function readJson(
   }
 }
 
-function contextLimit(body: unknown): boolean {
+export function contextLimit(body: unknown): boolean {
   if (!body || typeof body !== "object") return false;
   const error = (body as { error?: unknown }).error;
   const detail = typeof error === "object" && error !== null ? error : body;

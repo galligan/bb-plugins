@@ -47,6 +47,6 @@ These do not block scaffold or schema work, but block claiming support for their
 - Resolve recent-user-message and goal projections with representative idle-thread fixtures on this SDK. Keep unsupported sources explicit until then.
 - Verify file routing from an enrolled remote host and trigger disposal/reload with the live host.
 - Calibrate examples against actual resolved model configurations. Example thresholds are not a calibration claim.
-- Check Clef-flash's own official limits before enabling it; do not infer them from Clef or secondary pricing posts.
+- Clef-flash's own model page now verifies its separate 24,576-token window and REST route; Clef has 65,536 tokens. Offline adapter fixtures and conservative caps are implemented; credentialed behavior and provider truncation limits remain unverified. See [transport evidence](TRANSPORTS.md).
 
 AI Gateway, local hardware latency, arbitrary local-server compatibility, and the linked Claude background artifact were not needed for this scaffold and were not validated. They are not prerequisites or promises in the revised spike.

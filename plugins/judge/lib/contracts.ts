@@ -227,29 +227,36 @@ export function parseResponse(value: unknown, questions: Questions) {
   };
 }
 
-export const modelConfigSchema = z.strictObject({
-  id: idSchema,
-  connection: z.enum(["typesafe", "cloudflare", "custom"]),
-  model: z.string().min(1).max(256),
-  allowPrivate: z.boolean().default(false),
-  timeoutMs: z.number().int().min(1).max(30_000).default(2_000),
-  maxQuestions: z
-    .number()
-    .int()
-    .min(1)
-    .max(LIMITS.questions)
-    .default(LIMITS.questions),
-  maxRequestBytes: z
-    .number()
-    .int()
-    .min(1)
-    .max(LIMITS.requestBytes)
-    .default(LIMITS.requestBytes),
-  maxResponseBytes: z
-    .number()
-    .int()
-    .min(1)
-    .max(LIMITS.responseBytes)
-    .default(LIMITS.responseBytes),
-});
+export const modelConfigSchema = z
+  .strictObject({
+    id: idSchema,
+    connection: z.enum(["typesafe", "cloudflare", "custom"]),
+    model: z.string().min(1).max(256),
+    allowPrivate: z.boolean().default(false),
+    timeoutMs: z.number().int().min(1).max(30_000).default(2_000),
+    maxQuestions: z
+      .number()
+      .int()
+      .min(1)
+      .max(LIMITS.questions)
+      .default(LIMITS.questions),
+    maxRequestBytes: z
+      .number()
+      .int()
+      .min(1)
+      .max(LIMITS.requestBytes)
+      .default(LIMITS.requestBytes),
+    maxResponseBytes: z
+      .number()
+      .int()
+      .min(1)
+      .max(LIMITS.responseBytes)
+      .default(LIMITS.responseBytes),
+  })
+  .refine(
+    (model) =>
+      model.connection !== "cloudflare" ||
+      ["clef", "clef-flash"].includes(model.model),
+    "unsupported_model",
+  );
 export type ModelConfig = z.infer<typeof modelConfigSchema>;

@@ -1,6 +1,7 @@
 import { parseRequest } from "./contracts.ts";
 import { Deadline, OperationAborted } from "./deadline.ts";
 import { systemOne, type InferenceResult } from "./transports/systemone.ts";
+import { workersAI } from "./transports/workers-ai.ts";
 import type { ModelService, ModelIdentity } from "./models.ts";
 import type { ModelSelection } from "./privacy.ts";
 import type { Json } from "./json.ts";
@@ -51,23 +52,19 @@ export class InferenceService {
             const changed = new AbortController();
             const unsubscribe = this.models.onInvalidate(() => changed.abort());
             try {
-              const response: InferenceResult =
+              const transport =
                 prepared.model.connection === "cloudflare"
-                  ? {
-                      status: "unavailable",
-                      reason: "not_configured",
-                      code: "transport_not_implemented",
-                      latencyMs: 0,
-                    }
-                  : await systemOne({
-                      model: prepared.model,
-                      ...prepared.connection,
-                      questions: validated.questions,
-                      state: validated.state,
-                      deadlineAt,
-                      signals: [scope.signal, changed.signal],
-                      fetcher: this.fetcher,
-                    });
+                  ? workersAI
+                  : systemOne;
+              const response: InferenceResult = await transport({
+                model: prepared.model,
+                ...prepared.connection,
+                questions: validated.questions,
+                state: validated.state,
+                deadlineAt,
+                signals: [scope.signal, changed.signal],
+                fetcher: this.fetcher,
+              });
               return {
                 result: response,
                 requestedModel: prepared.requestedModel,

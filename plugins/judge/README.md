@@ -24,7 +24,7 @@ Before pushing, run the root formatting, lint, check, test, and build commands d
 
 ## Transport implementation
 
-The offline Jev/System One adapter now validates complete typed batches, retains the returned provider model, bounds UTF-8 request/response bytes, disables redirects/retries, and shares caller/disposal/budget cancellation. Compatible custom endpoints use the same contract with optional auth. See [transport evidence and primary references](docs/TRANSPORTS.md). Fixture success does not establish live provider or arbitrary local-server compatibility. Public CLI/RPC asks remain the next usable milestone; tests do not make paid calls.
+The offline Jev/System One and Workers AI Clef/Clef-flash adapters now validate complete typed batches, retain the returned provider model, bound UTF-8 request/response bytes, disable redirects/retries, and share caller/disposal/budget cancellation. Compatible custom endpoints use the same contract with optional auth. See [transport evidence and primary references](docs/TRANSPORTS.md). Fixture success does not establish live provider or arbitrary local-server compatibility. Workers AI uses separate documented routes/windows for each selector and validates its success/error envelope even on HTTP 200. Judge applies conservative 48 KiB (Clef) and 16 KiB (Clef-flash) request caps; provider token packing/truncation behavior remains a live limitation. Public CLI/RPC asks remain the next usable milestone; tests do not make paid calls.
 
 ## Connection setup and privacy
 

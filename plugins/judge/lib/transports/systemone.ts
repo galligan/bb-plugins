@@ -31,7 +31,7 @@ export type InferenceResult =
       latencyMs: number;
     };
 
-export async function systemOne(options: {
+export type SystemOneOptions = {
   model: ModelConfig;
   endpoint: string;
   credential?: string;
@@ -40,7 +40,11 @@ export async function systemOne(options: {
   signals: (AbortSignal | undefined)[];
   deadlineAt: number;
   fetcher?: typeof fetch;
-}): Promise<InferenceResult> {
+  decodeResponse?: (raw: unknown) => unknown;
+};
+export async function systemOne(
+  options: SystemOneOptions,
+): Promise<InferenceResult> {
   const start = performance.now();
   const scope = new Deadline({
     signals: options.signals,
@@ -75,8 +79,12 @@ export async function systemOne(options: {
     scope.assertActive();
     let parsed;
     try {
-      parsed = parseResponse(response, request.questions);
-    } catch {
+      parsed = parseResponse(
+        options.decodeResponse ? options.decodeResponse(response) : response,
+        request.questions,
+      );
+    } catch (error) {
+      if (error instanceof TransportFailure) throw error;
       throw new TransportFailure("invalid_response", "invalid_answers");
     }
     scope.assertActive();
