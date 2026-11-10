@@ -10,6 +10,8 @@
   padding: 1rem;
   margin-block: 1rem;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 0.75rem;
 }
 .judge-ui h3 {
@@ -32,6 +34,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+.judge-ui .judge-actions > button {
+  max-width: 100%;
+  min-width: 0;
+  min-height: 2rem;
+  height: auto;
+  white-space: normal;
 }
 .judge-ui .judge-badge {
   display: inline-block;
