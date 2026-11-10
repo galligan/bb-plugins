@@ -76,7 +76,16 @@ export const stepSchema = z.strictObject({
   when: expressionSchema.optional(),
 });
 export type StepDefinition = z.infer<typeof stepSchema>;
-const caseInputs = strictRecord(idSchema, jsonSchema);
+// Per-step cases wrap independently depth-bounded input values in one extra map.
+const caseValuesSchema = z.custom<z.infer<typeof jsonSchema>>((value) => {
+  try {
+    assertJson(value, LIMITS.definitionBytes, LIMITS.depth + 1);
+    return true;
+  } catch {
+    return false;
+  }
+});
+const caseInputs = strictRecord(idSchema, caseValuesSchema);
 const rawCaseSchema = z.strictObject({
   id: idSchema.optional(),
   inputs: caseInputs,

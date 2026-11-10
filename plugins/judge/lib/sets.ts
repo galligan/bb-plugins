@@ -15,15 +15,16 @@ export class SetService {
   }
   save(yaml: string) {
     const parsed = readSetYaml(yaml);
-    this.repository.definitions.saveSet({
-      id: parsed.definition.id,
-      schemaVersion: 1,
-      scope: "global",
-      hash: parsed.hash,
-      yaml: parsed.yaml,
+    return this.models.mutateDefinitions(() => {
+      this.repository.definitions.saveSet({
+        id: parsed.definition.id,
+        schemaVersion: 1,
+        scope: "global",
+        hash: parsed.hash,
+        yaml: parsed.yaml,
+      });
+      return { ...parsed, scope: "global" as const };
     });
-    this.models.definitionsChanged();
-    return { ...parsed, scope: "global" as const };
   }
   get(id: string) {
     const record = this.repository.definitions.getSet(idSchema.parse(id));
@@ -43,9 +44,11 @@ export class SetService {
     }
   }
   remove(id: string) {
-    this.repository.definitions.removeSet(idSchema.parse(id));
-    this.models.definitionsChanged();
-    return { removed: true as const };
+    idSchema.parse(id);
+    return this.models.mutateDefinitions(() => {
+      this.repository.definitions.removeSet(id);
+      return { removed: true as const };
+    });
   }
   applicable(set: QuestionSet, projectId?: string): boolean {
     if (projectId === undefined) return set.projects === "all";
@@ -57,9 +60,10 @@ export class SetService {
   }
   project(id: string, enabled: boolean) {
     idSchema.parse(id);
-    this.repository.definitions.setProjectEnabled(id, enabled);
-    this.models.definitionsChanged();
-    return { projectId: id, enabled };
+    return this.models.mutateDefinitions(() => {
+      this.repository.definitions.setProjectEnabled(id, enabled);
+      return { projectId: id, enabled };
+    });
   }
   list(value: unknown) {
     const input = setListSchema.parse(value);

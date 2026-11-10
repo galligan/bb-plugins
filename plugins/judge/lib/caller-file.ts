@@ -29,8 +29,10 @@ export async function readCallerYaml(
   );
   if (matches.length !== 1 || matches[0]!.status !== "connected")
     throw new ValidationError("host_unavailable");
+  const windowsPath = /^[A-Za-z]:[\\/]|^\\\\/;
   const paths =
-    /^[A-Za-z]:[\\/]|^\\\\/.test(file) || /^[A-Za-z]:[\\/]/.test(ctx.cwd ?? "")
+    windowsPath.test(file) ||
+    (!posix.isAbsolute(file) && windowsPath.test(ctx.cwd ?? ""))
       ? win32
       : posix;
   if (

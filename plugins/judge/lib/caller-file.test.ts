@@ -91,6 +91,48 @@ test("no-thread imports require explicit machine and absolute host path; Windows
   }
 });
 
+test("explicit target paths choose their own dialect and UNC cwd resolves relative imports", async () => {
+  const { bb, harness } = setup();
+  try {
+    const signal = new AbortController().signal;
+    for (const [file, cwd, machine, expected] of [
+      ["/remote/fixture.yaml", "C:\\caller", "remote", "/remote/fixture.yaml"],
+      [
+        "C:\\remote\\fixture.yaml",
+        "/caller",
+        "remote",
+        "C:\\remote\\fixture.yaml",
+      ],
+      [
+        "defs/fixture.yaml",
+        "\\\\server\\share\\repo",
+        undefined,
+        "\\\\server\\share\\repo\\defs\\fixture.yaml",
+      ],
+      [
+        "defs/fixture.yaml",
+        "C:\\repo",
+        undefined,
+        "C:\\repo\\defs\\fixture.yaml",
+      ],
+    ] as const) {
+      await readCallerYaml(bb, file, machine, {
+        threadId: "thread",
+        cwd,
+        signal,
+      });
+      const call = harness.inspection.sdk.callsTo("files.read").at(-1)![0] as {
+        path: string;
+        hostId: string;
+      };
+      assert.equal(call.path, expected);
+      assert.equal(call.hostId, "remote");
+    }
+  } finally {
+    await harness.lifecycle.dispose();
+  }
+});
+
 test("missing environments, unavailable/ambiguous machines and oversized/binary files fail without fallback", async () => {
   for (const failure of [
     "environment",
