@@ -3,6 +3,8 @@
 
 import { useState, type ReactNode } from "react";
 
+import { Button } from "@/components/ui/button";
+
 import { TargetMenu } from "./target-menu.tsx";
 import { TerminalView } from "./terminal-view.tsx";
 import { usePane, type PaneState } from "./use-pane.ts";
@@ -12,24 +14,6 @@ function Notice({ children }: { children: ReactNode }) {
     <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
       {children}
     </div>
-  );
-}
-
-function ActionButton({
-  onClick,
-  children,
-}: {
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="cursor-pointer rounded-md border border-input px-2 py-0.5 text-xs text-foreground hover:bg-state-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-    >
-      {children}
-    </button>
   );
 }
 
@@ -57,7 +41,9 @@ export function RexTab({ threadId }: { threadId: string }) {
       <Notice>
         <p className="max-w-prose text-foreground">{pane.message}</p>
         <div className="flex items-center gap-2">
-          <ActionButton onClick={reopen}>Try again</ActionButton>
+          <Button variant="outline" size="sm" onClick={reopen}>
+            Try again
+          </Button>
           {/* A window that cannot be shown can still be changed for another. */}
           <TargetMenu threadId={threadId} shown={null} onChanged={reopen} />
         </div>
@@ -72,7 +58,17 @@ export function RexTab({ threadId }: { threadId: string }) {
         <span className="min-w-0 flex-1 truncate text-destructive">
           {pane.inputProblem ?? pane.historyProblem}
         </span>
-        {!pane.live && <ActionButton onClick={reopen}>Reconnect</ActionButton>}
+        {!pane.live && (
+          // The height of the window menu beside it.
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 shrink-0 px-2"
+            onClick={reopen}
+          >
+            Reconnect
+          </Button>
+        )}
       </div>
       {pane.frame !== null && (
         <TerminalView
