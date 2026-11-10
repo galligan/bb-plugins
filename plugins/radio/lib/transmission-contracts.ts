@@ -20,6 +20,13 @@ const referenceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("transmission"), id: idSchema }).strict(),
   z.object({ kind: z.literal("participant"), id: idSchema }).strict(),
   z.object({ kind: z.literal("channel"), id: idSchema }).strict(),
+  z
+    .object({
+      kind: z.literal("dispatch"),
+      id: idSchema,
+      revision: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
+    })
+    .strict(),
 ]);
 export type TransmissionRef = z.infer<typeof referenceSchema>;
 export const sendSchema = z
