@@ -11,6 +11,7 @@ import { verdictSchema, runSummarySchema } from "./results.ts";
 import { setContracts } from "./sets-contract.ts";
 import { runSchema } from "./run-contract.ts";
 import { templateContracts } from "./templates-contract.ts";
+import { evaluationContracts } from "./evaluation-contract.ts";
 
 export const askSchema = z.strictObject({
   state: jsonSchema,
@@ -53,6 +54,7 @@ export const logSchema = z.strictObject({
 export const rpcContract = defineRpcContract({
   ...setContracts,
   ...templateContracts,
+  ...evaluationContracts,
   ask: { input: askSchema, output: verdictSchema },
   run: { input: runSchema, output: verdictSchema },
   "models.list": {

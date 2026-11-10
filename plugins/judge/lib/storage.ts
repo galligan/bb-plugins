@@ -5,6 +5,7 @@ import { parseVerdict, runSummarySchema, type Verdict } from "./results.ts";
 
 import { persist, type Database } from "./persistence.ts";
 import { DefinitionRepository } from "./sets-storage.ts";
+import { EvaluationRepository } from "./evaluation-storage.ts";
 export { PersistenceError } from "./persistence.ts";
 
 type Storage = BbPluginApi["storage"];
@@ -28,6 +29,8 @@ export const MIGRATIONS = [
   `CREATE TABLE calibration_acceptance (set_id TEXT PRIMARY KEY, set_hash TEXT NOT NULL, fingerprints_json TEXT NOT NULL, test_run_id TEXT NOT NULL, accepted_at INTEGER NOT NULL)`,
   `ALTER TABLE steps ADD COLUMN ordinal INTEGER NOT NULL DEFAULT 0`,
   `CREATE TABLE model_defaults (id INTEGER PRIMARY KEY CHECK(id = 1), default_id TEXT, private_id TEXT)`,
+  `CREATE TABLE evaluation_reports (id TEXT PRIMARY KEY, set_id TEXT NOT NULL, created_at INTEGER NOT NULL, report_json TEXT NOT NULL)`,
+  `CREATE INDEX evaluation_reports_created ON evaluation_reports(created_at, id)`,
 ];
 
 export function openJudgeStorage(storage: Storage): JudgeRepository {
@@ -42,11 +45,13 @@ export function openJudgeStorage(storage: Storage): JudgeRepository {
 export class JudgeRepository {
   private db: Database;
   readonly definitions: DefinitionRepository;
+  readonly evaluations: EvaluationRepository;
   constructor(db: Database) {
     this.db = db;
     this.definitions = new DefinitionRepository(db, () =>
       this.invalidateInference(),
     );
+    this.evaluations = new EvaluationRepository(db);
   }
 
   saveModel(value: unknown): ModelConfig {
