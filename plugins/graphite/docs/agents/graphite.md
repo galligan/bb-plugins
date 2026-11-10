@@ -192,15 +192,13 @@ The reader asserts the applied migration ids on every read.
 
 ## Do not shell out for worktree facts
 
-`bb.sdk.environments.status({ environmentId, mergeBaseBranch })` returns the branch
-name, exact head SHA, working-tree state, and ahead/behind counts against the merge
-base. Use it instead of `git rev-parse` and `git status`.
+Graphite's current `lib/current-stack.ts` reads branch, head SHA, working-tree state, and ahead/behind counts through `bb.sdk.environments.status`. This is a compatibility API for the package's older SDK pin. The current public replacement is the bundled Git plugin's `workspaceStatus`, called through `bb.sdk.plugins.callRpc`; inspect its contract before migrating. Preserve the environment target and write-guard semantics instead of replacing the call with server-local `git rev-parse` or `git status`.
 
-See the `bb-plugin-dev` skill for the full response shape.
+See [plugin patterns](../../../../docs/dev/plugin-patterns.md#git-reads-and-compatibility-code) and the installed `bb-plugin-authoring` reference `git-reads.md` for the current API lookup path.
 
 ## Write through the `gt` CLI
 
-`node:child_process.execFile` runs inside the plugin's `bb.host` entry on the
+`node:child_process.execFile` runs inside the plugin's `host.ts` entry on the
 environment's enrolled machine. Pass `cwd`, a timeout, and a `maxBuffer`, and
 resolve a result object rather than throwing.
 
@@ -267,9 +265,9 @@ status` passthrough.
 MUST NOT run `gt sync` inside a git worktree. Run `git fetch origin` in the
 worktree, then `gt restack`.
 
-## Gaps in BB
+## Historical BB inventory
 
-Verified against BB `0.43.1` and the plugin store on 2026-09-18:
+The following inventory was verified against BB `0.43.1` and the plugin store on 2026-09-18. It explains the original design, not today's SDK or marketplace. Check current public contracts and installed plugins before using any of these claims to choose an implementation:
 
 - BB has no native Graphite support. Zero matches in the server build.
 - No Graphite plugin exists in the store.

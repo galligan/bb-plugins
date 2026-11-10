@@ -1,8 +1,6 @@
 # Contributing
 
-Create a focused branch and keep each change scoped to one plugin when
-possible. Every plugin owns its manifest, tests, documentation, compatibility
-ranges, and release version.
+Create a focused branch and keep each change scoped to one plugin when possible. Every plugin owns its manifest, tests, documentation, compatibility ranges, and release version. Read [docs/dev/](docs/dev/README.md) for implementation patterns and the affected plugin's `AGENTS.md` for its invariants.
 
 Before opening a pull request, run:
 
@@ -14,9 +12,7 @@ bun run test
 bun run build
 ```
 
-Pull requests should explain the user-visible behavior, compatibility impact,
-and how the change was verified. Never include plugin credentials or generated
-build output.
+Pull requests should explain the user-visible behavior, compatibility impact, and how the change was verified. Keep PRs draft until CI passes. Address review findings with scoped fixes, reply with the disposition, and resolve threads once addressed. Never include plugin credentials, ignored research clones, or generated build output.
 
 ## Plugin labels
 
@@ -28,12 +24,7 @@ Fork PRs are supported through `pull_request_target`. The workflow checks out on
 
 ## Distribution
 
-The root `.bb/plugins.json` indexes verified packages under `plugins/`.
-Graphite is the first entry. Install a listed package from the repository's `main` branch with
-`bb plugin install git:<repo>@main --plugin <name>`. The
-`publish-plugin-branches` workflow continues to update only the
-legacy `linear` branch for existing installs. Do not edit that generated branch
-by hand.
+The root `.bb/plugins.json` advertises Graphite and Worktree+ from `plugins/`. Install a listed package from the repository's `main` branch with `bb plugin install git:<repo>@main --plugin <name>`. The `publish-plugin-branches` workflow continues to update only the legacy `linear` branch for existing installs. Do not edit that generated branch by hand.
 
 Root verification currently excludes Linear; add it back once its package
 passes the same format, lint, check, test, and build gates.
