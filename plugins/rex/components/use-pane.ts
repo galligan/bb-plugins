@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 
 import type { Frame, FrameReader } from "../lib/frame-reader.ts";
-import { GhosttyVt } from "../lib/ghostty.ts";
+import { GhosttyVt, type ScrollTo } from "../lib/ghostty.ts";
 import { InputQueue } from "../lib/input-queue.ts";
 import { PaneDecoder } from "../lib/pane-decoder.ts";
 import { PANE_HEADERS, paneErrorBodySchema } from "../lib/pane-error.ts";
@@ -34,6 +34,11 @@ export type PaneState =
       inputProblem: string | null;
       /** Sends input to the pane. Input is delivered in the order sent. */
       send: (input: PaneInput) => void;
+      /**
+       * Moves the tab's own view through the terminal's history. Nothing is
+       * sent to Rex, so no other client's view changes.
+       */
+      scroll: (to: ScrollTo) => void;
     };
 
 // Compiled once per page and shared; each pane instantiates its own copy.
@@ -99,7 +104,31 @@ async function watchPane(
       exit: decoder.exit,
       inputProblem,
       send,
+      scroll,
     });
+  };
+
+  // Output can arrive far faster than the screen refreshes, and so can wheel
+  // events. Each is applied to the terminal at once, and a frame is read at
+  // most once per repaint.
+  let scheduled = 0;
+  const schedule = () => {
+    if (scheduled !== 0) return;
+    scheduled = requestAnimationFrame(() => {
+      scheduled = 0;
+      draw();
+    });
+  };
+  const unschedule = () => {
+    cancelAnimationFrame(scheduled);
+    scheduled = 0;
+  };
+  signal.addEventListener("abort", unschedule);
+
+  const scroll = (to: ScrollTo) => {
+    if (decoder.terminal === null) return;
+    vt.scrollViewport(decoder.terminal, to);
+    schedule();
   };
   const report = (problem: string | null) => {
     if (problem === inputProblem) return;
@@ -132,13 +161,13 @@ async function watchPane(
       );
       return;
     }
+    // Typing brings the view back to the live screen, where it lands.
+    if (input.type === "key" || input.type === "paste") {
+      scroll({ kind: "bottom" });
+    }
     queue.push(input);
   };
 
-  // Output can arrive far faster than the screen refreshes. Every chunk is
-  // applied to the terminal at once, and a frame is read at most once per
-  // repaint.
-  let scheduled = 0;
   const body = response.body.getReader();
   draw();
   try {
@@ -146,18 +175,13 @@ async function watchPane(
       const { done, value } = await body.read();
       if (done) break;
       decoder.push(value);
-      if (scheduled === 0) {
-        scheduled = requestAnimationFrame(() => {
-          scheduled = 0;
-          draw();
-        });
-      }
+      schedule();
     }
-    cancelAnimationFrame(scheduled);
+    unschedule();
     live = false;
     draw();
   } finally {
-    cancelAnimationFrame(scheduled);
+    unschedule();
     // Ends the relay on the server when decoding failed part-way.
     void body.cancel().catch(() => {});
   }

@@ -10,6 +10,9 @@
 // at another width, so they are fixed to the width of their cells. It draws
 // no images and no selection of its own.
 //
+// The wheel and the scrollbar move the view through the terminal's history;
+// scrollback.tsx has both.
+//
 // The terminal takes keys only while it has focus, which a click gives it.
 // Command combinations are left to the app. Copy works on the text as the
 // browser selects it, and paste arrives as a clipboard event.
@@ -21,12 +24,15 @@ import {
   type ClipboardEvent,
   type CSSProperties,
   type KeyboardEvent,
+  type RefObject,
 } from "react";
 
 import { fitGrid } from "../lib/fit.ts";
 import type { Frame } from "../lib/frame-reader.ts";
+import type { ScrollTo } from "../lib/ghostty.ts";
 import { keyFromDom, terminalTakesKey } from "../lib/key-event.ts";
 import type { PaneInput } from "../lib/pane-input.ts";
+import { SCROLLBAR_PX } from "../lib/scrollbar.ts";
 import {
   cssColor,
   runColors,
@@ -43,6 +49,7 @@ import {
   watchAppTheme,
   type TerminalCell,
 } from "./app-theme.ts";
+import { Scrollbar, useWheel } from "./scrollback.tsx";
 
 const PADDING_PX = 8;
 /** How long the panel must hold a size before the terminal is fitted to it. */
@@ -145,22 +152,22 @@ function useCellSize(): TerminalCell {
 
 /**
  * Tells a pane the tab has claimed what the tab wants for it: the grid that
- * fits the element, and the app's terminal colors. Both are sent again when
+ * fits `container`, and the app's terminal colors. Both are sent again when
  * they change. Does nothing while `send` is null.
  */
 function useClaim(
+  container: RefObject<HTMLDivElement | null>,
   send: ((input: PaneInput) => void) | null,
   cell: TerminalCell,
 ) {
-  const container = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const element = container.current;
     if (send === null || element === null) return;
     let fitted = "";
     const fit = () => {
       const grid = fitGrid({
-        width: element.clientWidth - 2 * PADDING_PX,
+        // The scrollbar's width is left clear, as bb's terminal leaves it.
+        width: element.clientWidth - 2 * PADDING_PX - SCROLLBAR_PX,
         height: element.clientHeight - 2 * PADDING_PX,
         cellWidth: cell.width,
         cellHeight: cell.height,
@@ -186,7 +193,7 @@ function useClaim(
       clearTimeout(timer);
       observer.disconnect();
     };
-  }, [send, cell]);
+  }, [container, send, cell]);
 
   useEffect(() => {
     if (send === null) return;
@@ -200,24 +207,44 @@ function useClaim(
     recolor();
     return watchAppTheme(recolor);
   }, [send]);
+}
 
-  return container;
+/** The height of `element`'s content box, kept current as it is resized. */
+function useContentHeight(element: RefObject<HTMLElement | null>): number {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const node = element.current;
+    if (node === null) return;
+    const measure = () => setHeight(node.clientHeight - 2 * PADDING_PX);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [element]);
+  return height;
 }
 
 export function TerminalView({
   frame,
   onInput,
+  onScroll,
   claimsPane,
 }: {
   frame: Frame;
   /** Null when the terminal can no longer take input. */
   onInput: ((input: PaneInput) => void) | null;
+  /** Moves the tab's own view through the terminal's history. */
+  onScroll: (to: ScrollTo) => void;
   /** Whether the tab fits the pane to this element and gives it bb's colors. */
   claimsPane: boolean;
 }) {
   const [focused, setFocused] = useState(false);
+  const [pointerInside, setPointerInside] = useState(false);
   const cell = useCellSize();
-  const container = useClaim(claimsPane ? onInput : null, cell);
+  const container = useRef<HTMLDivElement>(null);
+  useClaim(container, claimsPane ? onInput : null, cell);
+  useWheel(container, { frame, cellHeight: cell.height, onScroll, onInput });
+  const trackPx = useContentHeight(container);
 
   const changeFocus = (next: boolean) => {
     setFocused(next);
@@ -253,51 +280,64 @@ export function TerminalView({
   const cursor = frame.cursor;
   return (
     <div
-      ref={container}
-      tabIndex={0}
-      aria-label="Rex terminal"
-      className="min-h-0 flex-1 overflow-auto bg-sidebar text-foreground outline-none selection:bg-muted"
-      style={{ padding: PADDING_PX }}
-      onFocus={() => changeFocus(true)}
-      onBlur={() => changeFocus(false)}
-      onKeyDown={onKeyDown}
-      onPaste={onPaste}
+      className="relative min-h-0 flex-1 bg-sidebar"
+      onPointerEnter={() => setPointerInside(true)}
+      onPointerLeave={() => setPointerInside(false)}
     >
-      <style>{"@keyframes rex-cursor-blink { 50% { opacity: 0; } }"}</style>
       <div
-        style={{
-          position: "relative",
-          width: frame.cols * cell.width,
-          height: frame.rows * cell.height,
-          fontFamily: FONT_FAMILY,
-          fontSize: FONT_PX,
-          lineHeight: `${cell.height}px`,
-          // Brings each character's advance to exactly one cell.
-          letterSpacing: cell.width - cell.advance,
-          fontVariantLigatures: "none",
-          whiteSpace: "pre",
-        }}
+        ref={container}
+        tabIndex={0}
+        aria-label="Rex terminal"
+        className="h-full overflow-auto text-foreground outline-none selection:bg-muted"
+        style={{ padding: PADDING_PX }}
+        onFocus={() => changeFocus(true)}
+        onBlur={() => changeFocus(false)}
+        onKeyDown={onKeyDown}
+        onPaste={onPaste}
       >
-        {frame.lines.map((runs, y) => (
-          <div key={y} style={{ height: cell.height, overflow: "hidden" }}>
-            {runs.map((run, index) => (
-              <span key={index} style={runStyle(run, cell)}>
-                {run.text}
-              </span>
-            ))}
-          </div>
-        ))}
-        {cursor !== null && (
-          <Cursor
-            // A new position restarts the blink, so a moving cursor stays lit.
-            key={`${cursor.x},${cursor.y}`}
-            cursor={cursor}
-            text={textAt(frame.lines[cursor.y] ?? [], cursor.x)}
-            cell={cell}
-            focused={focused}
-          />
-        )}
+        <style>{"@keyframes rex-cursor-blink { 50% { opacity: 0; } }"}</style>
+        <div
+          style={{
+            position: "relative",
+            width: frame.cols * cell.width,
+            height: frame.rows * cell.height,
+            fontFamily: FONT_FAMILY,
+            fontSize: FONT_PX,
+            lineHeight: `${cell.height}px`,
+            // Brings each character's advance to exactly one cell.
+            letterSpacing: cell.width - cell.advance,
+            fontVariantLigatures: "none",
+            whiteSpace: "pre",
+          }}
+        >
+          {frame.lines.map((runs, y) => (
+            <div key={y} style={{ height: cell.height, overflow: "hidden" }}>
+              {runs.map((run, index) => (
+                <span key={index} style={runStyle(run, cell)}>
+                  {run.text}
+                </span>
+              ))}
+            </div>
+          ))}
+          {cursor !== null && (
+            <Cursor
+              // A new position restarts the blink, so a moving cursor stays lit.
+              key={`${cursor.x},${cursor.y}`}
+              cursor={cursor}
+              text={textAt(frame.lines[cursor.y] ?? [], cursor.x)}
+              cell={cell}
+              focused={focused}
+            />
+          )}
+        </div>
       </div>
+      <Scrollbar
+        frame={frame}
+        trackPx={trackPx}
+        inset={PADDING_PX}
+        pointerInside={pointerInside}
+        onScroll={onScroll}
+      />
     </div>
   );
 }
