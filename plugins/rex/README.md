@@ -44,6 +44,18 @@ The setting is read each time a window is created, so changing it needs no reloa
 
 Within its window, the tab shows the focused pane as it was when the tab opened. It does not follow focus afterwards; reopen the tab to pick up a change.
 
+### Showing another window
+
+The line above the terminal names the Rex session and window the thread shows. It is a menu:
+
+- **Any window of any session** on the Rex server can be picked instead. The tab then shows that window's focused pane.
+- **Pane of the window shown** appears when that window has more than one pane, and picks which one to show: a particular pane, or whichever has focus.
+- **This thread's window** goes back.
+
+The pick is kept for the thread and survives a reload of bb and of the plugin. A picked window is yours, not the plugin's: the tab types into it but never claims or resizes its panes, never relabels it, and archiving the thread does not close it. The thread's own window, if it has one, stays as it is until the thread is archived, and none is made while another is picked. If a picked window is closed, the thread goes back to its own.
+
+The list is read when the menu opens, without attaching to any session: the plugin joins a session only once you pick a window in it.
+
 ## Typing
 
 The terminal takes keys only while it has focus, which a click gives it. The cursor is drawn as an outline until then.
@@ -76,6 +88,7 @@ A full-screen program, such as an editor or a pager, runs on the alternate scree
 A Rex terminal takes its size and its default colors from the client that owns it, so changing either changes the pane for every client looking at it. The tab changes a pane only where that is safe:
 
 - **In the window the plugin created for the thread**, the tab claims the pane, fits it to the panel beside its scrollbar, and gives it bb's terminal colors. It refits when the panel changes size and sends the colors again when the app's theme changes. This holds whichever session the window is in, including one you created yourself and named in `sessionLabel`.
+- **In a window you picked for the thread**, the tab never claims the pane and never asks for a size or sets a theme. It draws the pane at the size its owner gave it, scrolling sideways if that is wider than the panel. Typing works the same.
 - **If another client takes the pane**, such as when you open the window in Rex.app, the tab stops asking and draws the size Rex reports. If ownership comes back, for example when that client leaves, the tab fits the pane to its panel and gives it bb's colors again.
 
 The plugin knows which windows it created because it records each one's session and window IDs in its own storage, under the thread's ID, when it creates it. The record outlives a plugin reload. It does not infer this from a pane having no owner, or from a window's label: a background pane of yours can have no owner, and anyone can type a label.
@@ -95,7 +108,7 @@ In a pane it has not claimed, the tab still draws with bb's colors, but Rex keep
 
 ## How it works
 
-- **Backend** (`server.ts`, `lib/rex-*.ts`). A browser cannot reach the Rex server's Unix socket, so the bb server relays. `GET /stream?thread=<id>` finds or creates the thread's window (`lib/thread-window.ts`), opens a Rex data connection to its terminal, and answers with the terminal's byte stream for as long as the tab reads it. It reads from Rex no faster than the tab takes the bytes, so a snapshot of tens of megabytes is passed through without being held in memory. `POST /input` takes the tab's keys, pastes, focus changes, panel size, and terminal colors for an open stream and sends them to Rex with `block.event`, `com.superlogical.terminal.resize`, and `com.superlogical.terminal.set_theme`. Each open tab holds one control connection and one data connection to Rex, and both close when the tab does. The backend also listens for a thread being archived or deleted, and closes its window. When the plugin loads, it closes the windows of recorded threads that were archived while it was not running.
+- **Backend** (`server.ts`, `lib/rex-*.ts`). A browser cannot reach the Rex server's Unix socket, so the bb server relays. `GET /stream?thread=<id>` finds or creates the thread's window (`lib/thread-window.ts`), opens a Rex data connection to its terminal, and answers with the terminal's byte stream for as long as the tab reads it. It reads from Rex no faster than the tab takes the bytes, so a snapshot of tens of megabytes is passed through without being held in memory. `POST /input` takes the tab's keys, pastes, focus changes, panel size, and terminal colors for an open stream and sends them to Rex with `block.event`, `com.superlogical.terminal.resize`, and `com.superlogical.terminal.set_theme`. Each open tab holds one control connection and one data connection to Rex, and both close when the tab does. `GET /targets` lists the windows a thread could show, read with Rex's `target.complete`, and `POST /target` stores a pick. The backend also listens for a thread being archived or deleted, and closes its window. When the plugin loads, it closes the windows of recorded threads that were archived while it was not running.
 - **Frontend** (`app.tsx`, `components/`, `lib/pane-decoder.ts`). The stream opens with a snapshot of the terminal in Ghostty's snapshot format, followed by everything the terminal's program writes. The tab decodes both with a vendored build of libghostty-vt compiled to WebAssembly, then draws the result as text.
 
 The relay is a streamed HTTP response. It is sent as `application/octet-stream` with `Cache-Control: no-transform`, which keeps bb's response compression from holding small chunks back.
@@ -137,9 +150,11 @@ Ghostty's own list of third-party code linked into libghostty-vt builds (`deps/l
 - **No mouse reporting.** A program that asks for mouse events gets none, and the wheel does nothing in it.
 - **Scrollback differs a little from bb's terminal.** The wheel moves the view at once where bb's terminal animates it, a click on the scrollbar's track does nothing, and the tab keeps up to 100,000 rows where bb's terminal keeps 10,000.
 - **No composed input.** Dead keys and input methods are not sent. Key releases and modifier keys on their own are not sent either, which matters only to programs that ask for them through the Kitty keyboard protocol.
-- **One pane.** No splits or layout: if you split the thread's window in Rex, the tab shows the pane that had focus when it opened.
+- **One pane at a time.** The tab does not draw a window's splits. It shows one pane of the window, chosen in the menu.
+- **A picked window keeps its size.** A pane wider than the panel scrolls sideways; the tab does not scale it down.
+- **Panes are listed by label and ID**, not by where they sit in the window, and the list does not say which has focus.
 - **Pastes are capped** at 128 KiB.
-- **One session for every thread's window.** A thread cannot choose another session or another window.
+- **One session for every thread's own window.** The setting applies to all threads.
 - **A thread deleted while the plugin was not running keeps its window.** bb no longer knows the thread, so the plugin cannot tell that it was deleted rather than that the request failed, and it leaves the window alone. Close it in Rex.
 - **A shell on another machine starts in the default directory.** The workspace of a thread that runs on another enrolled machine is not a path the local Rex server can use.
 - **Local Rex only.** The plugin looks for Rex on the bb server's machine, over a Unix socket. It does not connect to remote Rex hosts or to a Rex server on another enrolled bb machine.
@@ -155,6 +170,8 @@ bun run build   # bb plugin build
 ```
 
 `lib/` holds the logic and its tests. Nothing under it needs a bb server, a Rex server, or a browser: the protocol modules work on bytes, and the decoder tests make their own snapshots with the vendored module.
+
+The menu is bb's dropdown menu and button, vendored from bb's component registry into `components/ui/` at the release named in `components.json`. Update them with `shadcn add @bb/<name>`.
 
 `lib/fake-rex.ts` is a small Rex server for tests: sessions, windows, and the control methods the plugin calls to manage them.
 
