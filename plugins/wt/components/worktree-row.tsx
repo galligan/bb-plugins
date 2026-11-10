@@ -1,12 +1,22 @@
-import { useRef, useState } from "react";
-import { useBbNavigate } from "@get-bb/plugin-sdk/app";
+import { useState } from "react";
 import {
-  removalConsequences,
-  rowState,
-  type OverviewRow,
-} from "../lib/overview.ts";
+  useBbNavigate,
+  experimental_ThreadTitleText as ThreadTitleText,
+} from "@get-bb/plugin-sdk/app";
+import { toast } from "sonner";
+import { rowState, type OverviewRow } from "../lib/overview.ts";
 import { age } from "../lib/render.ts";
 import { branchDescription } from "../lib/display.ts";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { CopyButton } from "./copy-button.tsx";
+import { WorktreeRemoval } from "./worktree-removal.tsx";
 
 export function WorktreeRow({
   row,
@@ -16,144 +26,165 @@ export function WorktreeRow({
   remove: () => Promise<void>;
 }) {
   const navigate = useBbNavigate();
-  const dialog = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refused, setRefused] = useState(false);
   const inspection = row.status === "present" ? row.inspection : null;
   const path = row.status === "present" ? row.inspection.path : row.path;
   const state = rowState(row, Date.now());
-  const consequences =
-    inspection === null ? null : removalConsequences(inspection);
-  const [refused, setRefused] = useState(false);
   const retry = refused || row.environment?.teardown?.status === "failed";
   async function confirm() {
     setBusy(true);
     setError(null);
     try {
       await remove();
-      dialog.current?.close();
+      setOpen(false);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       setRefused(true);
-      setError(error instanceof Error ? error.message : String(error));
+      setError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
   }
+  const safety =
+    inspection === null
+      ? "UNKNOWN"
+      : inspection.safeToRemove
+        ? "SAFE"
+        : "UNSAVED";
   return (
-    <li className="rounded border border-border p-4 space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <strong>
-          {inspection?.branch ??
-            (inspection === null ? row.pathKey : "(detached)")}
-        </strong>
-        <span className="rounded bg-state-hover px-2 text-xs">
-          {state.kind === "attention"
-            ? "Needs attention"
-            : state.kind === "retiring"
-              ? "Retiring"
-              : state.kind === "orphaned"
-                ? "Orphaned"
-                : "In use"}
-        </span>
-        <span>
-          {inspection === null
-            ? "UNKNOWN"
-            : inspection.safeToRemove
-              ? "SAFE"
-              : "UNSAVED"}
-        </span>
-      </div>
-      <p className="break-all font-mono text-xs text-subtle-foreground">
-        {path}
-      </p>
-      {state.badge && <p>{state.badge}</p>}
-      {inspection && (
-        <>
-          <p className="text-sm">
+    <li className="flex min-w-0 flex-col gap-3 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="min-w-0 break-all text-sm font-medium">
+            {inspection?.branch ??
+              (inspection === null ? row.pathKey : "(detached)")}
+          </span>
+          <Badge
+            variant={state.kind === "attention" ? "destructive" : "secondary"}
+            className="px-1.5 py-0 text-2xs font-normal"
+          >
+            {state.kind === "attention"
+              ? "Needs attention"
+              : state.kind === "retiring"
+                ? "Retiring"
+                : state.kind === "orphaned"
+                  ? "Orphaned"
+                  : "In use"}
+          </Badge>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                tabIndex={inspection?.reasons.length ? 0 : undefined}
+                aria-label={
+                  inspection?.reasons.length
+                    ? `${safety}: ${inspection.reasons.join("; ")}`
+                    : safety
+                }
+              >
+                <Badge
+                  variant={safety === "UNSAVED" ? "destructive" : "outline"}
+                  className="gap-1 px-1.5 py-0 text-2xs font-normal"
+                >
+                  {safety}
+                  {inspection?.reasons.length ? (
+                    <Icon name="Info" className="size-3" />
+                  ) : null}
+                </Badge>
+              </span>
+            </TooltipTrigger>
+            {inspection !== null && inspection.reasons.length > 0 && (
+              <TooltipContent>
+                <div className="space-y-1">
+                  {inspection.reasons.map((reason) => (
+                    <p key={reason}>{reason}</p>
+                  ))}
+                </div>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </div>
+        <div className="flex min-w-0 items-center gap-1">
+          <p
+            className="truncate font-mono text-xs text-muted-foreground"
+            title={path}
+          >
+            {path}
+          </p>
+          <CopyButton text={path} label="Copy worktree path" />
+        </div>
+        {state.badge && (
+          <p
+            className={`text-xs ${state.kind === "attention" ? "text-destructive" : "text-muted-foreground"}`}
+          >
+            {state.badge}
+          </p>
+        )}
+        {inspection && (
+          <p className="text-xs text-muted-foreground">
             {branchDescription(inspection)} · last activity{" "}
             {age(inspection.lastActivity, Date.now())}
           </p>
-          {inspection.reasons.length > 0 && (
-            <ul className="list-disc pl-5 text-sm">
-              {inspection.reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
-      <div className="flex flex-wrap gap-3 text-sm">
-        {row.threads.map((thread) => (
-          <button
-            key={thread.id}
-            className="underline"
-            onClick={() => navigate.toThread(thread.id)}
-            aria-label={`Open thread: ${thread.title}`}
+        )}
+        {row.threads.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 pt-1">
+            {row.threads.map((thread) => (
+              <Button
+                key={thread.id}
+                variant="ghost"
+                size="sm"
+                className="h-6 min-w-0 max-w-full justify-start gap-1.5 px-1 text-xs font-normal text-muted-foreground"
+                onClick={() => navigate.toThread(thread.id)}
+                aria-label={`Open thread: ${thread.title}`}
+              >
+                <Icon name="MessageSquare" className="size-3.5" />
+                <span className="truncate">
+                  <ThreadTitleText title={thread.title} />
+                </span>
+                {thread.archived && (
+                  <span className="shrink-0 text-2xs">archived</span>
+                )}
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2 self-end sm:self-start">
+        {row.threads[0] && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2"
+            onClick={() => navigate.toThread(row.threads[0]!.id)}
           >
-            {thread.title}
-            {thread.archived ? " (archived)" : ""}
-          </button>
-        ))}
-        <button
-          className="underline"
+            Open thread
+          </Button>
+        )}
+        <Button
+          variant="destructive"
+          size="sm"
+          className="h-7 px-2"
           disabled={busy}
           onClick={() => {
             setError(null);
-            dialog.current?.showModal();
+            setOpen(true);
           }}
         >
           {retry ? "Retry removal" : "Remove"}
-        </button>
+        </Button>
       </div>
-      <dialog
-        ref={dialog}
-        className="max-w-lg rounded border border-border bg-background p-6 text-foreground shadow-lg"
-        onCancel={(event) => {
-          if (busy) event.preventDefault();
-        }}
-        aria-label="Confirm worktree removal"
-      >
-        <h3 className="font-semibold">
-          {retry ? "Retry removal?" : "Remove worktree?"}
-        </h3>
-        <p className="my-3 break-all font-mono text-xs">{path}</p>
-        <p>
-          The branch is kept. Cleanup runs before a fresh safety inspection. If
-          anything blocks removal, the folder is kept.
-        </p>
-        {consequences && (
-          <ul className="my-3 list-disc pl-5">
-            {[...consequences.saved, ...consequences.blocked].map((reason) => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
-        )}
-        {consequences !== null && consequences.blocked.length > 0 && (
-          <p>
-            No rescue or deletion takes place while a blocking condition
-            remains.
-          </p>
-        )}
-        {inspection === null && (
-          <p>
-            The host will verify the record and ownership before touching the
-            folder.
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="my-3">
-            {error}
-          </p>
-        )}
-        <div className="mt-4 flex gap-4">
-          <button disabled={busy} onClick={() => dialog.current?.close()}>
-            Cancel
-          </button>
-          <button disabled={busy} onClick={() => void confirm()}>
-            {busy ? "Requesting…" : retry ? "Retry removal" : "Remove"}
-          </button>
-        </div>
-      </dialog>
+      <WorktreeRemoval
+        row={row}
+        open={open}
+        onOpenChange={setOpen}
+        busy={busy}
+        error={error}
+        retry={retry}
+        confirm={confirm}
+      />
     </li>
   );
 }

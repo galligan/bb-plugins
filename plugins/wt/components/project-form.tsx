@@ -8,6 +8,10 @@ import {
   type ProjectScripts,
 } from "../lib/script-overrides.ts";
 import { ScriptSettings } from "./script-settings.tsx";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Loading } from "./loading.tsx";
+import { BranchSettings } from "./branch-settings.tsx";
 import { SetupDetection } from "./setup-detection.tsx";
 
 type Settings = z.infer<typeof rpcContract.projectSettings.output>;
@@ -79,7 +83,7 @@ export function ProjectForm({
     return error ? (
       <p role="alert">{error}</p>
     ) : (
-      <p role="status">Loading project settings…</p>
+      <Loading label="Loading project settings…" />
     );
   const current = draft;
   const validPrefix =
@@ -112,64 +116,29 @@ export function ProjectForm({
       setData(saved);
       setDraft(draftOf(saved));
       setInitial(draftOf(saved));
+      toast.success("Project settings saved");
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      setError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
   }
   return (
-    <div className="space-y-6">
-      <fieldset disabled={busy} className="space-y-3">
-        <legend className="font-semibold">Branch naming</legend>
-        <label className="block">
-          Branch settings
-          <select
-            className="ml-2 rounded border border-border bg-background p-1"
-            value={current.custom ? "custom" : "global"}
-            onChange={(event) =>
-              setDraft({ ...current, custom: event.target.value === "custom" })
-            }
-          >
-            <option value="global">Use global setting</option>
-            <option value="custom">Custom for this project</option>
-          </select>
-        </label>
-        {current.custom && (
-          <>
-            <label className="block">
-              <input
-                type="checkbox"
-                checked={current.prefixBranches}
-                onChange={(event) =>
-                  setDraft({ ...current, prefixBranches: event.target.checked })
-                }
-              />{" "}
-              Prefix worktree branches
-            </label>
-            <label className="block">
-              Branch prefix
-              <input
-                className="ml-2 rounded border border-border bg-background p-1 font-mono"
-                value={current.branchPrefix}
-                onChange={(event) =>
-                  setDraft({ ...current, branchPrefix: event.target.value })
-                }
-                aria-invalid={!validPrefix}
-              />
-            </label>
-            <p className="text-sm">Leave empty to use bb's branch prefix.</p>
-            {!validPrefix && (
-              <p role="alert">Not a valid start for a git branch name</p>
-            )}
-          </>
-        )}
-        <p className="text-sm">
-          Example for “Fix login bug”:{" "}
-          <code className="break-all">{preview}</code>
+    <div className="space-y-4">
+      <BranchSettings
+        current={current}
+        onChange={(branch) => setDraft({ ...current, ...branch })}
+        busy={busy}
+        validPrefix={validPrefix}
+        preview={preview}
+      />
+      {detectionError && (
+        <p role="alert" className="text-xs text-destructive">
+          Setup detection: {detectionError}
         </p>
-      </fieldset>
-      {detectionError && <p role="alert">Setup detection: {detectionError}</p>}
+      )}
       {detection && (
         <SetupDetection plan={detection}>
           <ScriptSettings
@@ -180,16 +149,24 @@ export function ProjectForm({
           />
         </SetupDetection>
       )}
-      {error && <p role="alert">{error}</p>}
-      <button
-        className="rounded border border-border px-3 py-1"
-        disabled={
-          busy || !valid || JSON.stringify(current) === JSON.stringify(initial)
-        }
-        onClick={() => void save()}
-      >
-        {busy ? "Saving…" : "Save"}
-      </button>
+      {error && (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          disabled={
+            busy ||
+            !valid ||
+            JSON.stringify(current) === JSON.stringify(initial)
+          }
+          onClick={() => void save()}
+        >
+          {busy ? "Saving…" : "Save"}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -109,6 +109,8 @@ It also reports where the branch's commits stand: `no commits yet`, `merged into
 
 ## Worktrees panel
 
+The Worktrees panel and Projects settings use bb’s version-matched UI components, including themed controls, copy buttons and a removal confirmation dialog.
+
 Open **Worktrees** in bb's navigation (`/plugins/wt/worktrees`) to see Worktree+ records on connected machines, grouped by project and machine. Rows show safety reasons, commit state, last activity and links to owning threads, including archived ones. Records without a recognizable project appear under **Unknown project**. A machine that cannot be read has its own error; use **Refresh** to try again. The visible page refreshes every 30 seconds and after provider changes.
 
 **Remove** asks for confirmation and explains which work can be rescued and which conditions block removal. A fresh inspection after cleanup decides whether removal can proceed. Environments are removed through bb core, which may refuse while threads are live or stopping; **Retry removal** asks core to retry failed teardown. Orphan records use the same fail-closed host removal path. There is no force action.

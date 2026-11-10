@@ -2,6 +2,18 @@ import { useEffect, useState } from "react";
 import { useRpc } from "@get-bb/plugin-sdk/app";
 import type { z } from "zod";
 import type { rpcContract } from "../server.ts";
+import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SettingsGroup, SettingsRow } from "./settings-row.tsx";
+import { Loading } from "./loading.tsx";
 import { ProjectForm } from "./project-form.tsx";
 type Project = z.infer<typeof rpcContract.projects.output>[number];
 const keyOf = (project: Project) => `${project.id}:${project.hostId}`;
@@ -32,8 +44,12 @@ export function ProjectsSettings() {
         );
       })
       .catch((error) => {
-        if (!stale)
-          setError(error instanceof Error ? error.message : String(error));
+        if (!stale) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          setError(message);
+          toast.error(message);
+        }
       });
     return () => {
       stale = true;
@@ -41,42 +57,59 @@ export function ProjectsSettings() {
   }, [rpc]);
   const project = projects?.find((project) => keyOf(project) === selected);
   return (
-    <div className="space-y-5 text-foreground">
-      {error && <p role="alert">{error}</p>}
-      {projects === null && !error && <p role="status">Loading projects…</p>}
-      {projects?.length === 0 && (
-        <p>No projects with a local checkout on a connected machine.</p>
-      )}
-      {projects && projects.length > 0 && (
-        <label className="block">
-          Project
-          <select
-            className="ml-2 rounded border border-border bg-background p-1"
-            value={selected}
-            onChange={(event) => {
-              setSelected(event.target.value);
-              try {
-                localStorage.setItem("wt:project", event.target.value);
-              } catch {
-                /* Browser storage is optional. */
-              }
-            }}
-          >
-            {projects.map((project) => (
-              <option key={keyOf(project)} value={keyOf(project)}>
-                {project.name} · {project.hostName}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      {project && (
-        <ProjectForm
-          key={selected}
-          projectId={project.id}
-          hostId={project.hostId}
-        />
-      )}
-    </div>
+    <TooltipProvider>
+      <div className="space-y-4 text-foreground">
+        {error && <EmptyState icon="AlertTriangle" message={error} />}
+        {projects === null && !error && <Loading label="Loading projects…" />}
+        {projects?.length === 0 && (
+          <EmptyState
+            icon="FolderGit"
+            message="No projects with a local checkout on a connected machine."
+          />
+        )}
+        {projects && projects.length > 0 && (
+          <SettingsGroup>
+            <SettingsRow
+              label="Project"
+              htmlFor="wt-project"
+              description="Settings for a local checkout on a connected machine."
+            >
+              <Select
+                value={selected}
+                onValueChange={(next) => {
+                  setSelected(next);
+                  try {
+                    localStorage.setItem("wt:project", next);
+                  } catch {
+                    /* Browser storage is optional. */
+                  }
+                }}
+              >
+                <SelectTrigger
+                  id="wt-project"
+                  className="h-7 w-full text-xs @min-[36rem]/settings:w-64"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={keyOf(project)} value={keyOf(project)}>
+                      {project.name} · {project.hostName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingsRow>
+          </SettingsGroup>
+        )}
+        {project && (
+          <ProjectForm
+            key={selected}
+            projectId={project.id}
+            hostId={project.hostId}
+          />
+        )}
+      </div>
+    </TooltipProvider>
   );
 }

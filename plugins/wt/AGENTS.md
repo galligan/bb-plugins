@@ -4,7 +4,9 @@
 
 - `server.ts` — registers the provider and maps bb core's `create` and `remove` onto the host entry. No git or file work happens here.
 - `management.ts` — management RPC fetches and core-owned removal routing.
-- `components/` — Worktrees panel and row confirmation.
+- `components/` — Worktrees panel, project settings, compact rows and removal confirmation.
+- `components/ui/` — vendored shadcn source from the `@bb` registry, pinned in `components.json` to the running bb release. Draw icons through its SDK wrapper; use host theme tokens and the shared toast, never a local Toaster.
+- `lib/utils.ts` / `lib/portal-scope.ts` — vendored UI support only; no lifecycle decisions.
 - `lib/overview.ts` — pure joins, state ordering and removal consequences.
 - `lib/removal-request.ts` — routes user removal requests through core or the orphan host path.
 - `lib/rescues.ts` / `lib/rescue-schema.ts` — host-only rescue discovery and its wire schema.
