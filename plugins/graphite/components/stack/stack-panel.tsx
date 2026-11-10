@@ -1,27 +1,13 @@
 import { useState } from "react";
-import {
-  useBbContext,
-  experimental_usePanelTabs,
-} from "@get-bb/plugin-sdk/app";
+import { experimental_usePanelTabs } from "@get-bb/plugin-sdk/app";
 import type { ExperimentalThreadActionTabProps } from "@get-bb/plugin-sdk/app";
 
 import { StackPositionIcon } from "@/components/icons/stack-position.tsx";
 import { StackRow } from "./stack-row.tsx";
 import { laneWidth } from "./lineage.tsx";
-import { useCurrentStack } from "./use-current-stack.ts";
+import { useCurrentStacks } from "./use-current-stack.ts";
 
-export function StackPanel({
-  threadId,
-  params,
-}: ExperimentalThreadActionTabProps) {
-  const context = useBbContext();
-  const projectId =
-    params !== null &&
-    typeof params === "object" &&
-    !Array.isArray(params) &&
-    typeof params.projectId === "string"
-      ? params.projectId
-      : context.projectId;
+export function StackPanel({ threadId }: ExperimentalThreadActionTabProps) {
   const panel = experimental_usePanelTabs();
   const selected = panel.tabs.find(
     (tab) => tab.key === panel.selectedKey,
@@ -31,7 +17,11 @@ export function StackPanel({
     selected?.kind === "plugin" &&
     selected.pluginId === "graphite" &&
     selected.tab.id === "stack";
-  const { stack, error } = useCurrentStack(projectId, threadId, visible);
+  const results = useCurrentStacks({ threadIds: [threadId] }, visible);
+  const { stack, error } = results.get(threadId) ?? {
+    stack: null,
+    error: false,
+  };
   const [openBranches, setOpenBranches] = useState<ReadonlySet<string>>(
     new Set(),
   );

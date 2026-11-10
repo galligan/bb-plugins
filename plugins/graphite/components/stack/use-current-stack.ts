@@ -1,55 +1,76 @@
 import { useEffect, useState } from "react";
-import { useRpc } from "@get-bb/plugin-sdk/app";
+import { useRpc, useSdk } from "@get-bb/plugin-sdk/app";
+import type { PluginThreadActionDataInput } from "@get-bb/plugin-sdk/app";
 
 import type { rpcContract } from "@/server";
 import type { CurrentStack } from "@/lib/current-stack.ts";
 
-/** Refresh Graphite metadata while its thread stays open. */
-export function useCurrentStack(
-  projectId: string | null,
-  threadId: string,
+interface StackRead {
+  stack: CurrentStack | null;
+  error: boolean;
+}
+
+/** Refresh only visible headers or the selected stack panel, including split panes. */
+export function useCurrentStacks(
+  { threadIds }: PluginThreadActionDataInput,
   enabled = true,
 ) {
   const rpc = useRpc<typeof rpcContract>();
-  const [result, setResult] = useState<{
-    stack: CurrentStack | null;
-    error: boolean;
-  }>({ stack: null, error: false });
-
+  const sdk = useSdk();
+  const [results, setResults] = useState<ReadonlyMap<string, StackRead>>(
+    new Map(),
+  );
+  const key = JSON.stringify(threadIds);
   useEffect(() => {
     if (!enabled) return;
-    if (projectId === null) {
-      setResult({ stack: null, error: true });
-      return;
-    }
-    setResult({ stack: null, error: false });
+    const ids: string[] = JSON.parse(key);
     let live = true;
     let pending = false;
     const refresh = async () => {
       if (!live || pending || document.visibilityState === "hidden") return;
       pending = true;
       try {
-        const result = await rpc.call("stack_current", { projectId, threadId });
-        if (live) setResult({ stack: result, error: false });
-      } catch {
-        if (live) setResult((previous) => ({ ...previous, error: true }));
+        const entries = await Promise.all(
+          ids.map(async (threadId) => {
+            try {
+              const thread = await sdk.threads.get({ threadId });
+              const stack = await rpc.call("stack_current", {
+                projectId: thread.projectId,
+                threadId,
+              });
+              return { threadId, stack };
+            } catch {
+              return { threadId, stack: null };
+            }
+          }),
+        );
+        if (live)
+          setResults(
+            (previous) =>
+              new Map(
+                entries.map(({ threadId, stack }) => [
+                  threadId,
+                  {
+                    stack: stack ?? previous.get(threadId)?.stack ?? null,
+                    error: stack === null,
+                  },
+                ]),
+              ),
+          );
       } finally {
         pending = false;
       }
     };
     void refresh();
-    // `gt` can change metadata without changing the route or remounting this UI.
+    // Graphite changes its private database without emitting a BB event.
     const timer = window.setInterval(() => void refresh(), 15_000);
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    const onVisible = () => void refresh();
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       live = false;
       window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [rpc, projectId, threadId, enabled]);
-
-  return result;
+  }, [key, rpc, sdk, enabled]);
+  return results;
 }

@@ -8,7 +8,7 @@
 import { definePluginApp } from "@get-bb/plugin-sdk/app";
 
 import { STACK_ICON_REGISTRATIONS } from "@/components/icons/stack-position.tsx";
-import { useHeaderStacks } from "@/components/stack/use-header-stacks.ts";
+import { useCurrentStacks } from "@/components/stack/use-current-stack.ts";
 import { stackHeaderAction } from "@/lib/header-action.ts";
 import { StackPanel } from "@/components/stack/stack-panel.tsx";
 
@@ -30,18 +30,21 @@ export default definePluginApp((app) => {
     icon: "GitBranch",
     group: "graphite",
     placement: "header",
-    useData: useHeaderStacks,
+    useData: useCurrentStacks,
     item: ({ thread, data, experimental_panel }) =>
-      stackHeaderAction(data.get(thread.id), () => {
-        experimental_panel.openTab({
-          tab: {
-            id: "stack",
-            context: { kind: "thread" },
-            availability: "action",
-          },
-          title: "Graphite stack",
-          params: { projectId: thread.projectId },
-        });
-      }),
+      stackHeaderAction(
+        data.get(thread.id)?.error ? null : data.get(thread.id)?.stack,
+        () => {
+          experimental_panel.openTab({
+            tab: {
+              id: "stack",
+              context: { kind: "thread" },
+              availability: "action",
+            },
+            title: "Graphite stack",
+            params: { projectId: thread.projectId },
+          });
+        },
+      ),
   });
 });

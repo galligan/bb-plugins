@@ -17,7 +17,6 @@ export function stackHeaderAction(
           : undefined;
   return {
     label: `Graphite ${stack.position}/${stack.total}${state ? ` · ${state}` : ""}`,
-    detail: state,
     icon: `graphite-stack-${stack.placement}`,
     run: open,
   };

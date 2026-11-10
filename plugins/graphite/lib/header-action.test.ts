@@ -44,14 +44,14 @@ test("header carries count, placement, status precedence and panel action", () =
   );
   assert.equal(
     stackHeaderAction({ ...stack, isStale: true, needsRestack: true }, () => {})
-      ?.detail,
-    "Needs restack",
+      ?.label,
+    "Graphite 2/3 · Needs restack",
   );
   assert.equal(
     stackHeaderAction(
       { ...stack, needsRestack: true, warnings: ["schema changed"] },
       () => {},
-    )?.detail,
-    "Metadata changed",
+    )?.label,
+    "Graphite 2/3 · Metadata changed",
   );
 });
