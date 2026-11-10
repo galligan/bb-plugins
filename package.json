@@ -9,7 +9,7 @@
     "repos": "bun scripts/repos.mjs",
     "build": "bun --filter '!bb-plugin-linear' build",
     "check": "bun --filter '!bb-plugin-linear' check",
-    "test": "bun --filter '!bb-plugin-linear' test && bun test scripts/repos.test.mjs",
+    "test": "bun --filter '!bb-plugin-linear' test && bun test scripts/",
     "lint": "oxlint plugins scripts --ignore-pattern 'plugins/linear/**' --deny-warnings",
     "format": "prettier . --write",
     "format:check": "prettier . --check"

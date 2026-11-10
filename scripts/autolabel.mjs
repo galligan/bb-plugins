@@ -1,0 +1,78 @@
+export function labelsForFiles(files) {
+  const labels = new Set();
+  for (const file of files) {
+    for (const name of [file.filename, file.previous_filename]) {
+      const [root, plugin, ...rest] = (name ?? "").split("/");
+      if (root === "plugins" && plugin && rest.length)
+        labels.add(`plugin/${plugin}`);
+    }
+  }
+  return [...labels].sort();
+}
+
+export async function autolabel({ github, context }) {
+  const repo = context.repo;
+  const pr = context.payload.pull_request;
+  const { data: directories } = await github.rest.repos.getContent({
+    ...repo,
+    path: "plugins",
+    ref: pr?.base.sha ?? context.sha,
+  });
+  const required = new Set(
+    directories
+      .filter((entry) => entry.type === "dir")
+      .map((entry) => `plugin/${entry.name}`),
+  );
+  let labels = [];
+  if (pr) {
+    const files = await github.paginate(github.rest.pulls.listFiles, {
+      ...repo,
+      pull_number: pr.number,
+      per_page: 100,
+    });
+    // GitHub caps this endpoint at 3,000 files; do not silently label a partial diff.
+    if (files.length >= 3000)
+      throw new Error(
+        "PR reaches GitHub's 3,000-file limit; label it manually",
+      );
+    labels = labelsForFiles(files);
+    for (const label of labels) required.add(label);
+  }
+  const existing = new Set(
+    (
+      await github.paginate(github.rest.issues.listLabelsForRepo, {
+        ...repo,
+        per_page: 100,
+      })
+    ).map((label) => label.name.toLowerCase()),
+  );
+  for (const name of required) {
+    if (existing.has(name.toLowerCase())) continue;
+    try {
+      await github.rest.issues.createLabel({
+        ...repo,
+        name,
+        color: "1d76db",
+        description: `Changes to ${name.replace("plugin/", "plugins/")}`,
+      });
+    } catch (error) {
+      // Another PR can create the same label between listing and creation.
+      if (
+        error.status !== 422 ||
+        !error.response?.data?.errors?.some(
+          (entry) =>
+            entry.resource === "Label" && entry.code === "already_exists",
+        )
+      )
+        throw error;
+    }
+    existing.add(name.toLowerCase());
+  }
+  if (labels.length) {
+    await github.rest.issues.addLabels({
+      ...repo,
+      issue_number: pr.number,
+      labels,
+    });
+  }
+}
