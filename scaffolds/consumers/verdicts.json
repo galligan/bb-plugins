@@ -1,0 +1,13 @@
+{
+  "id": "verdict-history-example",
+  "title": "Verdict history example",
+  "empty": "No verdicts recorded. Run a judgment through Judge, then refresh.",
+  "items": [
+    {
+      "id": "run-1",
+      "title": "Example completed judgment",
+      "detail": "Offline verdict summary. Marking reviewed does not execute any outcome.",
+      "reviewed": false
+    }
+  ]
+}

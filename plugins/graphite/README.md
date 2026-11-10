@@ -83,3 +83,15 @@ If you are not comfortable with that coupling, do not install this plugin.
 ## License
 
 MIT
+
+## SDK contract tests
+
+Run `bun run test` in this package (Node 24), or the repository's root test gate. [`lib/server.test.ts`](lib/server.test.ts) loads the real server factory through the public `@get-bb/plugin-sdk/testing` harness shipped by the pinned SDK `0.4.87`. It checks CLI/RPC/tool registration, invalid CLI and RPC inputs before host work, environment-host routing, malformed host and RPC outputs, the unsafe-write guard, CLI cancellation forwarding, and replacement/stale registrations after reload and disposal. SDK calls and host responses are offline fixtures; these tests never invoke `gt`, connect to a daemon, or need credentials. The plugin declares no settings, background services, watches, or custom disposal hook, so no synthetic settings/resource behavior is added to its tests.
+
+The initial consumer inventory found existing fake-host tests in Judge and Worktree+ (SDK `0.6.132`), helper tests but no SDK harness coverage in Graphite, and vendored declarations without a public SDK dependency in Linear. Graphite's `0.4.87` package exports all three testing entrypoints, so server adoption needs no dependency change and runs through the existing `lib/**/*.test.ts` command.
+
+[`lib/host-entry.test.ts`](lib/host-entry.test.ts) imports the actual `host.ts` through the public `@get-bb/plugin-sdk/testing/host` harness. It validates stack requests/results against a temporary repository and SQLite metadata, checks noninteractive CLI arguments, and verifies that request cancellation and harness disposal terminate a disposable CLI process. A new harness remains usable after disposal; stale harness calls fail. The fixture substitutes the CLI discovery home before loading the entry, without changing HOME/PATH or invoking an installed `gt`.
+
+The entry imports `experimental_defineHostEntry` from the public SDK root, which exports the same helper in pinned SDK `0.4.87`. Importing `@get-bb/plugin-sdk/host` directly under Node `24.22.2` instead fails during bundled `cross-spawn` evaluation with `Dynamic require of "child_process" is not supported`. Reproduce that upstream packaging failure with `node --input-type=module -e 'await import("@get-bb/plugin-sdk/host")'`; the actual entry now succeeds with `node --input-type=module -e 'await import("./host.ts")'`. No SDK upgrade or runtime shim is required. Bun `1.3.14` orchestrates the tests; Node runs them because Bun cannot import `node:sqlite`.
+
+This coverage establishes in-process registration, contract behavior, and cancellation of a fixture subprocess. Server cancellation checks delivery to its fake host driver. It does not establish real Graphite CLI behavior, daemon worker startup/reconnect, or production host loading. No frontend layout, loading/empty/error UI, live install/reload, or daemon integration claim follows from these tests or a successful build.
