@@ -4,7 +4,14 @@ import { constants } from "node:os";
 import { readFileSync } from "node:fs";
 import { delimiter, dirname } from "node:path";
 
-export const gates = ["format:check", "lint", "check", "test", "build"];
+export const gates = [
+  "format:check",
+  "lint",
+  "lint:workflows",
+  "check",
+  "test",
+  "build",
+];
 
 export function exitCode(result) {
   return (

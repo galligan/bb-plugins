@@ -6,6 +6,7 @@ function fixture({
   bunVersion = "1.3.14",
   node = { version: "24.1.0", path: "/node/bin/node", bun: false },
   failure,
+  failedGate = "lint",
   probeFailure,
 } = {}) {
   const calls = [];
@@ -20,7 +21,7 @@ function fixture({
       calls.push({ command, args, options });
       if (command === "node")
         return probeFailure ?? { status: 0, stdout: JSON.stringify(node) };
-      return args[1] === "lint" && failure ? failure : { status: 0 };
+      return args[1] === failedGate && failure ? failure : { status: 0 };
     },
   });
   return { code, calls, output: lines.join("\n") };
@@ -103,4 +104,11 @@ test("CI consumes the same runtime policy and verification entry point", async (
   assert.ok(
     !steps.some((s) => gates.some((gate) => s.run === `bun run ${gate}`)),
   );
+});
+
+test("workflow lint failure fails verification before package tests", () => {
+  const f = fixture({ failedGate: "lint:workflows", failure: { status: 1 } });
+  assert.equal(f.code, 1);
+  assert.match(f.output, /lint:workflows: failed \(exit 1\)/);
+  assert.match(f.output, /test: not-run/);
 });

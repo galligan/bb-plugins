@@ -4,7 +4,7 @@
 
 Use Bun **1.3.14**, pinned by `packageManager` in the root [`package.json`](../../package.json), and real Node **24.x**, declared in [`.node-version`](../../.node-version). Node's major version is the supported policy; patch updates within 24 are allowed. [CI](../../.github/workflows/ci.yml) reads those same files. Node is required because plugin suites exercise `node:sqlite` and run TypeScript through Node's test runner.
 
-Install dependencies once with `bun install --frozen-lockfile --ignore-scripts`, then run the same entry point locally and in CI:
+Install the pinned actionlint as described below. Install dependencies once with `bun install --frozen-lockfile --ignore-scripts`, then run the same entry point locally and in CI:
 
 ```sh
 bun run verify
@@ -17,11 +17,30 @@ mise install bun@1.3.14 node@24
 env PATH="$(mise where bun@1.3.14)/bin:$(mise where node@24)/bin:$PATH" bun run verify
 ```
 
-Verification never installs or upgrades runtimes. It invokes the existing `format:check`, `lint`, `check`, `test`, and `build` scripts in order, stops at the first failure, preserves its exit code, and summarizes passed, failed, and not-run gates. Nested package scripts inherit the validated runtime paths. Do not use `bun --bun` to substitute Bun for Node.
+Verification never installs or upgrades runtimes. It invokes the existing `format:check`, `lint`, `lint:workflows`, `check`, `test`, and `build` scripts in order, stops at the first failure, preserves its exit code, and summarizes passed, failed, and not-run gates. Nested package scripts inherit the validated runtime paths. Do not use `bun --bun` to substitute Bun for Node.
 
 The root test command runs the included plugin suites plus explicit `./scripts/*.test.mjs` paths. Keep that path boundary: Bun treats a bare `scripts/` argument as a filter and can also discover tests inside ignored reference clones. Graphite and Worktree+ use `node --test`; repository scripts use `bun test`. Linear uses its own Vitest suite and is excluded from root formatting, lint, type checks, tests, and builds. Verification explicitly reports that exclusion. If changing Linear, run its package checks and report their results separately; a green root pipeline does not cover it.
 
-Use focused checks during iteration, such as `bun test scripts/autolabel.test.mjs` or `bun run test` from the affected plugin directory. Complete `bun run verify` before pushing. For workflow changes, run `actionlint` when available. If a check cannot run, record the limitation instead of claiming CI parity. Runtime preflight and failure propagation are covered by injected process execution in [`scripts/verify.test.mjs`](../../scripts/verify.test.mjs), without rerunning expensive gates in unit tests.
+Use focused checks during iteration, such as `bun test scripts/autolabel.test.mjs` or `bun run test` from the affected plugin directory. Complete `bun run verify` before pushing. If a check cannot run, record the limitation instead of claiming CI parity. Runtime preflight and failure propagation are covered by injected process execution in [`scripts/verify.test.mjs`](../../scripts/verify.test.mjs), without rerunning expensive gates in unit tests.
+
+## Workflow lint
+
+`bun run lint:workflows` requires actionlint **1.7.12**, pinned in [`.actionlint-version`](../../.actionlint-version). The wrapper checks that version and passes only tracked `.github/workflows/*.yml` and `*.yaml` files to actionlint. Stage a new workflow before checking it. Missing/wrong actionlint and discovery failures fail the gate with a diagnostic; verification never installs it for you.
+
+Install from the [official actionlint release](https://github.com/rhysd/actionlint/releases/tag/v1.7.12), or build the pin with Go 1.25+ into an explicit temporary directory without changing global tools:
+
+```sh
+actionlint_bin="$(mktemp -d)"
+GOBIN="$actionlint_bin" go install "github.com/rhysd/actionlint/cmd/actionlint@v$(cat .actionlint-version)"
+export PATH="$actionlint_bin:$PATH"
+bun run lint:workflows
+```
+
+CI installs the same pin with Go before invoking `bun run verify`. Optional ShellCheck and Pyflakes integrations are disabled explicitly so their presence on one host cannot change this gate; this check covers Actions YAML, expressions, and action/job structure, not embedded shell/Python analysis or GitHub execution. CI needs only `contents: read` permission.
+
+[`scripts/lint-workflows.test.mjs`](../../scripts/lint-workflows.test.mjs) uses a temporary Git repository and the real pinned binary to prove a valid tracked workflow passes, an invalid expression fails, and untracked files do not widen the boundary. These root script tests also require actionlint on `PATH`. The [autolabel default-branch regression test](../../scripts/autolabel-workflow.test.mjs) remains in the root test suite: workflow lint complements behavior tests and cannot establish that a checkout uses the intended trust boundary.
+
+To update actionlint, change `.actionlint-version`, update the version and release link here, install the new pin, and run the complete verification command. Review lint changes alongside the upgrade; no automatic global updates occur.
 
 ## Choose the test boundary
 
