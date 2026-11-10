@@ -1,0 +1,40 @@
+{
+  "name": "bb-plugin-radio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/galligan/bb-plugins.git",
+    "directory": "plugins/radio"
+  },
+  "engines": {
+    "bb": ">=0.49.0",
+    "bbPluginSdk": ">=0.6.132"
+  },
+  "bb": {
+    "name": "Radio [Experimental]",
+    "description": "Radio storage foundation. Communication surfaces are not implemented yet.",
+    "branding": {
+      "icon": "Radio"
+    },
+    "server": "./server.ts",
+    "skills": []
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "bb plugin build",
+    "test": "node --test \"lib/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "0.6.132",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.0.0",
+    "bb-app": "0.49.0",
+    "better-sqlite3": "13.0.3",
+    "cron-parser": "^5.5.0",
+    "hono": "^4.11.9",
+    "typescript": "^5.7.0"
+  }
+}

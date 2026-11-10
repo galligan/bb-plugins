@@ -2,9 +2,17 @@
 
 Short transmissions. Durable coordination.
 
-Radio is a proposed BB plugin for communication between people, BB threads, persistent bots, and external agents. Transmissions carry the essential update or request. Dispatches hold supporting detail. Participants can listen to channels, reply, acknowledge, accept responsibility, and broadcast to a defined audience without treating every message as permission to start work.
+Radio is a BB plugin being built for communication between people, BB threads, persistent bots, and external agents. The intended product uses transmissions for the essential update or request and dispatches for supporting detail. Participants will be able to listen to channels, reply, acknowledge, accept responsibility, and broadcast to a defined audience without treating every message as permission to start work.
 
-**Status: design only.** This directory reserves the home of `bb-plugin-radio`; it is not an installable plugin yet. There is no runtime, package manifest, build output, or marketplace entry. All commands and API shapes in these documents are proposals, not available commands. The design was developed with Matt and researched against BB 0.49.0 / public SDK 0.6.132 on 2026-11-10.
+**Status: storage foundation only.** `bb-plugin-radio` has a backend package and tests against BB 0.49.0 / public SDK 0.6.132. Loading the backend initializes a stable station ID in BB's plugin-owned SQLite database through append-only migrations. There are no communication commands, RPC/native tools, HTTP routes, UI or marketplace entry yet. All command examples and communication API shapes in these documents remain proposals, not available operations. The design was developed with Matt and researched on 2026-11-10; its unresolved decisions remain open.
+
+## Development
+
+Use the repository's Bun 1.3.14 and Node 24.x runtimes. Install dependencies at the repository root with `bun install --frozen-lockfile --ignore-scripts`. From this directory, run `bun run check`, `bun run test` and `bun run build`; run `bun run verify` at the repository root before pushing.
+
+Tests use the public SDK fake host and real temporary SQLite databases. They cover first load, repeated initialization, database reopen, plugin reload/disposal, independent station identity, failed migration rollback and changed migration history. This establishes the storage contract in the harness, not live BB installation or delivery behavior. BB owns the database handle and closes it on reload/disposal; Radio does not close the shared handle itself.
+
+The only domain table is the station singleton. Transmission, identity, channel and protocol tables will accompany their separately released behavior. Test-only SQLite and harness peers are development dependencies; the backend has no third-party runtime imports.
 
 ## Design documents
 

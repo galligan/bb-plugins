@@ -65,7 +65,7 @@ This is the current design baseline from discussion with Matt. “Agreed” reco
 
 These are planning boundaries, not authorization to implement or publish.
 
-1. **Design baseline (this change):** focused docs, canonical vocabulary, identity/protocol, source evidence, open decisions and test gates. No manifest/runtime, dependency install, runtime configuration or publication.
+1. **Design baseline (preserved bottom layer):** focused docs, canonical vocabulary, identity/protocol, source evidence, open decisions and test gates. The baseline itself contains no manifest/runtime, dependency install, runtime configuration or publication. The separately approved package/persistence layer adds only the backend scaffold, station singleton and storage tests; later product behavior remains gated.
 2. **Thin local/external slice:** transactions, handles, channels, tx/reply, individual receipts/responses, subscriptions, broadcast snapshot, dispatch storage, bounded native tools/CLI/RPC/HTTP and minimal additive UI. Resolve affected open decisions first. External participation is core scope, not an optional afterthought.
 3. **Delivery probes:** bounded listen, tool-result hints, explicit mentions and guarded steer; test installed providers and cancellation boundaries. Select supported defaults based on evidence. Propose an SDK extension only for the remaining gap.
 4. **Bot composition:** integrate durable actor/thread mappings and reporting contracts through RPC without inheriting parentage as authority.
