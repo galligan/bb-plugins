@@ -41,14 +41,14 @@ Model/default/connection changes invalidate cached inference and local calibrati
 After installing/reloading this development build, start with `bb judge --help`. Every command/group supports `--help`. All leaf commands declare `--json`: success prints the result directly; argument/operational failures exit 1 and print `{ok:false,error:{code,message,hint}}`. Typed unavailable verdicts exit 0 with `complete:false`; callers must inspect the step status. Plain output is readable JSON.
 
 ```sh
-bb judge models add jev --connection typesafe --model jev --json
+bb judge models add jev --connection typesafe --model jev-1.13.0 --json
 bb judge models default jev --json
 bb judge models check jev --json
 bb judge ask --model jev --noul 'Is publicSynthetic true?' --state '{"publicSynthetic":true}' --not-private --json
 bb judge log -n 20 --json
 ```
 
-The first three commands never dispatch inference. `typesafe` uses the Jev / TypeSafe BB secret field; `cloudflare` accepts `clef` or `clef-flash`; `custom` uses the configured System One URL. The provider selector `jev` requires credentialed verification at the dedicated checkpoint; an explicit configured alias is never evidence of live support. Model add updates an existing ID and defaults `allowPrivate` to false. To explicitly allow sensitive input, save the model with `--allow-private`; `models default <id> --private` chooses the single private fallback. Model/default edits invalidate existing cache/calibration.
+The first three commands never dispatch inference. `typesafe` uses the Jev / TypeSafe BB secret field; `cloudflare` accepts `clef` or `clef-flash`; `custom` uses the configured System One URL. The pinned selector `jev-1.13.0` is documented by TypeSafe and awaits credentialed verification at the dedicated checkpoint; configuring a selector is never evidence of live support. See [live verification evidence](docs/LIVE-VERIFICATION.md). Model add updates an existing ID and defaults `allowPrivate` to false. To explicitly allow sensitive input, save the model with `--allow-private`; `models default <id> --private` chooses the single private fallback. Model/default edits invalidate existing cache/calibration.
 
 Ad hoc state is private unless that individual ask declares `--not-private`. This flag changes no stored policy and is unavailable on management commands. Without an allowed private model/fallback, the ask records a typed refusal before dispatch. The CLI can submit all three primitives using `--questions '<JSON question map>'` instead of `--noul`; exactly one is required. There are no file reads or implicit BB source reads in these commands. The caller's thread/project IDs, when available, associate the run without collecting their state.
 
