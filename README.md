@@ -65,6 +65,14 @@ bb plugin dev ./plugins/graphite
 Plugins run as full-trust code inside the bb server. Review a plugin before
 installing it and keep credentials in its declared secret settings.
 
+## Reference plugins
+
+[`repos.json`](repos.json) lists third-party plugins available for local research. Run `bun run repos clone` to clone missing repositories into ignored `repos/<owner>--<repo>/` directories. Run `bun run repos pull` to clone missing repositories and fast-forward all clean checkouts from their GitHub origins, including newly copied local references. Edit the manifest to change the reference set; removing an entry leaves its local checkout untouched. Manifest entries that map to the same directory (ignoring case) are rejected before cloning. These commands only download source and do not install plugins or run their code.
+
+New BB worktrees run [`.bb-env-setup.sh`](.bb-env-setup.sh), which populates the references from existing local worktrees when possible and falls back to GitHub. Each clone has independent Git storage and retains its GitHub origin, so removing the source worktree does not break it. Local uncommitted edits are not copied. This uses the setup hook because `.worktreeinclude` copies regular files and cannot copy nested Git repositories. The hook and manifest must be committed on the branch used to create new worktrees; Bun and Git must be available. A clone failure fails setup with an error; rerunning `bun run repos clone` preserves existing checkouts.
+
+The clones stay outside the Bun workspace and are excluded from Git and formatting. Only the manifest, script, hook, and documentation belong in this repository's history.
+
 ## Related repositories
 
 - [get-bb/bb](https://github.com/get-bb/bb) — the application and public plugin SDK
