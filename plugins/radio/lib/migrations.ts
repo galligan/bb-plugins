@@ -78,4 +78,32 @@ export const MIGRATIONS = [
     target_id TEXT NOT NULL REFERENCES participants(id),
     PRIMARY KEY(tx_id, target_id)
   ) STRICT`,
+  `CREATE TABLE dispatches (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    id TEXT NOT NULL UNIQUE,
+    channel_id TEXT NOT NULL REFERENCES channels(id),
+    author_id TEXT NOT NULL REFERENCES participants(id),
+    latest INTEGER NOT NULL CHECK(latest > 0)
+  ) STRICT`,
+  `CREATE TABLE dispatch_revisions (
+    dispatch_id TEXT NOT NULL REFERENCES dispatches(id),
+    revision INTEGER NOT NULL CHECK(revision > 0),
+    title TEXT NOT NULL,
+    markdown TEXT NOT NULL,
+    editor_id TEXT NOT NULL REFERENCES participants(id),
+    session_id TEXT REFERENCES participants(id),
+    created_at TEXT NOT NULL,
+    PRIMARY KEY(dispatch_id, revision)
+  ) STRICT`,
+  `CREATE TABLE dispatch_requests (
+    caller_key TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    operation TEXT NOT NULL CHECK(operation IN ('create', 'revise')),
+    request_json TEXT NOT NULL,
+    dispatch_id TEXT NOT NULL,
+    revision INTEGER NOT NULL,
+    PRIMARY KEY(caller_key, idempotency_key),
+    FOREIGN KEY(dispatch_id, revision) REFERENCES dispatch_revisions(dispatch_id, revision)
+  ) STRICT`,
+  `CREATE INDEX dispatch_channel_cursor ON dispatches(channel_id, seq)`,
 ];

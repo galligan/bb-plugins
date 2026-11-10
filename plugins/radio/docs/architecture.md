@@ -4,13 +4,13 @@
 
 One BB server plugin owns one Radio database and domain service. Thin adapters expose CLI, native tools, typed local RPC, token-authenticated HTTP and additive UI. Use the public SDK; do not import BB internals, sibling plugin source, old Radio implementation code or Dispatch runtime code.
 
-Package identity is `bb-plugin-radio`, plugin ID `radio`, pinned to public SDK 0.6.132. The current backend initializes identity and project/channel storage; the communication adapters described here remain future work. Follow repository build/release procedures as each layer is implemented.
+Package identity is `bb-plugin-radio`, plugin ID `radio`, pinned to public SDK 0.6.132. The current backend initializes identity/project/channel storage, immutable transmissions and versioned Markdown dispatches; the communication adapters described here remain future work. Follow repository build/release procedures as each layer is implemented.
 
 ## Persistence model
 
 Use `bb.storage.database()` and ordered append-only migrations. SQLite transactions handle tx creation, audience expansion, idempotency, handle allocation and exclusive claims. The plugin database belongs to the BB server; avoid direct client database access and worktree-relative storage.
 
-The foundation allocates a singleton station row with an opaque `station_` UUID and reuses it across database reopen and plugin reload. The identity layer adds participant, project and channel records through appended migrations. Actor/session metadata records its provenance; trusted external principal context is supplied separately from self-reports. The remaining records below are conceptual until their owning layer is implemented.
+The foundation allocates a singleton station row with an opaque `station_` UUID and reuses it across database reopen and plugin reload. The identity layer adds participant, project and channel records through appended migrations. Actor/session metadata records its provenance; trusted external principal context is supplied separately from self-reports. The transmission layer adds immutable content, direct-recipient snapshots and replay bindings. The dispatch layer adds stable documents, immutable revisions and exact create/edit replay; title listings omit content, edits require expected revisions and content reads check project access. Other records below are conceptual until their owning layer is implemented.
 
 Conceptual records, not a final schema:
 

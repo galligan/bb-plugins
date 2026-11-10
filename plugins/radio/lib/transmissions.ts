@@ -20,13 +20,13 @@ export class Transmissions {
   private db: Database;
   private store: Pick<
     RadioStore,
-    "stationId" | "identities" | "projects" | "handles"
+    "stationId" | "identities" | "projects" | "handles" | "dispatches"
   >;
   constructor(
     db: Database,
     store: Pick<
       RadioStore,
-      "stationId" | "identities" | "projects" | "handles"
+      "stationId" | "identities" | "projects" | "handles" | "dispatches"
     >,
   ) {
     this.db = db;
@@ -102,13 +102,21 @@ export class Transmissions {
             "invalid_input",
             `Select at most ${TX_RECIPIENTS_MAX} recipients.`,
           );
-        for (const ref of request.refs) {
+        const refs = request.refs.map((ref) => {
           if (ref.kind === "transmission") this.get(ref.id, context.scope);
           if (ref.kind === "channel")
             requireChannel(this.store.projects, ref.id, context.scope);
           if (ref.kind === "participant")
             this.requireParticipant(ref.id, context.scope);
-        }
+          if (ref.kind === "dispatch") {
+            const dispatch = this.store.dispatches.get(context.scope, {
+              id: ref.id,
+              revision: ref.revision,
+            });
+            return { ...ref, revision: dispatch.revision };
+          }
+          return ref;
+        });
         const id = `tx_${randomUUID()}`;
         this.db
           .prepare(
@@ -124,7 +132,7 @@ export class Transmissions {
             request.body,
             new Date().toISOString(),
             request.replyToId ?? null,
-            JSON.stringify(request.refs),
+            JSON.stringify(refs),
             JSON.stringify(
               [
                 ...new Set(

@@ -4,6 +4,7 @@ import { IdentityRegistry } from "./identity-registry.ts";
 import { ProjectRegistry } from "./project-registry.ts";
 import { HandleRegistry } from "./handles.ts";
 import { Transmissions } from "./transmissions.ts";
+import { Dispatches } from "./dispatches.ts";
 import { MIGRATIONS } from "./migrations.ts";
 export { MIGRATIONS } from "./migrations.ts";
 
@@ -15,6 +16,7 @@ export interface RadioStore {
   readonly projects: ProjectRegistry;
   readonly handles: HandleRegistry;
   readonly transmissions: Transmissions;
+  readonly dispatches: Dispatches;
 }
 
 export function openRadioStorage(storage: Storage): RadioStore {
@@ -33,11 +35,17 @@ export function openRadioStorage(storage: Storage): RadioStore {
     if (!station) throw new Error("Radio station initialization failed");
     const identities = new IdentityRegistry(db, station.id);
     const projects = new ProjectRegistry(db);
+    const identitiesAndProjects = {
+      stationId: station.id,
+      identities,
+      projects,
+    };
     const domain = {
       stationId: station.id,
       identities,
       projects,
       handles: new HandleRegistry(db, identities, projects),
+      dispatches: new Dispatches(db, identitiesAndProjects),
     };
     return Object.freeze({
       ...domain,

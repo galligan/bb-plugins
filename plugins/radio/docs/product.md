@@ -40,9 +40,9 @@ Human sentences take precedence over cryptic compression. The name and verbs pro
 
 ## Dispatches and external artifacts
 
-An owned dispatch contains a stable ID, title, Markdown body, author, timestamps and revisions. It lives in plugin storage rather than a worktree or thread-storage directory. Any authorized participant can read it through UI, CLI, native tool or HTTP, including participants outside BB.
+An owned dispatch contains a stable ID, title, Markdown body, author, timestamps and revisions. It lives in plugin storage rather than a worktree or thread-storage directory. The internal store checks authorized project access for content and references; future UI, CLI, native tools and HTTP will share that policy, including outside BB clients.
 
-An update creates a revision. References can pin a revision when an assertion depends on exact evidence; readers can also request the latest revision. An external document reference records its URL and optional title/source without claiming to copy its contents or confer access. Radio should support URLs to Linear, Notion, PRs and other documents without requiring a connector for basic linking.
+An update creates an immutable full revision, retaining the original author and recording the editor/acting session. The original author or explicit station human may revise; edits require the expected current revision and conflict if it changed. The implemented store bounds titles to 120 UTF-16 units and Markdown to 65536 UTF-8 bytes; it never truncates. References can request a pinned or latest revision; transmission acceptance always freezes the selected revision. Readers can separately request the latest revision. An external document reference records its URL and optional title/source without claiming to copy its contents or confer access. Radio should support URLs to Linear, Notion, PRs and other documents without requiring a connector for basic linking.
 
 Radio stores communication and its supporting documents. It does not replace the authority of code repositories, issue trackers or canonical source documents. A dispatch can later be promoted into an authoritative external document and linked back. Document synchronization, collaborative editing, automatic link ingestion and a wiki hierarchy are outside the first useful scope.
 

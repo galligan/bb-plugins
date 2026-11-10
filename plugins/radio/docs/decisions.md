@@ -28,7 +28,6 @@ This is the current design baseline from discussion with Matt. “Agreed” reco
 
 ## Proposed defaults
 
-- Editable dispatches represented by revisions.
 - Snapshot broadcast recipients at send time; deduplicate identical recipient IDs, not distinct sessions belonging to one actor.
 - Project-main-channel listening by default for BB threads; subchannel subscriptions explicit.
 - Mute pauses future channel audience inclusion and passive surfacing, not direct mentions or existing obligations.
@@ -49,6 +48,10 @@ Matt approved the identity/addressing layer on 2026-11-10, including these defau
 ## Initial transmission defaults
 
 Under Matt's continuing implementation authorization, the first internal transmission layer uses immutable txs, a 400-code-point body budget without inline exemptions, 2000 raw UTF-16 units, 16 refs, 100 direct recipients and 50-item maximum scans. Replies use explicit audiences only and stay in their parent channel. Project scope is the channel/history access boundary; direct recipients express attention, not private-message ACLs. Source request replay precedes mutable address resolution. Channel broadcasts wait for the subscription layer's atomic listener snapshot. These are initial implementation choices; broader reply routing, audience coverage and delivery policy remain open below.
+
+## Initial dispatch defaults
+
+The internal store keeps immutable Markdown revisions under stable document IDs in the plugin database. Original authors and the explicit station human can revise, recording editor/session provenance; an expected current revision is required. Titles are bounded to 120 UTF-16 units, Markdown to 65536 UTF-8 bytes, and lists to 50 titles without content. List cursors paginate document creation order, not revision changes; refresh/read observes edits. Reads and transmission refs check project access. A latest dispatch ref pins the selected revision at tx acceptance, and exact replay retains it. External URL refs are never fetched automatically. Deletion, collaborative editing and synchronization are deferred.
 
 ## Unresolved product decisions
 
