@@ -66,3 +66,17 @@ test("script overrides validate custom text by UTF-8 bytes and retain older rows
     { version: 1, branchPrefix: "p/" },
   );
 });
+
+test("Off and Detected discard invalid custom drafts so they can be saved", () => {
+  for (const mode of ["off", "detected"]) {
+    const parsed = projectSettingsSchema.parse({
+      version: 1,
+      scripts: {
+        setup: { mode, script: "x".repeat(17000) },
+        cleanup: { mode: "detected", script: "" },
+      },
+    });
+    assert.equal(parsed.scripts?.setup.script, null);
+    assert.equal(parsed.scripts?.cleanup.script, null);
+  }
+});

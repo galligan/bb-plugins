@@ -439,7 +439,7 @@ export async function createWorktree(
     }
     if (record.setup === "pending") {
       const plan = effectiveScripts(
-        await readSetupPlan(path),
+        await readSetupPlan(path, record.scripts?.setup.mode),
         record.scripts ?? null,
       );
       if (plan.source === "plugin" && plan.setup !== null) {
@@ -512,7 +512,7 @@ export async function removeWorktree(
       }
       // Cleanup and running processes can still write files, so both finish
       // before the worktree is inspected and saved.
-      const plan = await readSetupPlan(path)
+      const plan = await readSetupPlan(path, record?.scripts?.cleanup.mode)
         .then((detected) => effectiveScripts(detected, record?.scripts ?? null))
         .catch((error: unknown) => {
           env.report(

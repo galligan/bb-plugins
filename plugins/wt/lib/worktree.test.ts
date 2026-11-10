@@ -481,3 +481,58 @@ test("a custom setup marked running is never replayed after failure", async (t) 
       "run\n",
     );
 });
+
+test("malformed Codex configuration cannot block custom or Off steps", async (t) => {
+  for (const mode of ["custom", "off"] satisfies ("custom" | "off")[])
+    await t.test(mode, async (t) => {
+      const f = await fixture(t, {
+        ".codex/environments/environment.toml": "[broken",
+      });
+      const scripts = {
+        setup: {
+          mode,
+          script:
+            mode === "custom" ? "echo custom-with-malformed-config" : null,
+        },
+        cleanup: {
+          mode,
+          script: mode === "custom" ? "echo saved-cleanup > marker" : null,
+        },
+      } satisfies ProjectScripts;
+      await resolveWorktree(f.env, {
+        pathKey: "malformed",
+        sourcePath: f.source,
+        branchName: "bb/malformed",
+        base: null,
+        scripts,
+      });
+      const created = await createWorktree(f.env, { pathKey: "malformed" });
+      assert.equal(created.status, "created");
+      assert.deepEqual(
+        await removeWorktree(f.env, { pathKey: "malformed", path: null }),
+        { status: "removed" },
+      );
+      if (mode === "custom") {
+        assert.ok(
+          f.logs.some((line) => line.includes("custom-with-malformed-config")),
+        );
+        const ref = git(
+          f.source,
+          "for-each-ref",
+          "--format=%(refname)",
+          "refs/wt-rescue",
+        );
+        assert.equal(git(f.source, "show", `${ref}:marker`), "saved-cleanup");
+      }
+    });
+});
+
+test("detected setup still fails on malformed Codex configuration", async (t) => {
+  const f = await fixture(t, {
+    ".codex/environments/environment.toml": "[broken",
+  });
+  const created = await provision(f);
+  assert.equal(created.status, "failed");
+  if (created.status === "failed")
+    assert.match(created.message, /Could not read/u);
+});
