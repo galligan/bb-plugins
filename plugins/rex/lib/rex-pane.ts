@@ -28,8 +28,12 @@ import {
 
 const DATA_SUBPROTOCOL = "rex.data.terminal.v1";
 const HANDSHAKE_TIMEOUT_MS = 10_000;
-/** Bytes held for a viewer that has stopped reading before the stream ends. */
-const MAX_BACKLOG_BYTES = 8 * 1024 * 1024;
+/**
+ * Bytes queued for the viewer before reading from Rex is paused. A stream can
+ * open with a snapshot of tens of megabytes, sent faster than a browser takes
+ * it, so the queue is kept short by slowing the source, not by giving up.
+ */
+const QUEUE_BYTES = 1024 * 1024;
 
 export interface PaneStream {
   /** Marks Rex's own messages in `body`. */
@@ -165,10 +169,12 @@ function relay(options: {
         start(controller) {
           streamHolder.controller = controller;
         },
+        // The viewer has room again.
+        pull: () => data.resume(),
         // The viewer went away: the tab closed or its request was aborted.
         cancel: () => finish(),
       },
-      new ByteLengthQueuingStrategy({ highWaterMark: 1024 * 1024 }),
+      new ByteLengthQueuingStrategy({ highWaterMark: QUEUE_BYTES }),
     );
 
     const handshakeTimer = setTimeout(
@@ -188,7 +194,8 @@ function relay(options: {
       phase = "closed";
       clearTimeout(handshakeTimer);
       // Status 1000 ends the stream on the server instead of leaving it
-      // waiting for a resume.
+      // waiting for a resume. A paused socket would not see the close through.
+      data.resume();
       data.close(1000);
       control.close();
       try {
@@ -215,9 +222,10 @@ function relay(options: {
         const controller = streamHolder.controller;
         if (controller === null) return;
         controller.enqueue(bytes);
-        if ((controller.desiredSize ?? 0) < -MAX_BACKLOG_BYTES) {
-          finish(new Error("The viewer stopped reading the terminal stream."));
-        }
+        // Stop reading from Rex while the viewer is behind. The socket then
+        // fills and Rex waits, so no more than the queue is ever held here.
+        // A viewer that never reads again is dropped by Rex's own keepalive.
+        if ((controller.desiredSize ?? 0) <= 0) data.pause();
         return;
       }
       if (phase !== "handshake") return;
