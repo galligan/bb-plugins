@@ -51,6 +51,7 @@ export async function runStep(options: {
   context: SourceContext;
   scope: Deadline;
   deadlineAt: number;
+  bypassCache?: boolean;
   earlier: Record<string, Record<string, boolean>>;
   sources: Pick<SourceService, "read">;
   inference: Pick<InferenceService, "ask">;
@@ -98,6 +99,7 @@ export async function runStep(options: {
     },
     signal: scope.signal,
     deadlineAt: options.deadlineAt,
+    bypassCache: options.bypassCache,
   });
   scope.assertActive();
   const result = outcome.result;
@@ -115,7 +117,7 @@ export async function runStep(options: {
     outcomes: evaluated,
     latencyMs: result.latencyMs,
     inputTokens: result.inputTokens,
-    cacheHit: false,
+    cacheHit: outcome.cacheHit ?? false,
     provenance,
   };
 }

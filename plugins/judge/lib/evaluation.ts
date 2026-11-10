@@ -161,7 +161,7 @@ export class EvaluationService {
               ...(model === undefined ? {} : { model }),
             },
             scope.signal,
-            { deadlineAt },
+            { deadlineAt, bypassCache: true },
           );
           results.push(resultFor(index, authored.expect, verdict));
           for (const step of Object.values(verdict.steps))

@@ -166,24 +166,46 @@ test("call override beats step/set/global, then step/set, then explicit global",
       steps: [{ ...set.steps[0]!, model: "step" }, set.steps[1]!],
     };
     h.api.sets.save(JSON.stringify(configured));
-    await h.api.runner.run({
+    const call = await h.api.runner.run({
       id: "synthetic",
       threadId: "thread",
       model: "call",
     });
-    await h.api.runner.run({ id: "synthetic", threadId: "thread" });
+    const configuredRun = await h.api.runner.run({
+      id: "synthetic",
+      threadId: "thread",
+    });
     h.api.sets.save(JSON.stringify(set));
-    await h.api.runner.run({ id: "synthetic", threadId: "thread" });
+    const global = await h.api.runner.run({
+      id: "synthetic",
+      threadId: "thread",
+    });
+    assert.deepEqual(
+      [call, configuredRun, global].map((run) =>
+        Object.values(run.steps).map((step) =>
+          step.status === "ran"
+            ? [step.requestedModel, step.resolvedModel.id, step.cacheHit]
+            : step.status,
+        ),
+      ),
+      [
+        [
+          ["call", "call", false],
+          ["call", "call", true],
+        ],
+        [
+          ["step", "step", false],
+          ["set", "set", false],
+        ],
+        [
+          ["public", "public", false],
+          ["public", "public", true],
+        ],
+      ],
+    );
     assert.deepEqual(
       h.bodies.map((b) => b.model),
-      [
-        "call-selector",
-        "call-selector",
-        "step-selector",
-        "set-selector",
-        "public-selector",
-        "public-selector",
-      ],
+      ["call-selector", "step-selector", "set-selector", "public-selector"],
     );
   } finally {
     await h.harness.lifecycle.dispose();

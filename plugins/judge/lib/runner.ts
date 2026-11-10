@@ -88,7 +88,7 @@ export class Runner {
   async run(
     value: unknown,
     signal?: AbortSignal,
-    options: { deadlineAt?: number } = {},
+    options: { deadlineAt?: number; bypassCache?: boolean } = {},
   ): Promise<Verdict> {
     const start = performance.now();
     const startedAt = Date.now();
@@ -148,6 +148,7 @@ export class Runner {
                 earlier,
                 sources: this.sources,
                 inference: this.inference,
+                bypassCache: options.bypassCache,
               }),
             ));
         } catch (error) {

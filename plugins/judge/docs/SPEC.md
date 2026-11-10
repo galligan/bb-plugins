@@ -147,7 +147,7 @@ A set `Verdict` contains run ID, set ID/scope/hash, thread/project context if su
 
 Use plugin SQLite with append-only migrations: `models`, `question_sets`, `triggers`, `runs`, `steps`, `cache`, plus project settings and calibration acceptance. Definitions store validated YAML plus schema version/hash and global scope. The database is authoritative; metadata is a derived display cache. Bound runs to 30 days and 10,000 entries, deleting dependent step rows together. Bound cache to 1,000 entries with a 60-second TTL; prune opportunistically on writes.
 
-Cache complete validated responses by transport/endpoint configuration revision, resolved model fingerprint, canonical full question-map hash, and canonical state hash. Store per-question hashes for diagnostics, but do not split a batch into per-question cache entries until batch equivalence is proven. Re-evaluate privacy before lookup. Cached inference still generates a run record and fresh outcome evaluation; do not cache outages.
+Cache complete validated responses by transport/endpoint configuration revision, resolved model fingerprint, canonical full question-map hash, and canonical state hash. Store per-question hashes for diagnostics, but do not split a batch into per-question cache entries until batch equivalence is proven. Re-evaluate privacy before lookup. Cached inference still generates a run record and fresh outcome evaluation; do not cache outages. Case evaluations and explicit connectivity probes bypass cache reads/writes so cached responses cannot masquerade as fresh provider evidence. See [cache and retention details](CACHE.md).
 
 ## Triggers and display
 

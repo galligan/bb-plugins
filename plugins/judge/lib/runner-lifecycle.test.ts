@@ -52,9 +52,13 @@ test("expiry before context dispatch and caller pre-abort record unavailable wit
   }
 });
 
-test("whole budget includes a hanging context read and a later source read; abort-ignoring SDK cannot dispatch afterward", async () => {
+test("whole budget includes a hanging context read and a later source read; abort-ignoring SDK cannot dispatch afterward", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let now = 0;
+  t.mock.method(performance, "now", () => now);
   for (const phase of ["context", "source"]) {
     const h = await setup();
+    now = 0;
     try {
       const set = definition();
       set.budgetMs = 150;
@@ -65,9 +69,14 @@ test("whole budget includes a hanging context read and a later source read; abor
         phase === "context" ? "threads.get" : "threads.output",
         async (...args: unknown[]) => {
           upstream = (args[0] as { signal: AbortSignal }).signal;
-          return new Promise((resolve) => {
+          const pending = new Promise((resolve) => {
             release = resolve;
           });
+          // Earlier work consumes no simulated time; expire only after the
+          // intended hanging SDK operation has received its upstream signal.
+          now = 151;
+          t.mock.timers.tick(151);
+          return pending;
         },
       );
       const result = await h.api.runner.run({
@@ -82,6 +91,7 @@ test("whole budget includes a hanging context read and a later source read; abor
         "budget",
       );
       assert.equal(upstream?.aborted, true);
+      if (phase === "source") assert.equal(result.steps.screen?.status, "ran");
       assert.equal(h.bodies.length, phase === "context" ? 0 : 1);
       const calls = h.harness.inspection.sdk.calls.length;
       release({ output: "late synthetic output" });
@@ -285,10 +295,14 @@ test("expiry during final verdict validation preserves completed answers and rec
       }
       return realDate();
     });
-    const result = await h.api.runner.run({
-      id: "synthetic",
-      threadId: "thread",
-    });
+    const result = await h.api.runner.run(
+      {
+        id: "synthetic",
+        threadId: "thread",
+      },
+      undefined,
+      { bypassCache: true },
+    );
     assert.equal(calls, 2);
     assert.equal(result.complete, false);
     assert.deepEqual(result.failure, { reason: "budget", code: "budget" });

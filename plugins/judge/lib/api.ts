@@ -45,7 +45,7 @@ export class JudgeApi {
     this.repository = repository;
     this.sets = new SetService(repository, models);
     this.templates = new TemplateService(this.sets);
-    this.inference = new InferenceService(models, fetcher);
+    this.inference = new InferenceService(models, fetcher, repository.cache);
     this.asks = new AskService(this.inference, repository);
     this.sources = new SourceService(sdk);
     this.runner = new Runner(
@@ -107,6 +107,7 @@ export class JudgeApi {
           },
           selection: { override: id, sensitive: false },
           signal,
+          bypassCache: true,
         });
         if (result.status === "ran") return "reachable";
         if (result.reason === "cancelled") return "cancelled";

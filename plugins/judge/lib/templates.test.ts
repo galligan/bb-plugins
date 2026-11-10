@@ -191,10 +191,14 @@ test("all twelve authored cases bypass sources, retain privacy, and exercise nor
       for (const authored of copy.definition.cases) {
         remaining = [...answers[id]![authored.id!]!];
         const result = parseVerdict(
-          await h.harness.behavior.callRpc("run", {
-            id: copy.definition.id,
-            inputs: authored.inputs,
-          }),
+          await h.api.runner.run(
+            {
+              id: copy.definition.id,
+              inputs: authored.inputs,
+            },
+            undefined,
+            { bypassCache: true },
+          ),
         );
         assert.equal(result.complete, true);
         assert.equal(result.calibrated, false);
