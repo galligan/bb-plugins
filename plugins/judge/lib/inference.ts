@@ -54,7 +54,7 @@ export class InferenceService {
       deadlineAt,
     });
     try {
-      return await scope.run(async () => {
+      const { cacheWrite, ...outcome } = await scope.run(async () => {
         const result = await this.models.usingModel(
           input.selection,
           async (prepared) => {
@@ -102,30 +102,13 @@ export class InferenceService {
                 generation !== this.models.configurationGeneration()
               )
                 throw new OperationAborted("cancelled");
-              if (
-                !cached &&
-                !input.bypassCache &&
-                response.status === "ran" &&
-                this.cache
-              ) {
-                if (
-                  !(await scope.run(() =>
-                    this.models.isCurrent(prepared.identity),
-                  ))
-                )
-                  throw new OperationAborted("cancelled");
-                scope.assertActive();
-                if (
-                  changed.signal.aborted ||
-                  generation !== this.models.configurationGeneration()
-                )
-                  throw new OperationAborted("cancelled");
-                this.cache.put(request, validated.questions, response);
-              }
-              scope.assertActive();
               return {
                 result: response,
                 cacheHit: Boolean(cached),
+                cacheWrite:
+                  !cached && !input.bypassCache && response.status === "ran"
+                    ? { request, response, generation }
+                    : null,
                 requestedModel: prepared.requestedModel,
                 resolvedModel: prepared.identity,
                 fallbackReason: prepared.fallbackReason,
@@ -138,6 +121,7 @@ export class InferenceService {
         return result.ok
           ? result.value
           : {
+              cacheWrite: null,
               result: {
                 status: "unavailable" as const,
                 reason: result.reason,
@@ -146,6 +130,24 @@ export class InferenceService {
               },
             };
       });
+      // Commit only after usingModel's final asynchronous settings/identity check
+      // and the whole inference scope have both accepted this successful response.
+      if (cacheWrite && this.cache) {
+        const assertCurrent = () => {
+          scope.assertActive();
+          if (cacheWrite.generation !== this.models.configurationGeneration())
+            throw new OperationAborted("cancelled");
+        };
+        assertCurrent();
+        this.cache.put(
+          cacheWrite.request,
+          validated.questions,
+          cacheWrite.response,
+          Date.now(),
+          assertCurrent,
+        );
+      }
+      return outcome;
     } catch (error) {
       if (error instanceof OperationAborted)
         return {

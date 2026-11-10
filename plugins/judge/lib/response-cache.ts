@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { OperationAborted } from "./deadline.ts";
 import {
   answersSchema,
   idSchema,
@@ -105,6 +106,7 @@ export class ResponseCache {
     questions: Questions,
     result: Extract<InferenceResult, { status: "ran" }>,
     now = Date.now(),
+    assertCurrent: () => void = () => {},
   ): void {
     const value = {
       descriptor: request.descriptor,
@@ -113,9 +115,12 @@ export class ResponseCache {
       answers: result.answers,
     };
     // A valid response may leave no room for diagnostic hashes; return it uncached.
-    if (Buffer.byteLength(JSON.stringify(value)) > LIMITS.responseBytes) return;
+    if (Buffer.byteLength(JSON.stringify(value)) > LIMITS.responseBytes) {
+      assertCurrent();
+      return;
+    }
     const { entry } = parseEntry(value, request, questions);
-    persist(() =>
+    try {
       this.db.transaction(() => {
         this.db
           .prepare(
@@ -130,7 +135,12 @@ export class ResponseCache {
             "DELETE FROM cache WHERE key IN (SELECT key FROM cache ORDER BY created_at DESC, key DESC LIMIT -1 OFFSET ?)",
           )
           .run(CACHE_ENTRIES);
-      })(),
-    );
+        // Expiry/cancellation during validation or SQL rolls this insertion back.
+        assertCurrent();
+      })();
+    } catch (error) {
+      if (error instanceof OperationAborted) throw error;
+      throw new PersistenceError();
+    }
   }
 }
