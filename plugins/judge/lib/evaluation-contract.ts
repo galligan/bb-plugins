@@ -157,6 +157,7 @@ export const evaluationReportSchema = z
           if (
             result.runId === null ||
             result.failure !== null ||
+            result.steps.unavailable !== 0 ||
             !same(keys(result.outcomes), outcomeIds) ||
             (result.status === "correct") !== correct
           )

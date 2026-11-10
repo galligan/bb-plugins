@@ -74,6 +74,54 @@ test("evaluation records are immutable, self-consistent, and corrupt reads fail 
   }
 });
 
+test("available cases cannot retain unavailable steps or establish calibration from contradictory stored evidence", async () => {
+  const h = await setup();
+  try {
+    const db = h.bb.storage.database();
+    for (const index of [0, 2]) {
+      const corrupt = structuredClone(h.report);
+      const variant = corrupt.variants[0]!;
+      const result = variant.results[index]!;
+      assert.equal(result.status, index === 0 ? "correct" : "incorrect");
+      assert.ok(result.steps.ran > 0);
+      result.steps.ran--;
+      result.steps.unavailable++;
+      Object.assign(variant, summarize(corrupt.cases, variant.results));
+      assert.equal(corrupt.complete, true);
+      assert.equal(variant.counts.unavailable, 0);
+      assert.equal(variant.steps.unavailable, 1);
+      assert.equal(evaluationReportSchema.safeParse(corrupt).success, false);
+      assert.throws(() => parseEvaluationReport(corrupt));
+      assert.throws(() =>
+        h.repository.evaluations.saveReport({
+          ...corrupt,
+          id: `contradictory-${index}`,
+        }),
+      );
+      db.prepare(
+        "UPDATE evaluation_reports SET report_json = ? WHERE id = ?",
+      ).run(JSON.stringify(corrupt), h.report.id);
+      assert.throws(
+        () => h.repository.evaluations.getReport(h.report.id),
+        PersistenceError,
+      );
+      await assert.rejects(
+        h.api.calibration.accept("synthetic", h.report.id),
+        PersistenceError,
+      );
+      assert.equal(h.repository.evaluations.getAcceptance("synthetic"), null);
+      db.prepare(
+        "UPDATE evaluation_reports SET report_json = ? WHERE id = ?",
+      ).run(JSON.stringify(h.report), h.report.id);
+    }
+    // Incorrect expectations remain an explicit caller decision when all evidence is available.
+    assert.equal(h.report.variants[0]!.counts.incorrect, 1);
+    assert.ok(await h.api.calibration.accept("synthetic", h.report.id));
+  } finally {
+    await h.harness.lifecycle.dispose();
+  }
+});
+
 test("acceptance rejects missing/partial evidence, wrong fingerprints and corrupt linkage", async () => {
   const h = await setup();
   try {
