@@ -10,6 +10,7 @@ import {
 } from "@get-bb/plugin-sdk/host";
 
 import { hostContract, hostSignals } from "./lib/host-contract.ts";
+import { detectSetupPlan } from "./lib/detection.ts";
 import { listRescues } from "./lib/rescues.ts";
 import { killAllScripts } from "./lib/process.ts";
 import {
@@ -49,6 +50,8 @@ export default experimental_defineHostEntry({
     defaultBase: async ({ sourcePath }, context) => ({
       base: await defaultBase(sourcePath, context.signal),
     }),
+    setupPlan: ({ sourcePath }, context) =>
+      detectSetupPlan(sourcePath, context.signal),
     rescues: async ({ sourcePaths }, context) => ({
       sources: await Promise.all(
         sourcePaths.map(async (sourcePath) => {

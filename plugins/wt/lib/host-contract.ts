@@ -3,6 +3,7 @@ import {
   type ExperimentalHostSignals,
 } from "@get-bb/plugin-sdk";
 import { z } from "zod";
+import { detectionSchema } from "./detection-schema.ts";
 import { rescueSchema } from "./rescue-schema.ts";
 
 const failed = z.strictObject({
@@ -96,6 +97,11 @@ export const hostContract = defineRpcContract({
   defaultBase: {
     input: z.strictObject({ sourcePath: z.string().min(1) }),
     output: z.strictObject({ base: z.string().min(1).nullable() }),
+    experimental_retryable: true,
+  },
+  setupPlan: {
+    input: z.strictObject({ sourcePath: z.string().min(1) }),
+    output: detectionSchema,
     experimental_retryable: true,
   },
   rescues: {

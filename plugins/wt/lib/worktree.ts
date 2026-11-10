@@ -21,13 +21,8 @@ import {
 import { isContained, worktreePath } from "./paths.ts";
 import { git, runScript } from "./process.ts";
 import { repoLocation } from "./remote.ts";
-import {
-  BB_SETUP_HOOK,
-  BB_TEARDOWN_HOOK,
-  CODEX_ENVIRONMENT,
-  resolveSetupPlan,
-  type SetupPlan,
-} from "./setup-plan.ts";
+import { CODEX_ENVIRONMENT } from "./setup-plan.ts";
+import { readSetupPlan } from "./read-setup-plan.ts";
 import { copySharedFiles } from "./share.ts";
 
 /** Matches the limit bb core applies to its own setup and teardown hooks. */
@@ -254,18 +249,6 @@ async function isLaunchWorktree(
   // No marker: a worktree from before markers existed, or one whose create was
   // cut off before the marker was written. Its record has to vouch for it.
   return record !== null && (await isOwnWorktree(record, signal));
-}
-
-async function readSetupPlan(path: string): Promise<SetupPlan> {
-  return resolveSetupPlan({
-    hasBbHook:
-      existsSync(join(path, BB_SETUP_HOOK)) ||
-      existsSync(join(path, BB_TEARDOWN_HOOK)),
-    codexEnvironmentToml: await readFile(
-      join(path, CODEX_ENVIRONMENT),
-      "utf8",
-    ).catch(() => null),
-  });
 }
 
 function runRepoScript(env: HostEnvironment, path: string, script: string) {
