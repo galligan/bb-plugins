@@ -419,6 +419,7 @@ test("undoing a new session's window spares a window someone else opened there",
       sessionLabel: "bb",
       loadThread: () => Promise.resolve(THREAD),
       windows: failing,
+      views: store.views,
     }),
   );
   assert.deepEqual(
