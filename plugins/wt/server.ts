@@ -157,6 +157,7 @@ export default async function wtPlugin(bb: BbPluginApi): Promise<void> {
       const resolved = await host.call(
         "resolve",
         {
+          scripts: project?.scripts ?? null,
           pathKey: context.pathKey,
           sourcePath: context.projectCheckout.path,
           branchName: branchName({

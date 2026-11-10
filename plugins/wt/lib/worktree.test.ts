@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { ProjectScripts } from "./script-overrides.ts";
 import { test } from "node:test";
 
 import { fixture, git, provision } from "./fixture.ts";
@@ -316,4 +317,167 @@ test("defaultBase names the ref a launch without a base would use", async (t) =>
   git(f.source, "push", "--quiet", "origin", "main");
   git(f.source, "remote", "set-head", "origin", "main");
   assert.equal(await defaultBase(f.source), "origin/main");
+});
+
+test("custom setup runs in the worktree with reported output and is never replayed", async (t) => {
+  const f = await fixture(t);
+  const script = {
+    setup: {
+      mode: "custom",
+      script:
+        'echo custom-setup; echo run >> "$CODEX_WORKTREE_PATH.runs"; test "$PWD" = "$CODEX_WORKTREE_PATH"',
+    },
+    cleanup: { mode: "detected", script: null },
+  } satisfies ProjectScripts;
+  const resolved = await resolveWorktree(f.env, {
+    pathKey: "custom",
+    sourcePath: f.source,
+    branchName: "bb/custom",
+    base: null,
+    scripts: script,
+  });
+  assert.equal(resolved.status, "resolved");
+  const created = await createWorktree(f.env, { pathKey: "custom" });
+  assert.equal(created.status, "created");
+  if (created.status !== "created") return;
+  assert.ok(f.logs.some((line) => line.includes("custom-setup")));
+  await createWorktree(f.env, { pathKey: "custom" });
+  assert.equal(await readFile(`${created.path}.runs`, "utf8"), "run\n");
+});
+
+test("off skips detected scripts, and captured cleanup runs before rescue despite later settings", async (t) => {
+  const f = await fixture(t, {
+    ".codex/environments/environment.toml":
+      '[setup]\nscript = "exit 99"\n[cleanup]\nscript = "exit 98"\n',
+  });
+  const scripts = {
+    setup: { mode: "off", script: null },
+    cleanup: {
+      mode: "custom",
+      script: "echo original-cleanup > rescued.txt; exit 1",
+    },
+  } satisfies ProjectScripts;
+  const input = {
+    pathKey: "snapshot",
+    sourcePath: f.source,
+    branchName: "bb/snapshot",
+    base: null,
+    scripts,
+  };
+  const planned = await resolveWorktree(f.env, input);
+  assert.equal(planned.status, "resolved");
+  const created = await createWorktree(f.env, { pathKey: "snapshot" });
+  assert.equal(created.status, "created");
+  if (created.status !== "created") return;
+  // A later launch resolution observes changed project preferences; the existing record is immutable.
+  await resolveWorktree(f.env, {
+    ...input,
+    scripts: {
+      ...scripts,
+      cleanup: { mode: "custom", script: "echo changed > rescued.txt" },
+    },
+  });
+  assert.deepEqual(
+    await removeWorktree(f.env, { pathKey: "snapshot", path: null }),
+    { status: "removed" },
+  );
+  const ref = git(
+    f.source,
+    "for-each-ref",
+    "--format=%(refname)",
+    "refs/wt-rescue",
+  );
+  assert.equal(git(f.source, "show", `${ref}:rescued.txt`), "original-cleanup");
+  assert.ok(f.logs.some((line) => line.includes("Cleanup script failed")));
+});
+
+test("either bb hook suppresses all custom scripts", async (t) => {
+  for (const hook of [".bb-env-setup.sh", ".bb-env-teardown.sh"])
+    await t.test(hook, async (t) => {
+      const f = await fixture(t, { [hook]: "exit 99" });
+      const scripts = {
+        setup: { mode: "custom", script: "exit 88" },
+        cleanup: {
+          mode: "custom",
+          script: 'echo bad > "$CODEX_WORKTREE_PATH.cleaned"',
+        },
+      } satisfies ProjectScripts;
+      await resolveWorktree(f.env, {
+        pathKey: "hook",
+        sourcePath: f.source,
+        branchName: "bb/hook",
+        base: null,
+        scripts,
+      });
+      const created = await createWorktree(f.env, { pathKey: "hook" });
+      assert.equal(created.status, "created");
+      if (created.status !== "created") return;
+      assert.deepEqual(
+        await removeWorktree(f.env, { pathKey: "hook", path: null }),
+        { status: "removed" },
+      );
+      assert.equal(existsSync(`${created.path}.cleaned`), false);
+      assert.equal(
+        f.logs.some(
+          (line) =>
+            line.includes("Running setup") || line.includes("Running cleanup"),
+        ),
+        false,
+      );
+    });
+});
+
+test("old records without scripts still run detected cleanup", async (t) => {
+  const f = await fixture(t, {
+    ".codex/environments/environment.toml":
+      '[cleanup]\nscript = "echo old-cleanup > old.txt"\n',
+  });
+  const created = await provision(f);
+  assert.equal(created.status, "created");
+  if (created.status !== "created") return;
+  const file = join(f.env.dataDir, "worktrees", "thr_1-1.json");
+  const raw: unknown = JSON.parse(await readFile(file, "utf8"));
+  assert.ok(typeof raw === "object" && raw !== null);
+  await writeFile(file, JSON.stringify({ ...raw, scripts: undefined }));
+  assert.deepEqual(
+    await removeWorktree(f.env, { pathKey: "thr_1-1", path: null }),
+    { status: "removed" },
+  );
+  const ref = git(
+    f.source,
+    "for-each-ref",
+    "--format=%(refname)",
+    "refs/wt-rescue",
+  );
+  assert.equal(git(f.source, "show", `${ref}:old.txt`), "old-cleanup");
+});
+
+test("a custom setup marked running is never replayed after failure", async (t) => {
+  const f = await fixture(t);
+  await resolveWorktree(f.env, {
+    pathKey: "interrupted",
+    sourcePath: f.source,
+    branchName: "bb/interrupted",
+    base: null,
+    scripts: {
+      setup: {
+        mode: "custom",
+        script: 'echo run >> "$CODEX_WORKTREE_PATH.runs"; exit 1',
+      },
+      cleanup: { mode: "off", script: null },
+    },
+  });
+  const first = await createWorktree(f.env, { pathKey: "interrupted" });
+  assert.equal(first.status, "failed");
+  const second = await createWorktree(f.env, { pathKey: "interrupted" });
+  assert.equal(second.status, "failed");
+  if (second.status === "failed")
+    assert.match(second.message, /outcome is unknown/u);
+  const [entry] = await listWorktrees(f.env);
+  assert.equal(entry?.status, "present");
+  if (entry?.status === "present")
+    assert.equal(
+      await readFile(`${entry.inspection.path}.runs`, "utf8"),
+      "run\n",
+    );
 });

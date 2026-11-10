@@ -118,7 +118,11 @@ export function projectHandlers(
         ...(await store.read(projectId)),
         ...patch,
       });
-      if (row.prefixBranches == null && row.branchPrefix == null)
+      if (
+        row.prefixBranches == null &&
+        row.branchPrefix == null &&
+        row.scripts == null
+      )
         await bb.storage.kv.delete(`project:${projectId}`);
       else await bb.storage.kv.set(`project:${projectId}`, row);
       return projectSettings({ projectId });

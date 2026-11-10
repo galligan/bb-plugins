@@ -52,6 +52,12 @@ Settings → Installed plugins → Worktree+ → **Projects** lists local checko
 
 **Setup and cleanup** shows scripts detected **as of the current checkout**, whether bb core owns the hooks, and which files `.worktreeinclude` would copy (names only). A new worktree reads its committed copy, so its scripts may differ. Each displayed script is capped at 16 KB with a truncation notice. Ignored or symlinked Codex configurations are withheld from the display; no ignored-file contents or hashes are returned.
 
+### Project script overrides
+
+Each project can choose **Detected**, **Custom**, or **Off** independently for setup and cleanup in the Projects section. Detected uses the repository's Codex script, Custom replaces it with the saved script (seeded from the detected text on first selection), and Off skips that step. Custom scripts must contain text and fit within 16 KB in UTF-8. Scripts are stored in bb's database in plain text: do not put secrets in them. They run on the checkout's machine with your user's permissions, with the same working directory, environment and 15-minute timeout as detected scripts.
+
+When either bb hook is present, both project controls are disabled and the plugin runs no scripts: bb core owns the hooks. Changing project settings applies to **new worktrees**. Each worktree records its script modes and text when resolved; cleanup always uses that recorded snapshot, even after the project's settings change. Old records without a snapshot keep detected behavior. Cleanup failures are logged and the safety inspection still follows; an interrupted setup marked running is never replayed.
+
 ## Base branch
 
 Pick the base in the New Thread composer with the **Branch from:** control beside the provider, the same control the built-in Worktree offers. It starts on the project's default base, normally `origin/main`. The chosen base is recorded as the environment's merge base for diffs.

@@ -21,7 +21,11 @@ import {
 import { isContained, worktreePath } from "./paths.ts";
 import { git, runScript } from "./process.ts";
 import { repoLocation } from "./remote.ts";
-import { CODEX_ENVIRONMENT } from "./setup-plan.ts";
+import {
+  projectScriptsSchema,
+  type ProjectScripts,
+} from "./script-overrides.ts";
+import { CODEX_ENVIRONMENT, effectiveScripts } from "./setup-plan.ts";
 import { readSetupPlan } from "./read-setup-plan.ts";
 import { copySharedFiles } from "./share.ts";
 
@@ -72,6 +76,8 @@ const recordSchema = z.strictObject({
   // `running` on entry means an earlier call was cut off mid-script and the
   // script's outcome is unknown; it is never replayed.
   setup: z.enum(["pending", "running", "done"]),
+  // Captured at resolution; removal never consults current project preferences.
+  scripts: projectScriptsSchema.nullable().optional(),
   // Content hash of each shared file as it was copied in, by relative path.
   // Tells an edit in the worktree apart from a later change in the source
   // checkout. Absent on records written before this was tracked.
@@ -264,6 +270,7 @@ function runRepoScript(env: HostEnvironment, path: string, script: string) {
 }
 
 export interface ResolveInput {
+  scripts?: ProjectScripts | null;
   pathKey: string;
   sourcePath: string;
   branchName: string;
@@ -322,6 +329,7 @@ export async function resolveWorktree(
       mergeBaseBranch: base.mergeBaseBranch,
       state: "planned",
       setup: "pending",
+      scripts: input.scripts ?? null,
     });
     return { status: "resolved", path, mergeBaseBranch: base.mergeBaseBranch };
   } catch (error) {
@@ -430,10 +438,16 @@ export async function createWorktree(
       );
     }
     if (record.setup === "pending") {
-      const plan = await readSetupPlan(path);
-      if (plan.source === "codex" && plan.setup !== null) {
+      const plan = effectiveScripts(
+        await readSetupPlan(path),
+        record.scripts ?? null,
+      );
+      if (plan.source === "plugin" && plan.setup !== null) {
         await writeRecord(env, { ...record, setup: "running" });
-        env.report("step", `Running setup from ${CODEX_ENVIRONMENT}`);
+        env.report(
+          "step",
+          `Running setup from ${plan.origin.setup === "custom" ? "project settings" : CODEX_ENVIRONMENT}`,
+        );
         const ran = await runRepoScript(env, path, plan.setup);
         if (!ran.ok) return failed(`Setup script failed: ${ran.reason}.`);
       }
@@ -498,15 +512,20 @@ export async function removeWorktree(
       }
       // Cleanup and running processes can still write files, so both finish
       // before the worktree is inspected and saved.
-      const plan = await readSetupPlan(path).catch((error: unknown) => {
+      const plan = await readSetupPlan(path)
+        .then((detected) => effectiveScripts(detected, record?.scripts ?? null))
+        .catch((error: unknown) => {
+          env.report(
+            "log",
+            `Skipping cleanup: ${CODEX_ENVIRONMENT} could not be read (${messageOf(error)}).`,
+          );
+          return null;
+        });
+      if (plan?.source === "plugin" && plan.cleanup !== null) {
         env.report(
-          "log",
-          `Skipping cleanup: ${CODEX_ENVIRONMENT} could not be read (${messageOf(error)}).`,
+          "step",
+          `Running cleanup from ${plan.origin.cleanup === "custom" ? "recorded project settings" : CODEX_ENVIRONMENT}`,
         );
-        return null;
-      });
-      if (plan?.source === "codex" && plan.cleanup !== null) {
-        env.report("step", `Running cleanup from ${CODEX_ENVIRONMENT}`);
         const ran = await runRepoScript(env, path, plan.cleanup);
         if (!ran.ok) {
           env.report("log", `Cleanup script failed: ${ran.reason}.`);

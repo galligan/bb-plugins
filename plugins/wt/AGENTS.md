@@ -18,7 +18,9 @@
 - `lib/base-input.ts` — reads and writes that control's value.
 - `host.ts` — the host entry. Thin wiring from the RPC contract to `lib/worktree.ts`.
 - `lib/worktree.ts` — resolve, create and remove. Takes its root, data directory and reporter as arguments, so tests run it against a temporary repository.
-- `lib/setup-plan.ts` — pure decision of where setup and cleanup scripts come from.
+- `lib/setup-plan.ts` — pure detected/effective script decisions.
+- `lib/script-overrides.ts` — bounded per-step script mode schema shared by settings, host input and records.
+- `components/script-settings.tsx` — project script mode editor and execution/storage disclosure.
 - `lib/share.ts` — `.worktreeinclude` copying.
 - `lib/remote.ts` — maps an `origin` URL to the folder segments a repo's worktrees live under.
 - `lib/inspect.ts` — what removing a worktree would lose, and the rescue snapshot taken before removal.
@@ -28,6 +30,9 @@
 - `lib/fixture.ts` — test support: a throwaway git repository.
 
 ## Invariants
+
+- Project script overrides MUST NOT apply when either bb hook is present; core owns both steps.
+- Removal MUST read script overrides from the worktree record only, never current project settings. Existing records without scripts mean detected mode.
 
 - Removal of a worktree with a bb environment MUST go through bb core, including retries. Only orphan records may call host removal directly.
 - Never transmit ignored-file contents or their hashes in management RPCs.

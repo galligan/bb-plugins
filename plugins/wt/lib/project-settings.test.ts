@@ -38,3 +38,31 @@ test("schema strips unknown keys, rejects wrong versions and bad prefixes", () =
     false,
   );
 });
+
+test("script overrides validate custom text by UTF-8 bytes and retain older rows", () => {
+  const row = (script: string) => ({
+    version: 1,
+    scripts: {
+      setup: { mode: "custom", script },
+      cleanup: { mode: "detected", script: null },
+    },
+  });
+  assert.equal(projectSettingsSchema.safeParse(row("")).success, false);
+  assert.equal(projectSettingsSchema.safeParse(row("  \n")).success, false);
+  assert.equal(
+    projectSettingsSchema.safeParse(row("x".repeat(16385))).success,
+    false,
+  );
+  assert.equal(
+    projectSettingsSchema.safeParse(row("😀".repeat(5000))).success,
+    false,
+  );
+  assert.equal(
+    projectSettingsSchema.safeParse(row("echo ready")).success,
+    true,
+  );
+  assert.deepEqual(
+    projectSettingsSchema.parse({ version: 1, branchPrefix: "p/" }),
+    { version: 1, branchPrefix: "p/" },
+  );
+});

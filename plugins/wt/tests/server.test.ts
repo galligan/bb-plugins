@@ -142,3 +142,78 @@ test("project picker includes personal checkouts on connected hosts", async (t) 
     { id: "personal", name: "Personal", hostId: "h", hostName: "Mac" },
   ]);
 });
+
+test("script-only settings survive branch resets and are passed to host resolve", async (t) => {
+  const snapshots: unknown[] = [];
+  const scripts = {
+    setup: { mode: "custom", script: "echo project" },
+    cleanup: { mode: "off", script: null },
+  };
+  const { bb, harness } = createFakePluginHost({
+    pluginId: "wt",
+    sdk: {
+      projects: { get: () => ({ id: "p" }) },
+      system: {
+        config: () => ({ generalSettings: { managedBranchPrefix: "bb/" } }),
+      },
+    },
+    experimental_callHostRpc: ({ method, input }) => {
+      if (method === "resolve") {
+        if (typeof input === "object" && input !== null && "scripts" in input)
+          snapshots.push(input.scripts);
+        return {
+          status: "resolved",
+          path: "/wt/task",
+          mergeBaseBranch: "main",
+        };
+      }
+      return { status: "created", path: "/wt/task", mergeBaseBranch: "main" };
+    },
+  });
+  t.after(() => harness.lifecycle.dispose());
+  await wtPlugin(bb);
+  await harness.behavior.callRpc("setProjectSettings", {
+    projectId: "p",
+    patch: { scripts },
+  });
+  await harness.behavior.callRpc("setProjectSettings", {
+    projectId: "p",
+    patch: { prefixBranches: null, branchPrefix: null },
+  });
+  const settings = await harness.behavior.callRpc("projectSettings", {
+    projectId: "p",
+  });
+  assert.ok(
+    typeof settings === "object" && settings !== null && "stored" in settings,
+  );
+  assert.ok(settings.stored !== null);
+  const provider = harness.registrations.environmentProviders.get("wt");
+  assert.ok(provider);
+  await provider.create({
+    thread: makeThreadResponse({ projectId: "p" }),
+    project: {
+      id: "p",
+      name: "Project",
+      createdAt: 0,
+      updatedAt: 0,
+      gitRemoteUrl: null,
+      kind: "standard",
+    },
+    host: makeHostResponse(),
+    projectCheckout: { path: "/repo", experimental_ownsPath: false },
+    gitRemote: null,
+    inputs: {},
+    suggestedBranchName: "bb/task",
+    pathKey: "k",
+    attempt: 1,
+    report: { step() {}, log() {} },
+    signal: new AbortController().signal,
+    experimental_claimPath: async () => true,
+  });
+  assert.deepEqual(snapshots, [scripts]);
+  await harness.behavior.callRpc("setProjectSettings", {
+    projectId: "p",
+    patch: { scripts: null },
+  });
+  assert.equal(await bb.storage.kv.get("project:p"), undefined);
+});
