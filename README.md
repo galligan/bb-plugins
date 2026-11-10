@@ -13,6 +13,7 @@ from this repository without a separate distribution branch.
 | [`bb-plugin-linear`](plugins/linear)     | Search and attach fresh Linear issue context from bb's prompt box. |
 | [`bb-plugin-graphite`](plugins/graphite) | Read and drive Graphite stacks from bb.                            |
 | [`bb-plugin-wt`](plugins/wt)             | Run threads in Git worktrees set up from the repo's own scripts.   |
+| [`bb-plugin-rex`](plugins/rex)           | Watch a live Rex terminal pane beside a thread. Experimental.      |
 
 ## In preparation
 
