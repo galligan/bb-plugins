@@ -80,6 +80,11 @@ export class ModelService {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
+  /** Repository definition transactions share inference invalidation; abort active consumers too. */
+  definitionsChanged(): void {
+    this.active();
+    this.notify();
+  }
   private active(): void {
     if (this.disposed) throw new ValidationError("cancelled");
     if (this.invalidationFailed)

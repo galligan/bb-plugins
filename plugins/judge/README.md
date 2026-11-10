@@ -2,7 +2,7 @@
 
 Judge is a headless-first experimental BB plugin for typed judgments over application state, reusable question sets, and optional event-driven verdicts.
 
-**Status: explicit ad hoc CLI/RPC asks are implemented and verified offline.** The backend registers native BB connection fields, model management, privacy enforcement, bounded transports, and transactional run records. Saved sets, sources, triggers, and custom UI follow in later stages. A tiny credentialed public Jev smoke succeeded; Workers AI/custom and later workflows remain unverified. Judge remains outside the repository install collection.
+**Status: explicit ad hoc CLI/RPC asks are implemented and verified offline.** The backend registers native BB connection fields, model management, privacy enforcement, bounded transports, and transactional run records. Global question-set definition management is available offline. Source resolution, saved-set execution, triggers, and custom UI follow in later stages. A tiny credentialed public Jev smoke succeeded; Workers AI/custom and later workflows remain unverified. Judge remains outside the repository install collection.
 
 Validation covers noul probabilities, choice distributions, fractional expected scores with their submitted rubric, structured JSON instructions, nullable input-token usage, and distinct ad hoc/saved-set identities. JSON must be finite and lossless, with depth 16, up to 64 questions/named inputs, 64 KiB per input, 256 KiB per complete request, and 1 MiB per provider response. The fixed verdict envelope permits two extra nesting levels so accepted structured provider answers can round-trip through storage. Dynamic schema maps explicitly reject reserved `__proto__` keys; arbitrary state and structured instruction objects preserve their JSON keys. Definitions and step execution arrive in later stages. Models default to disallowing private input; secret values and request state have no repository fields. Direct answers can be sensitive and remain in bounded run records, not thread metadata.
 
@@ -57,3 +57,22 @@ Ad hoc state is private unless that individual ask declares `--not-private`. Thi
 RPC methods are `ask`, `models.list`, `models.add`, `models.default`, `models.check`, `log`, and `runs.get`. Inputs and outputs use strict runtime schemas and the same services as the CLI. `ask` accepts `{state,questions,model?,notPrivate?,threadId?,projectId?}`. `models.check` accepts `{id,probe?}`. Management accepts no credentials; use the BB settings GUI. CLI disconnect, RPC disconnect and plugin disposal propagate cancellation to transports. Expected provider failures produce typed unavailable steps; malformed definitions/arguments are validation errors. Persistence failure returns an operational error without a successful logged verdict.
 
 `models list` accepts `--limit 1..100` and `--after <next-id>`. `log` accepts `--set`, `--thread`, `-n/--limit 1..100`, and `--before '<next cursor JSON>'`; equal-timestamp records use run ID as a tie-breaker. Log pages return bounded summaries without reading step answers. `runs.get` RPC `{id}` returns a single complete stored verdict or null. Ad hoc verdicts retain the requested/resolved model identities and actual returned `providerModel`, with no invented saved-set identity, no calibration claim and no request state/credentials in storage. Answers themselves may be sensitive.
+
+## Global question-set definitions
+
+`bb judge questions list|show|save|import|export|remove` manages version1 YAML definitions. `save` is an alias for file import; saving an existing ID replaces the global definition, invalidates inference/calibration and disables its dependent triggers. Neither import nor any other management command runs inference. `projects set <project-id> --enabled true|false` sets the project switch; the unconfigured default is on. Project-switch edits conservatively invalidate inference/calibration and disable all triggers. Trigger activation itself is a later explicit stage.
+
+```sh
+bb judge questions import --file ./definition.yaml --json
+bb judge questions import --file /remote/repo/definition.yaml --machine <host-id> --json
+bb judge questions list --project <project-id> --limit 20 --json
+bb judge questions show <set-id> --json
+bb judge questions export <set-id> > definition.yaml
+bb judge questions remove <set-id> --json
+```
+
+File import uses the calling thread → environment → connected host and `bb.sdk.files`. Without a calling thread, use `--machine <host-id-or-name>` and an absolute host path. A machine override also requires an absolute path. No caller file is opened with server `node:fs`, no host is woken, and there is no server-host fallback. YAML must be UTF-8 and at most256KiB. Export writes normalized YAML to stdout; `--json` wraps it as `{yaml}`. All commands support help/JSON errors; list pages cap at100 and continue via `--after <next-id>`.
+
+See [question-set formats and validation](docs/QUESTION-SETS.md). Shorthand normalizes to step `main`, canonical JSON determines the hash, and export/import preserves it. Definitions reject duplicate YAML keys, aliases/anchors/custom tags, unknown fields, non-JSON values, mixed forms, invalid references and predicate ranges. Cases are authored fixtures stored with the definition; source runtime state is never captured. Lists expose every global definition with an applicability flag, rather than hiding definitions from other projects. The project switch and set filters are shared eligibility gates for the later runner; management remains available when execution is inapplicable. No saved-set runner or live sources are registered yet.
+
+RPC management methods are `sets.list`, `sets.show`, `sets.save`, `sets.import`, `sets.export`, `sets.remove`, and `projects.set`, with the same services and strict input/output validation. RPC save/import accept inline `{yaml}`; file routing belongs to the CLI. No YAML field can grant private-data permission or select arbitrary cross-plugin actions.
