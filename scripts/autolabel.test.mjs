@@ -55,7 +55,7 @@ test("paths cover multiple plugins, removals, and both sides of renames", () => 
       { filename: "plugins/README.md" },
       { filename: "repos/plugin/example.ts" },
     ]),
-    ["plugin/moved", "plugin/new", "plugin/old", "plugin/wt"],
+    ["docs", "plugin/moved", "plugin/new", "plugin/old", "plugin/wt"],
   );
 });
 
@@ -99,14 +99,85 @@ test("push or manual run creates directory labels without touching PRs", async (
   );
 });
 
-test("root-only PRs do not receive a plugin label", async () => {
+test("root documentation creates docs rather than documentation without a plugin label", async () => {
   const f = fixture({
     files: [{ filename: "README.md" }],
+    existing: ["plugin/wt", "documentation"],
+  });
+  await autolabel(f);
+  assert.deepEqual(f.calls.added[0].labels, ["docs"]);
+  assert.deepEqual(
+    f.calls.created.map((label) => label.name),
+    ["docs"],
+  );
+  assert.equal(f.calls.created[0].description, "Documentation changes");
+});
+
+test("docs, agent rules, and skills match at root and plugin scope", () => {
+  const cases = [
+    ["docs/diagram.svg", ["docs"]],
+    ["guide.MDX", ["docs"]],
+    ["AGENTS.md", ["agents/rules/", "docs"]],
+    ["plugins/wt/CLAUDE.md", ["agents/rules/", "docs", "plugin/wt"]],
+    [".claude/rules/nested/check.txt", ["agents/rules/"]],
+    [
+      "plugins/wt/.claude/rules/check.md",
+      ["agents/rules/", "docs", "plugin/wt"],
+    ],
+    [".agents/skills/example/scripts/run.py", ["agents/skills"]],
+    [".claude/skills/example/SKILL.md", ["agents/skills", "docs"]],
+    [
+      "plugins/wt/.agents/skills/example/SKILL.md",
+      ["agents/skills", "docs", "plugin/wt"],
+    ],
+    [
+      "plugins/wt/.claude/skills/example/run.py",
+      ["agents/skills", "plugin/wt"],
+    ],
+    ["src/docs-helper.ts", []],
+    [".claude/rules-backup/check.txt", []],
+    [".agents/skills-old/run.py", []],
+    ["AGENTS.md.bak", []],
+    ["package.json", []],
+  ];
+  for (const [filename, expected] of cases)
+    assert.deepEqual(labelsForFiles([{ filename }]), expected, filename);
+});
+
+test("renames and removals retain category matches from both paths", () => {
+  assert.deepEqual(
+    labelsForFiles([
+      {
+        filename: "scripts/check.py",
+        previous_filename: ".agents/skills/test/check.py",
+      },
+      { filename: "config.txt", previous_filename: ".claude/rules/config.txt" },
+      { filename: "docs/old.png", status: "removed" },
+      { filename: "CLAUDE.md", status: "removed" },
+    ]),
+    ["agents/rules/", "agents/skills", "docs"],
+  );
+});
+
+test("missing agent labels are created and assigned with overlapping docs and plugin labels", async () => {
+  const f = fixture({
+    files: [
+      { filename: "plugins/wt/AGENTS.md" },
+      { filename: ".claude/skills/example/SKILL.md" },
+    ],
     existing: ["plugin/wt"],
   });
   await autolabel(f);
-  assert.deepEqual(f.calls.added, []);
-  assert.deepEqual(f.calls.created, []);
+  assert.deepEqual(
+    f.calls.created.map((label) => label.name),
+    ["agents/rules/", "agents/skills", "docs"],
+  );
+  assert.deepEqual(f.calls.added[0].labels, [
+    "agents/rules/",
+    "agents/skills",
+    "docs",
+    "plugin/wt",
+  ]);
 });
 
 test("concurrent label creation is tolerated but other API failures propagate", async () => {

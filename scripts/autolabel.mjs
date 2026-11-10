@@ -1,10 +1,32 @@
+const categoryDescriptions = {
+  docs: "Documentation changes",
+  "agents/rules/": "Agent instructions and Claude rules",
+  "agents/skills": "Agent and Claude skills",
+};
+
 export function labelsForFiles(files) {
   const labels = new Set();
   for (const file of files) {
     for (const name of [file.filename, file.previous_filename]) {
-      const [root, plugin, ...rest] = (name ?? "").split("/");
+      const parts = (name ?? "").split("/");
+      const [root, plugin, ...rest] = parts;
       if (root === "plugins" && plugin && rest.length)
         labels.add(`plugin/${plugin}`);
+      const filename = parts.at(-1);
+      const directories = parts.slice(0, -1);
+      if (directories.includes("docs") || /\.(md|mdx)$/i.test(filename))
+        labels.add("docs");
+      if (filename === "AGENTS.md" || filename === "CLAUDE.md")
+        labels.add("agents/rules/");
+      for (let i = 0; i < directories.length - 1; i++) {
+        if (directories[i] === ".claude" && directories[i + 1] === "rules")
+          labels.add("agents/rules/");
+        if (
+          [".agents", ".claude"].includes(directories[i]) &&
+          directories[i + 1] === "skills"
+        )
+          labels.add("agents/skills");
+      }
     }
   }
   return [...labels].sort();
@@ -53,7 +75,9 @@ export async function autolabel({ github, context }) {
         ...repo,
         name,
         color: "1d76db",
-        description: `Changes to ${name.replace("plugin/", "plugins/")}`,
+        description:
+          categoryDescriptions[name] ??
+          `Changes to ${name.replace("plugin/", "plugins/")}`,
       });
     } catch (error) {
       // Another PR can create the same label between listing and creation.
