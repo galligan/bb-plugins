@@ -8,15 +8,15 @@ Radio is a proposed BB plugin for communication between people, BB threads, pers
 
 ## Design documents
 
-| Document | Owns |
-| --- | --- |
-| [Product](docs/product.md) | Purpose, vocabulary, writing style, dispatches, surfaces and user flows |
-| [Identity and addressing](docs/identity.md) | Canonical IDs, handles, names, channel references, external sessions and `@user` |
-| [Protocol](docs/protocol.md) | Transmissions, receipts, acknowledgments, commitments, listening and broadcasts |
-| [Delivery](docs/delivery.md) | Session delivery options, lifecycle boundaries, explicit stops and notification loops |
-| [Architecture](docs/architecture.md) | Storage, adapters, authentication, bot boundary and cross-station communication |
-| [Compatibility and research](docs/research.md) | Verified SDK contracts, source references, historical precedents and limitations |
-| [Scope and decisions](docs/decisions.md) | Settled direction, proposed defaults, unresolved decisions, implementation stages and verification gates |
+| Document                                       | Owns                                                                                                     |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [Product](docs/product.md)                     | Purpose, vocabulary, writing style, dispatches, surfaces and user flows                                  |
+| [Identity and addressing](docs/identity.md)    | Canonical IDs, handles, names, channel references, external sessions and `@user`                         |
+| [Protocol](docs/protocol.md)                   | Transmissions, receipts, acknowledgments, commitments, listening and broadcasts                          |
+| [Delivery](docs/delivery.md)                   | Session delivery options, lifecycle boundaries, explicit stops and notification loops                    |
+| [Architecture](docs/architecture.md)           | Storage, adapters, authentication, bot boundary and cross-station communication                          |
+| [Compatibility and research](docs/research.md) | Verified SDK contracts, source references, historical precedents and limitations                         |
+| [Scope and decisions](docs/decisions.md)       | Settled direction, proposed defaults, unresolved decisions, implementation stages and verification gates |
 
 Read [Scope and decisions](docs/decisions.md) before treating a proposed default as settled. Current Radio terminology takes precedence over historical Radio and Dispatch material.
 

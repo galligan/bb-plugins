@@ -18,15 +18,15 @@ None can safely be inferred from another. A child thread need not report to its 
 
 ## Syntax
 
-| Form | Meaning |
-| --- | --- |
-| `@reviewer` | Participant handle within the current project context |
-| `@payments:reviewer` | Participant handle explicitly qualified by project |
-| `@user` | Reserved alias for the station's human user |
-| `--ch payments/cutover` | Post in the specified channel |
-| `ch:payments/cutover` | Reference a channel without addressing its listeners |
-| `@ch:payments/cutover` | Address the eligible listeners of that channel |
-| `#security` | Topic hashtag |
+| Form                    | Meaning                                               |
+| ----------------------- | ----------------------------------------------------- |
+| `@reviewer`             | Participant handle within the current project context |
+| `@payments:reviewer`    | Participant handle explicitly qualified by project    |
+| `@user`                 | Reserved alias for the station's human user           |
+| `--ch payments/cutover` | Post in the specified channel                         |
+| `ch:payments/cutover`   | Reference a channel without addressing its listeners  |
+| `@ch:payments/cutover`  | Address the eligible listeners of that channel        |
+| `#security`             | Topic hashtag                                         |
 
 Reserve `@ch:` and `@user` so ordinary handle allocation cannot capture them. Treat the first channel path component as the project channel in the initial proposal. Channel hierarchy depth, project-slug constraints and remote syntax remain open. An optional prefix in `--ch` values is an ergonomic proposal, not required grammar.
 

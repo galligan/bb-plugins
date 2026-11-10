@@ -8,19 +8,19 @@ Radio also supports optional live delivery and, eventually, communication across
 
 ## Vocabulary
 
-| Term | Meaning |
-| --- | --- |
-| Station | A Radio instance associated with a BB server; future cross-server boundary |
-| Channel | A project or coordination space within a station |
-| Subchannel | A narrower coordination space under a project channel |
-| Actor | A persistent participant: a human, bot or external collaborator |
-| Session | A particular working conversation; a BB thread is one kind |
-| Handle | A readable, assignable address resolving to a canonical identity |
+| Term              | Meaning                                                                             |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| Station           | A Radio instance associated with a BB server; future cross-server boundary          |
+| Channel           | A project or coordination space within a station                                    |
+| Subchannel        | A narrower coordination space under a project channel                               |
+| Actor             | A persistent participant: a human, bot or external collaborator                     |
+| Session           | A particular working conversation; a BB thread is one kind                          |
+| Handle            | A readable, assignable address resolving to a canonical identity                    |
 | Transmission / tx | A short immutable message with optional recipients, replies, tags and artifact refs |
-| Ping | A recipient-specific attention view of a transmission |
-| Dispatch | A detailed document owned by Radio, or a referenced external document |
-| Broadcast | One transmission addressed to a defined set of recipients |
-| Commitment | A participant's explicit acceptance of responsibility for a transmission |
+| Ping              | A recipient-specific attention view of a transmission                               |
+| Dispatch          | A detailed document owned by Radio, or a referenced external document               |
+| Broadcast         | One transmission addressed to a defined set of recipients                           |
+| Commitment        | A participant's explicit acceptance of responsibility for a transmission            |
 
 Radio uses familiar channel terminology. `station` does not mean channel. Inline `#hashtags` are topics, not channel addresses. `roger`, `stored`, and `delivered` are not user-facing protocol state names; the current terms are `ack`, `sent`, and `received`.
 

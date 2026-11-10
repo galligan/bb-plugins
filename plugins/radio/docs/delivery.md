@@ -8,16 +8,16 @@ Durability, attention and execution are separate. Posting records communication.
 
 ## Candidate adapters
 
-| Path | Basis | Limits / verification needed |
-| --- | --- | --- |
-| Explicit `check` / inbox read | Native tools, CLI and HTTP | Reliable baseline; hookless clients participate fully |
-| Piggyback on tool results | Radio can add pending digests to its own results; bot tools can call Radio RPC | No public universal wrapper for arbitrary tools was found; counts are hints, not receipts |
-| Bounded `listen` tool | Native tool execution plus cancellable AbortSignal | Cooperative foreground wait; test provider timeout, cancellation and concurrent tool behavior |
-| Guarded live steer | Send modes plus `message.dispatch` start/join distinction | Promising composition, not verified atomic join-only delivery |
-| Explicit composer mention | Mention resolver adds fresh agent context at message send | User-selected context, not automatic every-turn enrichment |
-| Session-construction instructions | Agent configure/contributeInstructions | Standing guidance and snapshot only; live sessions retain construction-time instructions |
-| Provider-native hooks | Candidate provider-specific adapter | Discover actual support; no configuration or runtime behavior verified |
-| Safe completion subscription | Proposed SDK extension | No generic public pre-completion inbox hook found |
+| Path                              | Basis                                                                          | Limits / verification needed                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Explicit `check` / inbox read     | Native tools, CLI and HTTP                                                     | Reliable baseline; hookless clients participate fully                                         |
+| Piggyback on tool results         | Radio can add pending digests to its own results; bot tools can call Radio RPC | No public universal wrapper for arbitrary tools was found; counts are hints, not receipts     |
+| Bounded `listen` tool             | Native tool execution plus cancellable AbortSignal                             | Cooperative foreground wait; test provider timeout, cancellation and concurrent tool behavior |
+| Guarded live steer                | Send modes plus `message.dispatch` start/join distinction                      | Promising composition, not verified atomic join-only delivery                                 |
+| Explicit composer mention         | Mention resolver adds fresh agent context at message send                      | User-selected context, not automatic every-turn enrichment                                    |
+| Session-construction instructions | Agent configure/contributeInstructions                                         | Standing guidance and snapshot only; live sessions retain construction-time instructions      |
+| Provider-native hooks             | Candidate provider-specific adapter                                            | Discover actual support; no configuration or runtime behavior verified                        |
+| Safe completion subscription      | Proposed SDK extension                                                         | No generic public pre-completion inbox hook found                                             |
 
 ### Piggyback and listen
 

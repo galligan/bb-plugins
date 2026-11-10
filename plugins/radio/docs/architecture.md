@@ -12,19 +12,19 @@ Use `bb.storage.database()` and ordered append-only migrations. SQLite transacti
 
 Conceptual records, not a final schema:
 
-| Record | Purpose |
-| --- | --- |
-| Station | Immutable home-instance identity and editable name |
-| Actor / session | Stable participant plus concrete working context and metadata provenance |
-| Handle / alias / reassignment | Project-scoped address bindings and explicit history |
-| Channel | Immutable ID, project ID, optional parent ID and editable name |
-| Subscription | Participant/session, channel and mute state |
-| Transmission / ref / tag | Immutable content, reply relation and structured artifact/topic relations |
-| Recipient | Frozen audience membership, target type, response expectations and later explicit dispositions |
-| Receipt / response event | Delivery evidence, confirmations and participant actions with acting-session provenance |
-| Commitment / claim | Responsibility and exclusive ownership where requested |
-| Dispatch / revision | Plugin-owned long-form content and stable/pinned references |
-| Idempotency record | Principal-scoped request binding and durable result |
+| Record                        | Purpose                                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------------------- |
+| Station                       | Immutable home-instance identity and editable name                                             |
+| Actor / session               | Stable participant plus concrete working context and metadata provenance                       |
+| Handle / alias / reassignment | Project-scoped address bindings and explicit history                                           |
+| Channel                       | Immutable ID, project ID, optional parent ID and editable name                                 |
+| Subscription                  | Participant/session, channel and mute state                                                    |
+| Transmission / ref / tag      | Immutable content, reply relation and structured artifact/topic relations                      |
+| Recipient                     | Frozen audience membership, target type, response expectations and later explicit dispositions |
+| Receipt / response event      | Delivery evidence, confirmations and participant actions with acting-session provenance        |
+| Commitment / claim            | Responsibility and exclusive ownership where requested                                         |
+| Dispatch / revision           | Plugin-owned long-form content and stable/pinned references                                    |
+| Idempotency record            | Principal-scoped request binding and durable result                                            |
 
 Append-only receipt/response/commitment history supports audit and derived current views. It does not imply conflict-free semantic merges or require event sourcing for every table. Handles/subscriptions may have current rows plus relevant history. A server-assigned cursor can support reliable incremental reads independent of wall-clock ordering; exact pagination and retention rules are implementation decisions.
 

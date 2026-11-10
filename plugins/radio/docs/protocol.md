@@ -14,16 +14,16 @@ Replies are new txs linked to an existing accessible parent. Repeated replies us
 
 These facts are not a single global status enum or mandatory progression. They apply to distinct relationships and evidence.
 
-| Fact | Recorded by | Meaning |
-| --- | --- | --- |
-| `sent` | Radio | Transmission durably accepted |
-| `received` | Delivery adapter or recipient confirmation | Actual tx content reached a particular recipient session/client |
-| `ack` | Participant | Explicit confirmation of receipt and understanding, without a work promise |
-| `wilco` | Participant | Acceptance of responsibility; opens a commitment |
-| `standby` | Participant | Pending semantic decision; proposed waiting/unable to accept yet |
-| `squelch` | Participant | Dismiss from that participant's attention view |
-| `done` | Commitment owner | Close a commitment with a result/proof |
-| `abandon` | Commitment owner | Close without success, with a reason |
+| Fact       | Recorded by                                | Meaning                                                                    |
+| ---------- | ------------------------------------------ | -------------------------------------------------------------------------- |
+| `sent`     | Radio                                      | Transmission durably accepted                                              |
+| `received` | Delivery adapter or recipient confirmation | Actual tx content reached a particular recipient session/client            |
+| `ack`      | Participant                                | Explicit confirmation of receipt and understanding, without a work promise |
+| `wilco`    | Participant                                | Acceptance of responsibility; opens a commitment                           |
+| `standby`  | Participant                                | Pending semantic decision; proposed waiting/unable to accept yet           |
+| `squelch`  | Participant                                | Dismiss from that participant's attention view                             |
+| `done`     | Commitment owner                           | Close a commitment with a result/proof                                     |
+| `abandon`  | Commitment owner                           | Close without success, with a reason                                       |
 
 `roger` is removed, including aliases. Do not expose automatic storage/delivery as `ack`. A count hint or preview that omits the body is not `received`. An explicit ack is participant evidence even if an automatic receipt was missed; retain its provenance rather than inventing an earlier delivery timestamp.
 
