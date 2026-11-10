@@ -13,6 +13,7 @@ import { PersistenceError } from "./storage.ts";
 import { SetService } from "./sets.ts";
 import { SourceService } from "./sources/service.ts";
 import { Runner } from "./runner.ts";
+import { TemplateService } from "./templates.ts";
 
 export function publicError(error: unknown): string {
   if (error instanceof PersistenceError) return "persistence_failed";
@@ -29,6 +30,7 @@ export class JudgeApi {
   readonly sets: SetService;
   readonly sources: SourceService;
   readonly runner: Runner;
+  readonly templates: TemplateService;
   constructor(
     models: ModelService,
     repository: JudgeRepository,
@@ -38,6 +40,7 @@ export class JudgeApi {
     this.models = models;
     this.repository = repository;
     this.sets = new SetService(repository, models);
+    this.templates = new TemplateService(this.sets);
     this.inference = new InferenceService(models, fetcher);
     this.asks = new AskService(this.inference, repository);
     this.sources = new SourceService(sdk);
@@ -119,6 +122,9 @@ export function registerRpc(bb: BbPluginApi, api: JudgeApi): void {
     }
   }
   bb.rpc.register(rpcContract, {
+    "templates.list": () => safe(() => api.templates.list()),
+    "templates.use": (input) =>
+      safe(() => api.templates.use(input.template, input.id)),
     "sets.list": (input) => safe(() => api.sets.list(input)),
     "sets.show": (input) => safe(() => api.sets.get(input.id)),
     "sets.save": (input) => safe(() => api.sets.save(input.yaml)),

@@ -96,7 +96,7 @@ Cases supply input values keyed by step then input name, plus expected final out
 
 Keep the proposal's `calibratedFor` as a declaration of intended model IDs, but it is insufficient to enable trigger actions. Persist a local calibration acceptance tied to set hash and the resolved model configuration fingerprints. `judge test` reports results; a user explicitly accepts the calibration after reviewing them. Any set/model/connection change invalidates acceptance. Every executed step, including private fallbacks, must match an accepted fingerprint. Hosted mutable aliases cannot establish weight-level pinning; record that limitation and require rechecking when provider changes are known.
 
-Templates are inert copies with origin `<template>@<version>`, required cases, and no inherited calibration acceptance. Initial templates: `needs-attention`, `completion-check` (missing observed check evidence, never proof of correctness), and `diff-lint` (fixed violation questions over the selected diff). Example thresholds require local evaluation before triggers act.
+Templates are inert copies with origin `<template>@<version>`, required cases, and no inherited calibration acceptance. Copy requires a new saved-set ID and refuses replacement; origin is editable provenance included in the hash. Initial templates: `needs-attention`, `completion-check` (missing observed check evidence, never proof of correctness), and `diff-lint` (fixed yes-means-violation questions over the selected diff). Example thresholds require local evaluation before triggers act.
 
 ### Example definition
 
