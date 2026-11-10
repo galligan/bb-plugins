@@ -55,28 +55,38 @@ async function readJson(
   }
 }
 
-function contextLimit(body: unknown): boolean {
+export function contextLimit(body: unknown): boolean {
   if (!body || typeof body !== "object") return false;
-  const error = (body as { error?: unknown }).error;
-  const detail = typeof error === "object" && error !== null ? error : body;
-  const code = (detail as { code?: unknown }).code;
-  if (
-    [
-      "context_length_exceeded",
-      "context_window_exceeded",
-      "too_many_tokens",
-      "max_tokens_exceeded",
-    ].includes(String(code))
-  )
-    return true;
-  const message = (detail as { message?: unknown }).message;
-  return (
-    typeof message === "string" &&
-    message.length <= 4096 &&
-    /context (length|window|limit)|maximum context|too many (input )?tokens|token limit/i.test(
-      message,
+  const object = body as {
+    error?: unknown;
+    errors?: unknown;
+    messages?: unknown;
+  };
+  const candidates = [body, object.error];
+  // Match the envelope's diagnostic bound without recursively walking upstream JSON.
+  for (const list of [object.errors, object.messages])
+    if (Array.isArray(list)) candidates.push(...list.slice(0, 64));
+  return candidates.some((detail) => {
+    if (!detail || typeof detail !== "object") return false;
+    const { code, message } = detail as { code?: unknown; message?: unknown };
+    if (
+      typeof code === "string" &&
+      [
+        "context_length_exceeded",
+        "context_window_exceeded",
+        "too_many_tokens",
+        "max_tokens_exceeded",
+      ].includes(code)
     )
-  );
+      return true;
+    return (
+      typeof message === "string" &&
+      message.length <= 4096 &&
+      /context (length|window|limit)|maximum context|too many (input )?tokens|token limit/i.test(
+        message,
+      )
+    );
+  });
 }
 
 /** One POST only; no redirects/retries and no upstream error text escapes. */

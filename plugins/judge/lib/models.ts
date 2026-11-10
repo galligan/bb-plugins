@@ -6,6 +6,7 @@ import {
   connectionReadiness,
   defineConnectionSettings,
   runtimeConnection,
+  publicConnectionIdentity,
   probeStatusSchema,
   type ModelCheck,
   type ProbeStatus,
@@ -134,11 +135,6 @@ export class ModelService {
   save(value: unknown): ModelConfig {
     this.active();
     const model = modelConfigSchema.parse(value);
-    if (
-      model.connection === "cloudflare" &&
-      !["clef", "clef-flash"].includes(model.model)
-    )
-      throw new ValidationError("unsupported_model");
     const saved = this.repository.saveModel(model);
     this.notify();
     return saved;
@@ -172,6 +168,7 @@ export class ModelService {
       model: model.model,
       fingerprint: hashJson({
         configuration: model,
+        endpoint: publicConnectionIdentity(model, this.previous),
         connectionRevision: this.revisions[model.connection],
       }),
     };
@@ -302,7 +299,7 @@ export class ModelService {
       return { ok: false, reason: "cancelled", code: "configuration_changed" };
     const value = await operation({
       ...resolved,
-      connection: runtimeConnection(resolved.model.connection, settings),
+      connection: runtimeConnection(resolved.model, settings),
     });
     if (
       !(await this.isCurrent(resolved.identity)) ||

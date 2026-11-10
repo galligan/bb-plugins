@@ -172,9 +172,10 @@ export function connectionReadiness(
 
 /** Server-only transport material. Never return this object through a public surface. */
 export function runtimeConnection(
-  connection: ConnectionType,
+  model: ModelConfig,
   settings: ConnectionSettings,
 ): { endpoint: string; credential?: string } {
+  const connection = model.connection;
   if (connection === "typesafe")
     return {
       endpoint: "https://api.typesafe.ai/v1/systemone",
@@ -182,11 +183,29 @@ export function runtimeConnection(
     };
   if (connection === "cloudflare")
     return {
-      endpoint: `https://api.cloudflare.com/client/v4/accounts/${settings.cloudflareAccountId}/ai/run/@cf/cloudflare/clef`,
+      endpoint: `https://api.cloudflare.com/client/v4/accounts/${settings.cloudflareAccountId}/ai/run/@cf/cloudflare/${model.model}`,
       credential: settings.cloudflareApiToken,
     };
   return {
     endpoint: customEndpoint(settings.customBaseUrl),
     credential: settings.customApiKey,
+  };
+}
+
+/** Deliberately project only nonsecret endpoint configuration into fingerprints. */
+export function publicConnectionIdentity(
+  model: ModelConfig,
+  settings: ConnectionSettings,
+) {
+  let endpoint: string | null = null;
+  try {
+    endpoint = runtimeConnection(model, settings).endpoint;
+  } catch {
+    /* Invalid custom URL remains unconfigured. */
+  }
+  return {
+    endpoint,
+    accountId:
+      model.connection === "cloudflare" ? settings.cloudflareAccountId : null,
   };
 }
