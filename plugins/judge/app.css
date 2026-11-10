@@ -51,7 +51,8 @@
   display: grid;
   gap: 1rem;
 }
-.judge-ui form > button {
+.judge-ui form > button,
+.judge-ui fieldset > button {
   justify-self: end;
 }
 .judge-ui p {
@@ -65,7 +66,7 @@
     gap: 1.25rem;
   }
   .judge-ui .judge-control {
-    flex: 0 1 55%;
+    flex: 0 1 20rem;
     width: 20rem;
     max-width: 55%;
   }

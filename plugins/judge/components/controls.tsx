@@ -68,9 +68,14 @@ export function Field({
   const id = useId();
   const control = isValidElement(children)
     ? cloneElement(
-        children as ReactElement<{ id?: string; "aria-describedby"?: string }>,
+        children as ReactElement<{
+          id?: string;
+          "aria-describedby"?: string;
+          "aria-label"?: string;
+        }>,
         {
           id,
+          "aria-label": label,
           "aria-describedby": description ? `${id}-description` : undefined,
         },
       )
