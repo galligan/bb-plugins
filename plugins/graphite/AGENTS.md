@@ -42,9 +42,7 @@ The read path and write verbs are implemented. The September 2026 plan records h
 - `docs/` otherwise is for people.
 - State what is verified and what is not. When a fact comes from a specific version,
   name the version.
-- Prefer a CLI command over a UI panel until a decision exists that a human cannot
-  make from `--json` output. The stack action earns its place: position and lineage
-  are not readable from a JSON array.
+- Prefer a CLI command over a UI panel until a decision exists that a human cannot make from `--json` output. The stack action earns its place: position and lineage are not readable from a JSON array.
 - Keep a surface thin. Anything a second surface could want belongs in `lib/`.
 
 ## Verification
