@@ -14,6 +14,10 @@ from this repository without a separate distribution branch.
 | [`bb-plugin-graphite`](plugins/graphite) | Read and drive Graphite stacks from bb.                            |
 | [`bb-plugin-wt`](plugins/wt)             | Run threads in Git worktrees set up from the repo's own scripts.   |
 
+## In preparation
+
+[Judge](plugins/judge) has native connection settings, offline contracts/storage/privacy foundations, and an implementation spec for typed judgments over BB state. Inference surfaces and triggers are not implemented, and it is not listed in the install collection.
+
 ## Install
 
 Install one plugin from the repository's `main` branch:
@@ -50,9 +54,7 @@ bun run test
 bun run build
 ```
 
-These root checks cover Graphite and future plugins. Linear is temporarily
-excluded from formatting, linting, type checks, tests, and builds until its
-existing package is brought up to the same standard.
+These root checks cover Graphite, Worktree+, and the repository scripts where applicable. Linear is temporarily excluded from formatting, linting, type checks, tests, and builds until its existing package is brought up to the same standard. See [development guidance](docs/dev/README.md) for SDK/host patterns, lifecycle lessons, and verification boundaries.
 
 For source development, clone this repository and install a package from its
 directory:
@@ -64,6 +66,14 @@ bb plugin dev ./plugins/graphite
 
 Plugins run as full-trust code inside the bb server. Review a plugin before
 installing it and keep credentials in its declared secret settings.
+
+## Reference plugins
+
+[`repos.json`](repos.json) lists third-party plugins available for local research. Run `bun run repos clone` to clone missing repositories into ignored `repos/<owner>--<repo>/` directories. Run `bun run repos pull` to clone missing repositories and fast-forward all clean checkouts from their GitHub origins, including newly copied local references. Edit the manifest to change the reference set; removing an entry leaves its local checkout untouched. Manifest entries that map to the same directory (ignoring case) are rejected before cloning. These commands only download source and do not install plugins or run their code.
+
+New BB worktrees run [`.bb-env-setup.sh`](.bb-env-setup.sh), which populates the references from existing local worktrees when possible and falls back to GitHub. Each clone has independent Git storage and retains its GitHub origin, so removing the source worktree does not break it. Local uncommitted edits are not copied. This uses the setup hook because `.worktreeinclude` copies regular files and cannot copy nested Git repositories. The hook and manifest must be committed on the branch used to create new worktrees; Bun and Git must be available. A clone failure fails setup with an error; rerunning `bun run repos clone` preserves existing checkouts.
+
+The clones stay outside the Bun workspace and are excluded from Git and formatting. Only the manifest, script, hook, and documentation belong in this repository's history.
 
 ## Related repositories
 
