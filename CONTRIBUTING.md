@@ -20,7 +20,7 @@ The repository-owned `autolabel` workflow adds `plugin/<directory>` labels to PR
 
 Missing labels are created automatically with a default blue color. Existing label colors and descriptions are preserved. Pushes to `main` and manual workflow runs also create labels for all current plugin directories, so new plugins need no label configuration. Issues can use these same labels manually; they have no changed-file list to infer a plugin from.
 
-Fork PRs are supported through `pull_request_target`. The workflow checks out only the trusted base revision and reads PR file paths through the GitHub API; it never checks out or executes PR head code. It needs read access to contents, write access to issues for label creation, and write access to PRs for label assignment; GitHub rejects adding labels to a PR with only issues write. Automatic PR labeling becomes active once the workflow is on the base branch.
+Fork PRs are supported through `pull_request_target`. The workflow checks out the trusted default branch for its labeling script, so stacked PRs can target older branches that lack the script. It reads PR file paths through the GitHub API; it never checks out or executes PR head code. It needs read access to contents, write access to issues for label creation, and write access to PRs for label assignment; GitHub rejects adding labels to a PR with only issues write. Automatic PR labeling becomes active once the workflow is on the base branch.
 
 ## Distribution
 
