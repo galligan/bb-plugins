@@ -94,6 +94,14 @@ Each worktree is marked `SAFE` or `UNSAVED`, with the reasons:
 
 It also reports where the branch's commits stand: `no commits yet`, `merged into base`, `pushed` (every commit is on a remote), or `local only` with a count. `merged into base` compares content, not commit ids, so it still holds after a squash merge or a rebase. These do not affect `SAFE`, because removal keeps the branch. The check runs no fetch, so `pushed` and `merged` reflect the remote as last fetched. `last activity` is the newest uncommitted file's modification time or, in a clean worktree, the last commit.
 
+## Worktrees panel
+
+Open **Worktrees** in bb's navigation (`/plugins/wt/worktrees`) to see Worktree+ records on connected machines, grouped by project and machine. Rows show safety reasons, commit state, last activity and links to owning threads, including archived ones. Records without a recognizable project appear under **Unknown project**. A machine that cannot be read has its own error; use **Refresh** to try again. The visible page refreshes every 30 seconds and after provider changes.
+
+**Remove** asks for confirmation and explains which work can be rescued and which conditions block removal. A fresh inspection after cleanup decides whether removal can proceed. Environments are removed through bb core, which may refuse while threads are live or stopping; **Retry removal** asks core to retry failed teardown. Orphan records use the same fail-closed host removal path. There is no force action.
+
+**Rescued work** lists rescue refs in each project's source repositories. Copy the restore command and run it in that repository to recover files. Refs have no delete or restore action in the panel. Inspection does not fetch, so commit status reflects the last fetched refs. Missing records and damaged records need attention; a missing record is never proof of filesystem ownership.
+
 ## Not yet built
 
 - Stack-aware bases for Graphite and gh-stack.

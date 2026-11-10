@@ -597,14 +597,16 @@ export async function removeWorktree(
   }
 }
 
-export type ListedWorktree =
+export type ListedWorktree = { sourcePath?: string } & (
   | { status: "present"; pathKey: string; inspection: Inspection }
   | { status: "missing"; pathKey: string; path: string }
-  | { status: "unreadable"; pathKey: string; path: string; message: string };
+  | { status: "unreadable"; pathKey: string; path: string; message: string }
+);
 
 /** Every worktree this plugin has recorded on the machine, with what removing it would lose. */
 export async function listWorktrees(
   env: HostEnvironment,
+  includeSource = false,
 ): Promise<ListedWorktree[]> {
   const files = await readdir(recordsDir(env)).catch((): string[] => []);
   const listed: ListedWorktree[] = [];
@@ -622,12 +624,18 @@ export async function listWorktrees(
       continue;
     }
     if (!existsSync(record.path)) {
-      listed.push({ status: "missing", pathKey, path: record.path });
+      listed.push({
+        status: "missing",
+        pathKey,
+        ...(includeSource ? { sourcePath: record.sourcePath } : {}),
+        path: record.path,
+      });
       continue;
     }
     try {
       listed.push({
         status: "present",
+        ...(includeSource ? { sourcePath: record.sourcePath } : {}),
         pathKey,
         inspection: await inspectWorktree({
           path: record.path,
@@ -643,6 +651,7 @@ export async function listWorktrees(
         status: "unreadable",
         pathKey,
         path: record.path,
+        ...(includeSource ? { sourcePath: record.sourcePath } : {}),
         message: messageOf(error),
       });
     }

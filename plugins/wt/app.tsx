@@ -1,8 +1,4 @@
-// bb-plugin-wt — the frontend entry. Its one job is the "Branch from:" control
-// shown beside the Worktree+ provider in the New Thread environment picker.
-//
-// React and @get-bb/plugin-sdk/app are provided by bb at load time and are
-// never bundled, so this file only runs inside bb.
+// Worktree+ frontend registration: provider inputs and management panel.
 
 import { useEffect } from "react";
 import {
@@ -11,6 +7,8 @@ import {
   useRpc,
   type PluginEnvironmentProviderInputsProps,
 } from "@get-bb/plugin-sdk/app";
+
+import { WorktreesPanel } from "./components/worktrees-panel.tsx";
 
 import { readBase, toInputs } from "./lib/base-input.ts";
 import type { rpcContract } from "./server.ts";
@@ -59,6 +57,13 @@ function BaseBranchInput({
 }
 
 export default definePluginApp((app) => {
+  app.slots.navPanel({
+    id: "worktrees",
+    title: "Worktrees",
+    icon: "FolderGit",
+    path: "worktrees",
+    component: WorktreesPanel,
+  });
   app.slots.experimental_environmentProviderInputs({
     environmentProviderId: PROVIDER_ID,
     component: BaseBranchInput,

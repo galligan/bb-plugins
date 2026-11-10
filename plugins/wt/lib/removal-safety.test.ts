@@ -20,6 +20,7 @@ import {
   provisioned,
   type Fixture,
 } from "./fixture.ts";
+import { removalConsequences } from "./overview.ts";
 import { saveRescueSnapshot } from "./inspect.ts";
 import {
   createWorktree,
@@ -126,6 +127,10 @@ test("unresolved conflicts block removal, since they cannot be saved", async (t)
     // The conflict is the point.
   }
 
+  const [entry] = await listWorktrees(f.env);
+  assert.equal(entry?.status, "present");
+  if (entry?.status === "present")
+    assert.ok(removalConsequences(entry.inspection).blocked.length > 0);
   const removed = await removeWorktree(f.env, { pathKey: KEY, path });
   assert.equal(removed.status, "failed");
   assert.match(removed.status === "failed" ? removed.message : "", /conflict/u);
@@ -219,6 +224,10 @@ test("a submodule with unsaved work blocks removal", async (t) => {
   const path = await withSubmodule(f);
   await writeFile(join(path, "vendor", "lib.txt"), "edited in the worktree\n");
 
+  const [entry] = await listWorktrees(f.env);
+  assert.equal(entry?.status, "present");
+  if (entry?.status === "present")
+    assert.ok(removalConsequences(entry.inspection).blocked.length > 0);
   const removed = await removeWorktree(f.env, { pathKey: KEY, path });
   assert.equal(removed.status, "failed");
   assert.match(removed.status === "failed" ? removed.message : "", /vendor/u);
@@ -420,6 +429,10 @@ test("a paused rebase blocks removal even with nothing in conflict", async (t) =
     "HEAD~2",
   );
 
+  const [entry] = await listWorktrees(f.env);
+  assert.equal(entry?.status, "present");
+  if (entry?.status === "present")
+    assert.ok(removalConsequences(entry.inspection).blocked.length > 0);
   const removed = await removeWorktree(f.env, { pathKey: KEY, path });
   assert.equal(removed.status, "failed");
   assert.match(removed.status === "failed" ? removed.message : "", /rebase/u);
@@ -464,6 +477,10 @@ test("an edited ignored shared file blocks removal and stays out of git", async 
   await writeFile(join(path, ".env"), "TOKEN=edited\n");
   await writeFile(join(path, "notes.txt"), "draft\n");
 
+  const [entry] = await listWorktrees(f.env);
+  assert.equal(entry?.status, "present");
+  if (entry?.status === "present")
+    assert.ok(removalConsequences(entry.inspection).blocked.length > 0);
   const removed = await removeWorktree(f.env, { pathKey: KEY, path });
   assert.equal(removed.status, "failed");
   assert.match(removed.status === "failed" ? removed.message : "", /\.env/u);

@@ -10,6 +10,7 @@ import {
 } from "@get-bb/plugin-sdk/host";
 
 import { hostContract, hostSignals } from "./lib/host-contract.ts";
+import { listRescues } from "./lib/rescues.ts";
 import { killAllScripts } from "./lib/process.ts";
 import {
   createWorktree,
@@ -48,8 +49,27 @@ export default experimental_defineHostEntry({
     defaultBase: async ({ sourcePath }, context) => ({
       base: await defaultBase(sourcePath, context.signal),
     }),
-    list: async (_input, context) => ({
-      worktrees: await listWorktrees(quiet(context)),
+    rescues: async ({ sourcePaths }, context) => ({
+      sources: await Promise.all(
+        sourcePaths.map(async (sourcePath) => {
+          try {
+            return {
+              sourcePath,
+              refs: await listRescues(sourcePath, context.signal),
+              error: null,
+            };
+          } catch (error) {
+            return {
+              sourcePath,
+              refs: [],
+              error: error instanceof Error ? error.message : String(error),
+            };
+          }
+        }),
+      ),
+    }),
+    list: async ({ includeSource }, context) => ({
+      worktrees: await listWorktrees(quiet(context), includeSource),
     }),
   },
   // A setup script must not outlive the worker that was waiting on it.
