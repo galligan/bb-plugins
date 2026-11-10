@@ -1,6 +1,11 @@
 import { z } from "zod";
-import { answersSchema, idSchema, jsonSchema } from "./contracts.ts";
-import { assertJson, LIMITS } from "./json.ts";
+import {
+  answersSchema,
+  idSchema,
+  jsonSchema,
+  strictRecord,
+} from "./contracts.ts";
+import { assertJson, assertLossless, LIMITS } from "./json.ts";
 
 export const hashSchema = z.string().regex(/^[0-9a-f]{64}$/);
 const timeSchema = z.number().int().nonnegative();
@@ -42,11 +47,11 @@ export const stepResultSchema = z.discriminatedUnion("status", [
     resolvedModel: modelIdentitySchema,
     fallbackReason: z.literal("private_not_allowed").nullable(),
     answers: answersSchema,
-    outcomes: z.record(idSchema, z.boolean()),
+    outcomes: strictRecord(idSchema, z.boolean()),
     latencyMs: z.number().nonnegative(),
     inputTokens: z.number().int().nonnegative().nullable(),
     cacheHit: z.boolean(),
-    provenance: z.record(idSchema, provenanceSchema),
+    provenance: strictRecord(idSchema, provenanceSchema),
   }),
   z.strictObject({
     status: z.literal("skipped"),
@@ -75,13 +80,10 @@ export const verdictSchema = z
     endedAt: timeSchema,
     complete: z.boolean(),
     calibrated: z.boolean(),
-    steps: z
-      .record(idSchema, stepResultSchema)
-      .refine(
-        (s) =>
-          Object.keys(s).length > 0 && Object.keys(s).length <= LIMITS.steps,
-      ),
-    outcomes: z.record(idSchema, z.boolean()),
+    steps: strictRecord(idSchema, stepResultSchema).refine(
+      (s) => Object.keys(s).length > 0 && Object.keys(s).length <= LIMITS.steps,
+    ),
+    outcomes: strictRecord(idSchema, z.boolean()),
   })
   .superRefine((v, ctx) => {
     const results = Object.values(v.steps);
@@ -110,8 +112,11 @@ export type Verdict = z.infer<typeof verdictSchema>;
 
 export function parseVerdict(value: unknown): Verdict {
   // A set can contain sixteen separately bounded provider responses.
-  assertJson(value, LIMITS.steps * LIMITS.responseBytes + LIMITS.requestBytes);
+  const maxBytes = LIMITS.steps * LIMITS.responseBytes + LIMITS.requestBytes;
+  // steps/<id> adds two fixed levels around an already validated response.
+  assertJson(value, maxBytes, LIMITS.depth + 2);
   const verdict = verdictSchema.parse(value);
+  assertLossless(value, verdict, maxBytes, LIMITS.depth + 2);
   for (const step of Object.values(verdict.steps)) {
     assertJson(step, LIMITS.responseBytes + LIMITS.requestBytes);
   }

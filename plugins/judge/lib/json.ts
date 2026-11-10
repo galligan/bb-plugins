@@ -27,10 +27,11 @@ export class ValidationError extends Error {
 export function assertJson(
   value: unknown,
   maxBytes: number = LIMITS.requestBytes,
+  maxDepth: number = LIMITS.depth,
 ): asserts value is Json {
   const active = new Set<object>();
   function visit(item: unknown, depth: number): void {
-    if (depth > LIMITS.depth) throw new ValidationError("too_deep");
+    if (depth > maxDepth) throw new ValidationError("too_deep");
     if (item === null || typeof item === "string" || typeof item === "boolean")
       return;
     if (typeof item === "number" && Number.isFinite(item)) return;
@@ -83,4 +84,16 @@ export function canonicalJson(value: Json): string {
 
 export function hashJson(value: Json): string {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");
+}
+
+/** Record parsers may omit reserved keys. Never silently change a submitted map. */
+export function assertLossless(
+  original: Json,
+  parsed: unknown,
+  maxBytes: number,
+  maxDepth: number = LIMITS.depth,
+): void {
+  assertJson(parsed, maxBytes, maxDepth);
+  if (canonicalJson(original) !== canonicalJson(parsed))
+    throw new ValidationError("unsupported_json_key");
 }

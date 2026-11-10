@@ -17,6 +17,7 @@ export const MIGRATIONS = [
   `CREATE TABLE cache (key TEXT PRIMARY KEY, created_at INTEGER NOT NULL, response_json TEXT NOT NULL)`,
   `CREATE TABLE project_settings (project_id TEXT PRIMARY KEY, enabled INTEGER NOT NULL)`,
   `CREATE TABLE calibration_acceptance (set_id TEXT PRIMARY KEY, set_hash TEXT NOT NULL, fingerprints_json TEXT NOT NULL, test_run_id TEXT NOT NULL, accepted_at INTEGER NOT NULL)`,
+  `ALTER TABLE steps ADD COLUMN ordinal INTEGER NOT NULL DEFAULT 0`,
 ];
 
 export class PersistenceError extends Error {
@@ -91,10 +92,10 @@ export class JudgeRepository {
             JSON.stringify(summary),
           );
         const insert = this.db.prepare(
-          "INSERT INTO steps(run_id, id, result_json) VALUES (?, ?, ?)",
+          "INSERT INTO steps(run_id, id, result_json, ordinal) VALUES (?, ?, ?, ?)",
         );
-        for (const [id, step] of Object.entries(steps))
-          insert.run(verdict.runId, id, JSON.stringify(step));
+        for (const [ordinal, [id, step]] of Object.entries(steps).entries())
+          insert.run(verdict.runId, id, JSON.stringify(step), ordinal);
         this.pruneRuns(now);
         return verdict;
       })(),
@@ -109,7 +110,7 @@ export class JudgeRepository {
       if (!row) return null;
       const rows = this.db
         .prepare(
-          "SELECT id, result_json FROM steps WHERE run_id = ? ORDER BY id",
+          "SELECT id, result_json FROM steps WHERE run_id = ? ORDER BY ordinal, id",
         )
         .all(id) as { id: string; result_json: string }[];
       return parseVerdict({
