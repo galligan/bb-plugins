@@ -45,6 +45,7 @@ export const stepResultSchema = z.discriminatedUnion("status", [
     status: z.literal("ran"),
     requestedModel: idSchema,
     resolvedModel: modelIdentitySchema,
+    providerModel: z.string().min(1).max(256).optional(),
     fallbackReason: z.literal("private_not_allowed").nullable(),
     answers: answersSchema,
     outcomes: strictRecord(idSchema, z.boolean()),
@@ -109,6 +110,17 @@ export const verdictSchema = z
     }
   });
 export type Verdict = z.infer<typeof verdictSchema>;
+const v = verdictSchema.shape;
+export const runSummarySchema = z.strictObject({
+  runId: v.runId,
+  set: v.set,
+  threadId: v.threadId,
+  projectId: v.projectId,
+  startedAt: v.startedAt,
+  endedAt: v.endedAt,
+  complete: v.complete,
+  calibrated: v.calibrated,
+});
 
 export function parseVerdict(value: unknown): Verdict {
   // A set can contain sixteen separately bounded provider responses.
