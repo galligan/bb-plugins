@@ -17,7 +17,7 @@ from this repository without a separate distribution branch.
 
 ## In preparation
 
-[Judge](plugins/judge) has native connection settings, offline contracts/storage/privacy foundations, and an implementation spec for typed judgments over BB state. Inference surfaces and triggers are not implemented, and it is not listed in the install collection.
+[Judge](plugins/judge) implements typed CLI/RPC asks, saved question sets, cases/calibration, opt-in event verdicts, BB-native settings/Info and an optional agent tool. Scoped synthetic Jev and authenticated remote UI checks passed; provider/platform/remote-host limitations remain explicit in its [live verification record](plugins/judge/docs/LIVE-VERIFICATION.md). It remains private and outside the install collection pending delivery gates; [distribution preparation](plugins/judge/docs/RELEASE.md) records independent builds and safe lifecycle expectations.
 
 ## Install
 
@@ -55,7 +55,7 @@ bun run test
 bun run build
 ```
 
-These root checks cover Graphite, Worktree+, and the repository scripts where applicable. Linear is temporarily excluded from formatting, linting, type checks, tests, and builds until its existing package is brought up to the same standard. See [development guidance](docs/dev/README.md) for SDK/host patterns, lifecycle lessons, and verification boundaries.
+These root checks cover Graphite, Worktree+, Rex, Judge, and the repository scripts where applicable. Linear is temporarily excluded from formatting, linting, type checks, tests, and builds until its existing package is brought up to the same standard. See [development guidance](docs/dev/README.md) for SDK/host patterns, lifecycle lessons, and verification boundaries.
 
 For source development, clone this repository and install a package from its
 directory:
