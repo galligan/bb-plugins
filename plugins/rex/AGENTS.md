@@ -40,7 +40,7 @@
 - If a change calls Rex, test it against `FakeRex`. If `FakeRex` lacks the method, add it there in the shape the Rex API page gives.
 - If a change touches decoding, scrolling, or history, test it against the real WASM through `lib/pane-fixture.ts`.
 - `lib/relay.test.ts` uses real sockets on a Unix socket in a temporary directory.
-- No test loads `server.ts` or `app.tsx` yet. If a change touches a route, `bb rex`, the setting, a listener, or the tab registration, test it through `createFakePluginHost` or `loadPluginApp` from `@get-bb/plugin-sdk/testing`. Do not check it in the running app instead.
+- No test loads `server.ts` or `app.tsx` yet. If a change touches a route, `bb rex`, the setting, a listener, or the tab registration, test it through `createFakePluginHost` from `@get-bb/plugin-sdk/testing` or `loadPluginApp` from `@get-bb/plugin-sdk/testing/app`. Do not check it in the running app instead.
 
 ## Checking in the running app
 
