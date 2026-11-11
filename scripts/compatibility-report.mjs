@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { Glob, semver } from "bun";
 import { getFileInfo } from "prettier";
 import { gates, gateCoverage } from "./compatibility/coverage.mjs";
+import { harnessCoverage, toolingDrift } from "./compatibility/harness.mjs";
 
 const exactVersion = /^\d+\.\d+\.\d+(?:-[\da-zA-Z.-]+)?(?:\+[\da-zA-Z.-]+)?$/;
 const rangePart =
@@ -143,6 +144,7 @@ export async function buildReport(root) {
     scripts: manifest.scripts ?? {},
   };
   const plugins = [];
+  const manifests = [];
   for (const entry of readdirSync(path.join(root, "plugins"), {
     withFileTypes: true,
   }).sort((a, b) => a.name.localeCompare(b.name, "en"))) {
@@ -154,7 +156,13 @@ export async function buildReport(root) {
         `${directory}: missing package.json; cannot report plugin compatibility.`,
       );
     const selection = { selected: 0, ignored: 0 };
+    const tests = [];
     for (const source of sourceFiles(path.join(root, directory))) {
+      if (/\.test\.[cm]?[jt]sx?$/.test(source))
+        tests.push({
+          file: path.relative(path.join(root, directory), source),
+          text: readFileSync(source, "utf8"),
+        });
       const info = await getFileInfo(source, {
         ignorePath: path.join(root, ".prettierignore"),
         withNodeModules: false,
@@ -162,9 +170,20 @@ export async function buildReport(root) {
       if (info.ignored) selection.ignored++;
       else if (info.inferredParser) selection.selected++;
     }
-    plugins.push(
-      describePlugin(readJson(file), directory, configuration, selection),
+    const pluginManifest = readJson(file);
+    manifests.push({ directory, manifest: pluginManifest });
+    const described = describePlugin(
+      pluginManifest,
+      directory,
+      configuration,
+      selection,
     );
+    const harness = harnessCoverage(pluginManifest, tests);
+    plugins.push({
+      ...described,
+      harness: harness.coverage,
+      diagnostics: [...described.diagnostics, ...harness.diagnostics],
+    });
   }
   return {
     schemaVersion: 1,
@@ -182,6 +201,7 @@ export async function buildReport(root) {
       reason:
         "This read-only report runs no gates or BB runtime tests. Pins, policy, and gate selection are not execution evidence; attach exact runtime versions and results to the upgrade PR.",
     },
+    toolingDrift: toolingDrift(manifests),
     plugins,
   };
 }
@@ -192,6 +212,7 @@ export function renderReport(report) {
     `Policy: ${report.policy.packageManager ?? "Bun unspecified"}; Node ${report.policy.node ?? "unspecified in .node-version"}`,
     `Tested compatibility: ${report.testedCompatibility.status}. ${report.testedCompatibility.reason}`,
   ];
+  lines.push(...report.toolingDrift.map((drift) => `! ${drift}`));
   const pins = (entries) =>
     entries
       .map(({ specifier, section }) => `${specifier} (${section})`)
@@ -204,6 +225,9 @@ export function renderReport(report) {
       `  Direct pins: SDK ${pins(plugin.pins.sdk)}; bb-app ${pins(plugin.pins.buildTool)}`,
       `  Gates: ${Object.entries(plugin.coverage)
         .map(([gate, { status }]) => `${gate}=${status}`)
+        .join(", ")}`,
+      `  Harness: ${Object.entries(plugin.harness)
+        .map(([kind, status]) => `${kind}=${status}`)
         .join(", ")}`,
     );
     lines.push(...plugin.diagnostics.map((diagnostic) => `  ! ${diagnostic}`));
