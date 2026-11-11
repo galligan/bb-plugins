@@ -1,8 +1,8 @@
 # Judge task board
 
-Tracker: BB Tasks project `BBP` (bb-plugins), label `judge`. Parent: **BBP-5**. Created 2026-11-10. The board owns execution status; this file maps the build scope. No workers were dispatched by this planning pass.
+Tracker: BB Tasks project `BBP` (bb-plugins), label `judge`. Parent: **BBP-5**. Created 2026-11-10. The board owns execution status; this file maps the build scope. One implementation owner subsequently delivered the sequence with independent reviews; the tracker holds current status and artifacts.
 
-Tasks have explicit dependency keys in their descriptions; the current Tasks CLI does not expose native dependency edges. Only the baseline child is initially ready; gated work remains backlog.
+Tasks have explicit dependency keys in their descriptions; the current Tasks CLI does not expose native dependency edges. The dependency map below is the original build order, not a current status list. BBP-6 through BBP-19 merged; BBP-20 through BBP-22 have reviewed code with later live/human gates remaining. BBP-23 records partial live evidence and explicit unavailable scenarios; BBP-24 distribution remains gated.
 
 ## Task dependency map
 
@@ -32,4 +32,4 @@ Tasks have explicit dependency keys in their descriptions; the current Tasks CLI
 
 BBP-12 is the user handoff: after offline ask tests pass and the GUI secret field is ready, the agent tells the user to enter the Jev key directly into BB. It observes sanitized readiness and a synthetic smoke result, never the key. Other work need not wait for credentials. See [spec](SPEC.md#jev-key-setup-and-agent-handoff).
 
-The baseline is currently in the originating worktree and must be delivered before other checkouts use it. Parent attachments preserve the planning documents for independent pickup.
+The baseline and lower stages are delivered. Parent attachments preserve the planning documents for provenance; current repository contracts and accepted task clarifications govern continuation. See [live verification](LIVE-VERIFICATION.md) for the remaining external scenarios rather than treating unavailable access as a pass.
