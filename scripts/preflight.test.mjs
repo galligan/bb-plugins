@@ -25,7 +25,6 @@ function fixture({
   packages = [
     { directory: "plugins/a", manifest: pinned("0.6.138") },
     { directory: "plugins/b", manifest: pinned("0.6.138", "dependencies") },
-    { directory: "plugins/no-sdk", manifest: {} },
   ],
 } = {}) {
   const calls = [];
@@ -106,6 +105,75 @@ test("a package pin that differs from the root is named", () => {
   );
   assert.doesNotMatch(f.output, /plugins\/a pins/);
   assert.doesNotMatch(f.output, /the npm latest, in every/);
+});
+
+test("a package with no SDK pin is named instead of passing as pinned", () => {
+  const f = fixture({
+    packages: [
+      { directory: "plugins/a", manifest: pinned("0.6.138") },
+      { directory: "plugins/unpinned", manifest: {} },
+    ],
+  });
+  assert.equal(f.code, exit.sdk);
+  assert.match(f.output, /plugins\/unpinned has no @get-bb\/plugin-sdk pin/);
+  assert.doesNotMatch(f.output, /the npm latest, in every/);
+
+  const rootless = fixture({ root: {} });
+  assert.equal(rootless.code, exit.sdk);
+  assert.match(
+    rootless.output,
+    /the root has no exact @get-bb\/plugin-sdk pin \(missing\)/,
+  );
+  const ranged = fixture({ root: pinned("^0.6.138") });
+  assert.equal(ranged.code, exit.sdk);
+  assert.match(
+    ranged.output,
+    /no exact @get-bb\/plugin-sdk pin \(\^0\.6\.138\)/,
+  );
+});
+
+test("versions are compared by order, so a newer install or pin is never called behind", () => {
+  // Installed BB ahead of a lagging update feed, even if the flag disagrees.
+  for (const updateAvailable of [false, true]) {
+    const f = fixture({
+      app: { ...stable, currentVersion: "0.50.0", updateAvailable },
+    });
+    assert.equal(f.code, exit.current);
+    assert.match(
+      f.output,
+      /BB installed: 0\.50\.0, newer than the update feed's latest stable release 0\.49\.0/,
+    );
+    assert.doesNotMatch(f.output, /bb updates app/);
+  }
+  // 0.10.0 is newer than 0.9.0; a string comparison would say otherwise.
+  const numeric = fixture({
+    app: { ...stable, currentVersion: "0.9.0", latestVersion: "0.10.0" },
+  });
+  assert.equal(numeric.code, exit.bb);
+
+  // Repository pin ahead of what the registry reported.
+  const pin = fixture({
+    root: pinned("0.6.139"),
+    packages: [{ directory: "plugins/a", manifest: pinned("0.6.139") }],
+    types: { status: 0, stdout: "" },
+  });
+  assert.equal(pin.code, exit.current);
+  assert.match(
+    pin.output,
+    /0\.6\.139, newer than the npm latest reported \(0\.6\.138\)\. No pin is behind/,
+  );
+  assert.doesNotMatch(pin.output, /Set every/);
+});
+
+test("without a reported latest stable release, only the update flag decides", () => {
+  const unknown = fixture({ app: { ...stable, latestVersion: undefined } });
+  assert.equal(unknown.code, exit.current);
+  assert.match(unknown.output, /The latest stable release was not reported/);
+  assert.doesNotMatch(unknown.output, /the latest stable release\./);
+  const flagged = fixture({
+    app: { ...stable, latestVersion: undefined, updateAvailable: true },
+  });
+  assert.equal(flagged.code, exit.bb);
 });
 
 test("a stale BB outranks a stale SDK pin", () => {

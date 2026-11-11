@@ -2,8 +2,10 @@ import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { semver } from "bun";
 
 const SDK = "@get-bb/plugin-sdk";
+const exact = /^\d+\.\d+\.\d+$/;
 
 /** Exit codes: BB findings outrank SDK findings. */
 export const exit = { current: 0, bb: 1, sdk: 2 };
@@ -38,13 +40,26 @@ function bbFinding(run, log) {
     );
     return true;
   }
-  if (app.updateAvailable || (latest && latest !== current)) {
+  // Compare by version order: an installed release newer than a lagging update
+  // feed is not behind, whatever `updateAvailable` says.
+  const order = latest ? semver.order(current, latest) : undefined;
+  if (order === undefined ? app.updateAvailable : order < 0) {
     log(
-      `BB installed: ${current}; the latest stable release is ${latest ?? "unknown"}. Update it with \`bb updates app\`, then rerun.`,
+      `BB installed: ${current}; the latest stable release is ${latest ?? "newer"}. Update it with \`bb updates app\`, then rerun.`,
     );
     return true;
   }
-  log(`BB installed: ${current}, the latest stable release.`);
+  if (order === undefined) {
+    log(
+      `BB installed: ${current}. The latest stable release was not reported.`,
+    );
+  } else if (order > 0) {
+    log(
+      `BB installed: ${current}, newer than the update feed's latest stable release ${latest}.`,
+    );
+  } else {
+    log(`BB installed: ${current}, the latest stable release.`);
+  }
   return false;
 }
 
@@ -65,28 +80,44 @@ function bundledSdk(run, log, probe) {
 
 function sdkFinding(root, packages, run, log) {
   const pin = sdkPin(root);
-  let behind = false;
+  if (!exact.test(pin ?? "")) {
+    log(
+      `Repo SDK pin: the root has no exact ${SDK} pin (${pin ?? "missing"}). Pin one exact version.`,
+    );
+    return true;
+  }
+  let finding = false;
   for (const { directory, manifest } of packages) {
     const own = sdkPin(manifest);
-    if (!own || own === pin) continue;
-    behind = true;
+    if (own === pin) continue;
+    finding = true;
     log(
-      `Repo SDK pin: ${directory} pins ${own}; the root pins ${pin}. Use one exact pin in every package.`,
+      own === undefined
+        ? `Repo SDK pin: ${directory} has no ${SDK} pin. Declare the root's exact pin, ${pin}.`
+        : `Repo SDK pin: ${directory} pins ${own}; the root pins ${pin}. Use one exact pin in every package.`,
     );
   }
   const latest = capture(run, "npm", ["view", SDK, "version"])?.trim();
-  if (!latest || !/^\d+\.\d+\.\d+$/.test(latest)) {
+  if (!latest || !exact.test(latest)) {
     log(`Repo SDK pin: ${pin}. npm latest was not checked.`);
-    return behind;
+    return finding;
   }
-  if (pin !== latest) {
+  // Only a lower pin is behind. A higher one means the registry answer lags.
+  const order = semver.order(pin, latest);
+  if (order < 0) {
     log(
       `Repo SDK pin: ${pin}; npm latest is ${latest}. Set every ${SDK} pin to ${latest}, run \`bun install\`, then \`bun run verify\`.`,
     );
     return true;
   }
-  if (!behind) log(`Repo SDK pin: ${pin}, the npm latest, in every package.`);
-  return behind;
+  if (order > 0) {
+    log(
+      `Repo SDK pin: ${pin}, newer than the npm latest reported (${latest}). No pin is behind.`,
+    );
+  } else if (!finding) {
+    log(`Repo SDK pin: ${pin}, the npm latest, in every package.`);
+  }
+  return finding;
 }
 
 /**
