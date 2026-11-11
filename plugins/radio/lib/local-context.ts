@@ -93,17 +93,10 @@ export class LocalContexts {
     return this.db
       .transaction(() => {
         // Bootstrap together so a qualifier collision or invalid ownership leaves no orphan actor.
-        let radioProject;
-        try {
-          radioProject = this.store.projects.get(project.id);
-        } catch (error) {
-          if (!(error instanceof RadioError) || error.code !== "not_found")
-            throw error;
-          radioProject = this.store.projects.register(
-            project.id,
-            project.name,
-          ).project;
-        }
+        const radioProject = this.store.projects.localProject(
+          project.id,
+          project.name,
+        );
         const scope = {
           projectIds: [radioProject.id],
           currentProjectId: radioProject.id,

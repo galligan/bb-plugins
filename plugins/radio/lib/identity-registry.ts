@@ -87,7 +87,7 @@ export class IdentityRegistry {
     actorId: string,
     metadata: SessionMetadata = {},
   ): Participant {
-    if (!/^thr_[a-zA-Z0-9]+$/.test(idSchema.parse(threadId)))
+    if (!/^thr_[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(idSchema.parse(threadId)))
       throw new RadioError("invalid_input", "Use the existing BB thread ID.");
     const parsed = metadataSchema.parse(metadata);
     return this.db

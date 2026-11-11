@@ -271,3 +271,50 @@ test("aborted SDK lookup and failed bootstrap leave no partial identities or pro
     await f.harness.lifecycle.dispose();
   }
 });
+
+test("verified hyphenated BB IDs and colliding/invalid display names retain independent canonical contexts", async () => {
+  const f = fixture();
+  try {
+    const first = await f.contexts.resolve({ threadId: "thr_thread-1" });
+    assert.equal(first.sessionId, "thr_thread-1");
+    for (const [index, name] of [
+      "Local-Project",
+      "x".repeat(300),
+      "ch",
+      "---",
+    ].entries()) {
+      const projectId = `proj_fallback${index}`;
+      const threadId = `thr_thread-${index + 2}`;
+      f.harness.inspection.sdk.stub("threads.get", async () =>
+        makeThreadResponse({ id: threadId, projectId }),
+      );
+      f.harness.inspection.sdk.stub("projects.get", async () => ({
+        id: projectId,
+        name,
+        kind: "standard",
+        sources: [],
+        createdAt: 0,
+        updatedAt: 0,
+        gitRemoteUrl: null,
+      }));
+      const context = await f.contexts.resolve({ threadId });
+      const project = f.store.projects.get(projectId);
+      assert.match(project.name, /^project-[a-f0-9]{56}$/);
+      assert.equal(project.name.length, 64);
+      assert.notEqual(
+        project.channelId,
+        f.store.projects.get("proj_local").channelId,
+      );
+      assert.equal(context.sessionId, threadId);
+      assert.notEqual(context.authorId, first.authorId);
+      assert.deepEqual(await f.contexts.resolve({ threadId }), context);
+      // Explicitly renamed/allocated qualifiers are never displaced by bootstrap.
+      f.store.projects.rename(projectId, `chosen-${index}`);
+      assert.deepEqual(await f.contexts.resolve({ threadId }), context);
+      assert.equal(f.store.projects.get(projectId).name, `chosen-${index}`);
+    }
+    assert.equal(f.store.projects.get("proj_local").name, "local-project");
+  } finally {
+    await f.harness.lifecycle.dispose();
+  }
+});

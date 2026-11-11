@@ -125,3 +125,5 @@ Model-generated handles can follow deterministic manual allocation; they need no
 | UI                            | Keyboard/compact layout, no sidebar dependency, no focus stealing, clear partial/unknown states                     |
 
 Follow root repository checks before any push. Design descriptions do not establish runtime behavior; the package README records the implemented scope and its verification limits.
+
+Verified local project bootstrap keeps an existing Radio mapping. For a new project whose BB display name is invalid, reserved, too long or already allocated after normalization, it uses a bounded `project-` qualifier derived from the immutable BB project ID. It never truncates the proposed name, displaces another project or silently renames an existing mapping. The resulting canonical qualifier is returned by project registry reads and remains explicitly renameable. BB thread IDs are opaque and retain hyphenated suffixes without applying readable-name normalization.

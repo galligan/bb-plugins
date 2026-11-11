@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   idSchema,
   type Database,
@@ -62,6 +62,30 @@ export class ProjectRegistry {
           )
           .run(`channel_${randomUUID()}`, id);
         return { project: this.get(id), normalization };
+      })
+      .immediate();
+  }
+
+  /** Verified BB project bootstrap must not depend on a mutable display name. */
+  localProject(id: string, displayName: string): Project {
+    idSchema.parse(id);
+    return this.db
+      .transaction(() => {
+        const prior = this.db
+          .prepare("SELECT id FROM projects WHERE id = ?")
+          .get(id);
+        if (prior) return this.get(id);
+        try {
+          return this.register(id, displayName).project;
+        } catch (error) {
+          if (
+            !(error instanceof RadioError) ||
+            !["conflict", "invalid_input"].includes(error.code)
+          )
+            throw error;
+        }
+        const fallback = `project-${createHash("sha256").update(id).digest("hex").slice(0, 56)}`;
+        return this.register(id, fallback).project;
       })
       .immediate();
   }
