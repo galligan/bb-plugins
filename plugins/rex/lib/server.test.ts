@@ -27,6 +27,11 @@ const threads = {
   [THREAD]: makeThreadResponse({ id: THREAD, title: "Fix the login redirect" }),
   thr_archived: makeThreadResponse({ id: "thr_archived", archivedAt: 1 }),
   thr_deleted: makeThreadResponse({ id: "thr_deleted", deletedAt: 1 }),
+  thr_pending: makeThreadResponse({
+    id: "thr_pending",
+    status: "pending",
+    environmentId: null,
+  }),
 };
 
 async function setup(t: TestContext, settings: { sessionLabel?: string } = {}) {
@@ -141,6 +146,18 @@ test("the command refuses a missing, archived, or deleted thread without touchin
     assert.match(result.stderr, /bad_thread|could not find|archived/);
   }
   assert.deepEqual(rex.sessions, []);
+});
+
+test("a pending thread without an environment can use its own Rex window", async (t) => {
+  const { target, rex } = await setup(t, { sessionLabel: "rex-test-pending" });
+  const first = await target("thr_pending");
+  assert.equal(first.exitCode, 0, first.stderr);
+  const report = JSON.parse(first.stdout);
+  assert.equal(report.thread, "thr_pending");
+  assert.equal(report.window.own, true);
+  assert.equal(report.session.label, "rex-test-pending");
+  assert.deepEqual(JSON.parse((await target("thr_pending")).stdout), report);
+  assert.equal(rex.sessions[0]!.windows.length, 1);
 });
 
 test("the session label setting chooses the session, and an empty label is refused", async (t) => {
