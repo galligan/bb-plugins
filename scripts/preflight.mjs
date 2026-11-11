@@ -176,6 +176,8 @@ export function discoverPackages(base) {
           entry.isDirectory() &&
           existsSync(path.join(base, "plugins", entry.name, "package.json")),
       )
+      // Directory order is the filesystem's; findings are reported by name.
+      .sort((a, b) => a.name.localeCompare(b.name, "en"))
       .map((entry) => read(`plugins/${entry.name}`)),
     read("scaffolds/nav-panel"),
   ];

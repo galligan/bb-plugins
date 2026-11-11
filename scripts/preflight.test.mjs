@@ -255,8 +255,9 @@ test("discovers packages by manifest and skips a leftover directory without one"
     mkdirSync(path.dirname(path.join(base, file)), { recursive: true });
     writeFileSync(path.join(base, file), contents);
   };
-  put("plugins/a/package.json", JSON.stringify(pinned("0.6.138")));
+  // Created out of order: discovery sorts by name, whatever the filesystem lists.
   put("plugins/b/package.json", JSON.stringify(pinned("0.6.138")));
+  put("plugins/a/package.json", JSON.stringify(pinned("0.6.138")));
   // What a removed plugin leaves in a checkout: ignored output, no manifest.
   put("plugins/removed/node_modules/dep/index.js", "");
   put("plugins/removed/dist/server.js", "");
