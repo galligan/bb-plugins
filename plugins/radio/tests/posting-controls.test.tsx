@@ -31,17 +31,21 @@ const scope: PostingScope = {
 const accepted = (request: Send, who = scope.identity): SurfaceResult => ({
   ok: true,
   data: {
-    ...request.input,
-    id: "tx_sent",
-    cursor: 2,
-    authorId: who.actorId,
-    sessionId: who.sessionId,
-    createdAt: "2026-11-11T04:00:00Z",
-    replyToId: request.input.replyToId ?? null,
-    replyForId: request.input.replyForId ?? null,
-    recipientIds: request.input.recipientIds,
-    audiences: [],
-    tags: [],
+    state: "sent",
+    replayed: false,
+    transmission: {
+      ...request.input,
+      id: "tx_sent",
+      cursor: 2,
+      authorId: who.actorId,
+      sessionId: who.sessionId,
+      createdAt: "2026-11-11T04:00:00Z",
+      replyToId: request.input.replyToId ?? null,
+      replyForId: request.input.replyForId ?? null,
+      recipientIds: request.input.recipientIds,
+      audiences: [],
+      tags: [],
+    },
   },
   attention: {
     discovery: { sampleCount: 0, hasMore: false },
@@ -191,7 +195,7 @@ describe("Radio posting and reply recovery", () => {
     expect(
       (
         second.slot.getByRole("button", {
-          name: "Discard saved request",
+          name: "Edit as new request",
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
@@ -321,14 +325,12 @@ describe("Radio posting and reply recovery", () => {
     expect(
       (
         slot.getByRole("button", {
-          name: "Discard saved request",
+          name: "Edit as new request",
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
     fireEvent.click(slot.getByLabelText(/I checked channel history/));
-    fireEvent.click(
-      slot.getByRole("button", { name: "Discard saved request" }),
-    );
+    fireEvent.click(slot.getByRole("button", { name: "Edit as new request" }));
     expect(
       slot.getByRole("button", { name: "Send transmission" }),
     ).toBeTruthy();
@@ -354,7 +356,7 @@ describe("Radio posting and reply recovery", () => {
     });
     fireEvent.click(second.slot.getByLabelText(/I checked channel history/));
     fireEvent.click(
-      second.slot.getByRole("button", { name: "Discard saved request" }),
+      second.slot.getByRole("button", { name: "Edit as new request" }),
     );
     edit(second.slot, "Transmission", "Second unknown send");
     fireEvent.click(

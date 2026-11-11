@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { useRef, useState } from "react";
 import { experimental_useTabVisible } from "@get-bb/plugin-sdk/app";
 import { Button } from "../ui/button.tsx";
@@ -16,6 +17,11 @@ import {
   type PostingScope,
 } from "./posting-draft.ts";
 
+const sentResultSchema = z.object({
+  state: z.literal("sent"),
+  replayed: z.boolean(),
+  transmission: transmissionSchema,
+});
 export function PostingComposer({
   projectId,
   channelId,
@@ -123,16 +129,17 @@ function Composer({ scope }: { scope: PostingScope }) {
         op: scope.parent ? "reply" : "tx",
         input: request,
       });
-      const tx = result.ok ? transmissionSchema.safeParse(result.data) : null;
+      const parsed = result.ok ? sentResultSchema.safeParse(result.data) : null;
+      const tx = parsed?.success ? parsed.data.transmission : null;
       if (
         !result.ok ||
-        !tx?.success ||
-        tx.data.channelId !== scope.channelId ||
-        tx.data.authorId !== scope.identity.actorId ||
-        tx.data.sessionId !== scope.identity.sessionId ||
-        tx.data.body !== request.body ||
-        tx.data.replyToId !== (scope.parent?.id ?? null) ||
-        tx.data.replyForId !== (request.replyForId ?? null)
+        !tx ||
+        tx.channelId !== scope.channelId ||
+        tx.authorId !== scope.identity.actorId ||
+        tx.sessionId !== scope.identity.sessionId ||
+        tx.body !== request.body ||
+        tx.replyToId !== (scope.parent?.id ?? null) ||
+        tx.replyForId !== (request.replyForId ?? null)
       ) {
         setState({
           draft: next,
@@ -140,7 +147,7 @@ function Composer({ scope }: { scope: PostingScope }) {
         });
         return;
       }
-      const confirmed = { ...next, sentId: tx.data.id };
+      const confirmed = { ...next, sentId: tx.id };
       // A late response from a closed panel must not overwrite a newer draft in this scope.
       try {
         if (readDraft(scope).request?.idempotencyKey === request.idempotencyKey)
@@ -263,7 +270,7 @@ function Composer({ scope }: { scope: PostingScope }) {
           if (
             store({
               version: 1,
-              fields: blankFields(),
+              fields: needsHistory && draft ? draft.fields : blankFields(),
               request: null,
               sentId: null,
             })
@@ -274,7 +281,7 @@ function Composer({ scope }: { scope: PostingScope }) {
         {draft?.sentId
           ? "New transmission"
           : needsHistory
-            ? "Discard saved request"
+            ? "Edit as new request"
             : "Clear draft"}
       </Button>
     </section>
