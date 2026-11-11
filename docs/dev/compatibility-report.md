@@ -24,7 +24,7 @@ Exclusion is derived from the current configuration, not hard-coded into the rep
 
 During an SDK or build-tool upgrade:
 
-1. Run the report before and after the change. Review direct pins and declared engine ranges together. Numeric comparator, caret, tilde, and OR ranges are compared against exact pins; unsupported syntax remains unknown. A pin satisfying a range only proves manifest consistency. Different packages may intentionally use different SDK releases.
+1. Run the report before and after the change. Review direct pins and declared engine ranges together. Numeric comparator, caret, tilde, and OR ranges are compared against exact pins; unsupported syntax remains unknown. A pin satisfying a range only proves manifest consistency. This repository keeps one SDK pin across packages; `bun run preflight` names any package that differs from the root.
 2. Inspect the pinned public SDK contract and run the relevant package checks plus [repository verification](verification.md). Record the commit, actual executable paths and versions for Bun/Node, SDK/build pins, commands, and results in the PR. Record excluded or unrun gates explicitly.
 3. Attach runtime compatibility evidence separately: actual BB host version, tested plugin version, exercised registration/lifecycle/UI flows, and outcomes. Use existing authorized test infrastructure. A build under the current runtime does not prove that the declared minimum BB or SDK version works; if that minimum was not exercised, say so.
 4. Update declarations only when the package's support policy and evidence justify it. Resolve mismatches deliberately rather than automatically upgrading dependencies or copying another plugin's range.

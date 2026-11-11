@@ -23,6 +23,28 @@ The root test command runs the included plugin suites plus explicit `./scripts/*
 
 Use focused checks during iteration, such as `bun test scripts/autolabel.test.mjs` or `bun run test` from the affected plugin directory. Complete `bun run verify` before pushing. If a check cannot run, record the limitation instead of claiming CI parity. Runtime preflight and failure propagation are covered by injected process execution in [`scripts/verify.test.mjs`](../../scripts/verify.test.mjs), without rerunning expensive gates in unit tests.
 
+## BB and SDK versions
+
+This repository tracks the latest stable BB and the latest `@get-bb/plugin-sdk` on npm, with one exact SDK pin in every package. Before plugin work, run:
+
+```sh
+bun run preflight
+```
+
+It reads three separate facts and changes nothing:
+
+| Fact                                                                     | Source                           | When it is behind                                                                                                  |
+| ------------------------------------------------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Installed BB against the latest stable release                           | `bb updates status --json`       | Exit 1. Stop and tell the user; update with `bb updates app`. A development or nightly build counts as not stable. |
+| SDK that the installed BB bundles                                        | `bb plugin types --check`        | Informational; see below.                                                                                          |
+| Repository SDK pin against npm latest, and each package against the root | `package.json` files, `npm view` | Exit 2. Report it; continue unless the task needs the newer SDK.                                                   |
+
+A check that cannot run, such as no `bb` on `PATH` or npm unreachable, is reported as not checked and does not fail. [`.bb-env-setup.sh`](../../.bb-env-setup.sh) runs the command when BB creates a worktree and ignores its exit code, so a finding is recorded in the provisioning transcript without blocking the worktree. It is not part of `bun run verify` or CI: the SDK publishes alongside BB nightlies, often daily, and CI has no BB. This command is separate from the Bun and Node runtime preflight inside `bun run verify`.
+
+The pin is usually ahead of the bundled SDK, because stable BB ships less often than the SDK publishes. That gap is expected and is not a reason to lower the pin. It does mean npm latest alone proves nothing about the stable runtime: before relying on an API newer than the bundled SDK, check the current public contract and get harness or live evidence that the installed BB supports it. `bb plugin types` and `bb plugin new` on stable BB write the bundled version, not the repository pin. Inspect that diff and reconcile it deliberately; never accept a lower pin as a side effect.
+
+To bump the SDK, set every `@get-bb/plugin-sdk` pin to npm latest (the root, each plugin, and `scaffolds/nav-panel`), run `bun install`, follow the [scaffold maintenance steps](../../scaffolds/README.md#maintenance-and-evidence), and run `bun run verify`. Keep each package's `bb.engines.bbPluginSdk` at the lowest version it actually needs. The check's cases are covered with injected process execution in [`scripts/preflight.test.mjs`](../../scripts/preflight.test.mjs).
+
 ## Workflow lint
 
 `bun run lint:workflows` requires actionlint **1.7.12**, pinned in [`.actionlint-version`](../../.actionlint-version). The wrapper checks that version and passes only tracked `.github/workflows/*.yml` and `*.yaml` files to actionlint. Stage a new workflow before checking it. Missing/wrong actionlint and discovery failures fail the gate with a diagnostic; verification never installs it for you.

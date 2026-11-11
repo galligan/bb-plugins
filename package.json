@@ -14,6 +14,7 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "verify": "bun scripts/verify.mjs",
+    "preflight": "bun scripts/preflight.mjs",
     "lint:workflows": "bun scripts/lint-workflows.mjs"
   },
   "devDependencies": {
