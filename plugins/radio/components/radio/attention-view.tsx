@@ -1,3 +1,4 @@
+import { commitmentSchema } from "./commitment-views.ts";
 import { z } from "zod";
 import type { AttentionRequest } from "../../lib/attention-contracts.ts";
 import { useActing } from "./acting-context.ts";
@@ -7,20 +8,6 @@ import { Button } from "../ui/button.tsx";
 const cursor = z.object({
   cursor: z.number().int().nonnegative(),
   targetId: z.string(),
-});
-const commitment = z.object({
-  id: z.string(),
-  cursor: z.number(),
-  txId: z.string(),
-  targetId: z.string(),
-  ownerActorId: z.string(),
-  openingSessionId: z.string().nullable(),
-  generation: z.number(),
-  status: z.enum(["open", "done", "abandoned"]),
-  openedAt: z.string(),
-  closedAt: z.string().nullable(),
-  result: z.string().nullable(),
-  reason: z.string().nullable(),
 });
 const page = <T extends z.ZodType, C extends z.ZodType>(
   item: T,
@@ -48,7 +35,7 @@ export const attentionViewSchema = z.object({
     }),
     cursor,
   ),
-  commitments: page(commitment, z.number()),
+  commitments: page(commitmentSchema, z.number()),
   pageCounts: z.object({
     discovery: z.number(),
     required: z.number(),
@@ -179,11 +166,11 @@ export function AttentionView({
                 <RadioLink
                   route={{
                     projectId: acting.projectId,
-                    kind: "transmission",
-                    id: item.txId,
+                    kind: "commitment",
+                    id: item.id,
                   }}
                 >
-                  Open committed request
+                  Inspect open commitment
                 </RadioLink>
                 <p className="text-xs text-muted-foreground break-all">
                   {item.targetId} · generation {item.generation}

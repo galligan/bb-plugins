@@ -1,3 +1,4 @@
+import { replaceRecoveryRecord } from "./recovery-storage.ts";
 import { z } from "zod";
 import { useRef, useState } from "react";
 import { experimental_useTabVisible } from "@get-bb/plugin-sdk/app";
@@ -10,6 +11,7 @@ import {
   blankFields,
   decodeDraft,
   draftKey,
+  encodeDraft,
   makePostingRequest,
   readDraft,
   saveDraft,
@@ -68,26 +70,24 @@ function Composer({ scope }: { scope: PostingScope }) {
     expectedKey = draft?.request?.idempotencyKey,
   ) {
     if (!draft) {
-      let raw: string | null;
       try {
-        raw = sessionStorage.getItem(draftKey(scope));
-      } catch {
-        setState({
-          draft: null,
-          error:
-            "Recovery storage is unavailable; the saved draft was not replaced.",
-        });
-        return false;
-      }
-      if (raw !== unreadableRaw.current) {
+        const result = replaceRecoveryRecord(
+          draftKey(scope),
+          unreadableRaw.current,
+          encodeDraft(next),
+        );
+        if (result.replaced) {
+          setState({ draft: next, error: null });
+          return true;
+        }
         try {
           setState({
-            draft: decodeDraft(scope, raw),
+            draft: decodeDraft(scope, result.raw),
             error:
               "Saved draft changed in another panel. Inspect its original request before editing again.",
           });
         } catch {
-          unreadableRaw.current = raw;
+          unreadableRaw.current = result.raw;
           setState({
             draft: null,
             error:
@@ -95,8 +95,14 @@ function Composer({ scope }: { scope: PostingScope }) {
           });
         }
         setCheckedHistory(false);
-        return false;
+      } catch {
+        setState({
+          draft: null,
+          error:
+            "Recovery storage is unavailable; the saved draft was not replaced.",
+        });
       }
+      return false;
     }
     if (draft) {
       let current: PostingDraft;

@@ -1,3 +1,4 @@
+import { replaceRecoveryRecord } from "./recovery-storage.ts";
 import { useRef, useState } from "react";
 import { experimental_useTabVisible } from "@get-bb/plugin-sdk/app";
 import { z } from "zod";
@@ -166,26 +167,33 @@ export function useResponseRecovery(scope: ResponseScope) {
   function clear() {
     if (!visible || busy.current || acting.pending) return;
     try {
-      const raw = sessionStorage.getItem(responseRecoveryKey(scope));
-      if (state.unreadable && raw !== unreadableRaw.current) {
-        try {
-          setState({
-            saved: decode(scope, raw),
-            error:
-              "Recovery changed in another panel. Inspect the current response before clearing it.",
-            unreadable: false,
-          });
-        } catch {
-          unreadableRaw.current = raw;
-          setState({
-            saved: null,
-            error:
-              "The unreadable recovery record changed. Inspect history again before clearing it.",
-            unreadable: true,
-          });
-        }
+      if (state.unreadable) {
+        const result = replaceRecoveryRecord(
+          responseRecoveryKey(scope),
+          unreadableRaw.current,
+          null,
+        );
+        if (!result.replaced) {
+          try {
+            setState({
+              saved: decode(scope, result.raw),
+              error:
+                "Recovery changed in another panel. Inspect the current response before clearing it.",
+              unreadable: false,
+            });
+          } catch {
+            unreadableRaw.current = result.raw;
+            setState({
+              saved: null,
+              error:
+                "The unreadable recovery record changed. Inspect history again before clearing it.",
+              unreadable: true,
+            });
+          }
+        } else setState({ saved: null, error: null, unreadable: false });
         return;
       }
+      const raw = sessionStorage.getItem(responseRecoveryKey(scope));
       if (!state.unreadable) {
         const current = decode(scope, raw);
         if (

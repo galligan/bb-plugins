@@ -117,9 +117,9 @@ export function decodeDraft(
     throw new Error("Saved draft has a different destination.");
   return draft;
 }
+export function encodeDraft(draft: PostingDraft) {
+  return JSON.stringify(draftSchema.parse(draft));
+}
 export function saveDraft(scope: PostingScope, draft: PostingDraft) {
-  sessionStorage.setItem(
-    draftKey(scope),
-    JSON.stringify(draftSchema.parse(draft)),
-  );
+  sessionStorage.setItem(draftKey(scope), encodeDraft(draft));
 }
