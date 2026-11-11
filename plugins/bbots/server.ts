@@ -15,6 +15,9 @@ import { createWorkService } from "./lib/work/service.ts";
 import { createWorkerAdmission } from "./lib/work/admission.ts";
 import { workCommands } from "./lib/work/cli.ts";
 import { createTaskSource } from "./lib/tasks/source.ts";
+import { openCommitments } from "./lib/commitments/store.ts";
+import { createCommitments } from "./lib/commitments/service.ts";
+import { createBrief } from "./lib/brief.ts";
 
 export default function plugin(bb: BbPluginApi) {
   const store = openSetup(bb.storage);
@@ -36,6 +39,12 @@ export default function plugin(bb: BbPluginApi) {
     changed,
   );
   const tasks = createTaskSource(bb, store, lifecycle.signal, changed);
+  const commitments = createCommitments(
+    bb,
+    openCommitments(bb.storage, store, changed),
+    tasks,
+    lifecycle.signal,
+  );
   const service = createSetupService(
     bb,
     store,
@@ -105,13 +114,11 @@ export default function plugin(bb: BbPluginApi) {
     },
   );
   bb.cli.register(
-    botCli(
-      store,
-      service,
-      soul,
-      workCommands(store, work, workers, routing, changed),
-      work,
+    botCli(store, service, soul, {
+      workers: workCommands(store, work, workers, routing, changed),
       tasks,
-    ),
+      commitments,
+      brief: createBrief(store, soul, work, tasks, commitments),
+    }),
   );
 }

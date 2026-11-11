@@ -19,6 +19,33 @@ export function tasksClient(bb: BbPluginApi, lifecycle: AbortSignal) {
     ]);
   }
   return {
+    async task(taskId: string, request?: AbortSignal) {
+      const { task } = await bb.sdk.plugins.callRpc({
+        pluginId: "tasks",
+        method: "getTask",
+        input: { taskId },
+        outputSchema: z.object({
+          task: z
+            .object({
+              id: z.string().min(1).max(128),
+              projectId: z.string().min(1).max(128),
+              key: z.string().max(128),
+              title: z.string().transform((value) => value.slice(0, 512)),
+              status: z.enum([
+                "backlog",
+                "todo",
+                "in_progress",
+                "in_review",
+                "done",
+                "canceled",
+              ]),
+            })
+            .nullable(),
+        }),
+        signal: signal(request),
+      });
+      return task;
+    },
     async list(request?: AbortSignal) {
       const { projects } = await bb.sdk.plugins.callRpc({
         pluginId: "tasks",
