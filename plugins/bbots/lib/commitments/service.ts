@@ -173,6 +173,19 @@ export function createCommitments(
     async add(input: z.infer<typeof addSchema>, signal?: AbortSignal) {
       const value = addSchema.parse(input);
       check(signal);
+      const original = store.originalReference(value.botId, value.requestId);
+      if (original) {
+        const matches =
+          original.kind === "tasks"
+            ? value.taskId === original.taskId && !value.markdownReference
+            : original.kind === "markdown"
+              ? value.markdownReference === original.reference && !value.taskId
+              : !value.taskId && !value.markdownReference;
+        if (!matches)
+          throw new Error(
+            "Commitment request ID already records a different submitted link. Inspect the original obligation.",
+          );
+      }
       const found = store.add(
         value.botId,
         {
@@ -180,11 +193,9 @@ export function createCommitments(
           ownerConversationId: value.ownerConversationId,
           what: value.what,
           evidence: value.evidence,
-          reference: reference(
-            value.botId,
-            value.taskId,
-            value.markdownReference,
-          ),
+          reference:
+            original ??
+            reference(value.botId, value.taskId, value.markdownReference),
         },
         value,
       );

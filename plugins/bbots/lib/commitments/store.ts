@@ -69,6 +69,13 @@ export function openCommitments(
   }
   return {
     get,
+    originalReference(botId: string, requestId: string) {
+      store.get(botId);
+      const documentName = name(`cmt_${requestId}`);
+      if (!store.documents.get(botId, documentName)) return null;
+      const first = store.documents.revision(botId, documentName, 1);
+      return commitmentSchema.parse(JSON.parse(first.markdown)).reference;
+    },
     add(botId: string, record: Commitment, attribution: Change) {
       record = commitmentSchema.parse(record);
       attribution = changeSchema.parse({

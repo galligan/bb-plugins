@@ -3,6 +3,97 @@ import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { fixture } from "./fixtures.test.ts";
 
+test("identical linked creation requests recover their original authority after migration, while changed submitted links still refuse", async (t) => {
+  const f = fixture(t);
+  const added = await f.add(["--task", "task_one"]);
+  for (const [index, source] of [
+    { kind: "tasks", phase: "ready", boardId: "tracker_new" },
+    {
+      kind: "markdown",
+      phase: "ready",
+      hostId: "host_home",
+      homePath: "/home/bob",
+      path: "/home/bob/tasks.md",
+      requestId: randomUUID(),
+    },
+    {
+      kind: "tasks",
+      phase: "creating",
+      name: "Uncertain migration fixture",
+      prefix: "NEW",
+    },
+  ].entries()) {
+    f.store.documents.write({
+      botId: f.setup.botId,
+      name: "TASKS.json",
+      expectedRevision: index + 1,
+      markdown: JSON.stringify(source),
+      author: "fixture-user",
+      reason: "Changed authority fixture",
+    });
+    const replay = await f.run(added.args);
+    assert.equal(replay.exitCode, 0, replay.stderr);
+    const found = JSON.parse(replay.stdout);
+    assert.equal(found.record.reference.boardId, "tracker_owned");
+    assert.equal(found.status, null);
+    assert.equal(found.availability, "source-reconciliation-required");
+    assert.equal(found.revision, 1);
+    const changed = await f.run(
+      added.args.map((arg) => (arg === "task_one" ? "task_two" : arg)),
+    );
+    assert.equal(changed.exitCode, 1);
+  }
+});
+
+test("Markdown request replay recovers the original file reference after switching to a Tasks board", async (t) => {
+  const f = fixture(t);
+  f.store.documents.write({
+    botId: f.setup.botId,
+    name: "TASKS.json",
+    expectedRevision: 1,
+    markdown: JSON.stringify({
+      kind: "markdown",
+      phase: "ready",
+      hostId: "host_home",
+      homePath: "/home/bob",
+      path: "/home/bob/tasks.md",
+      requestId: randomUUID(),
+    }),
+    author: "fixture-user",
+    reason: "Markdown authority fixture",
+  });
+  const added = await f.add(["--markdown-reference", "Original obligation"]);
+  assert.equal(added.result.exitCode, 0, added.result.stderr);
+  f.store.documents.write({
+    botId: f.setup.botId,
+    name: "TASKS.json",
+    expectedRevision: 2,
+    markdown: JSON.stringify({
+      kind: "tasks",
+      phase: "ready",
+      boardId: "tracker_new",
+    }),
+    author: "fixture-user",
+    reason: "New Tasks authority fixture",
+  });
+  const replay = await f.run(added.args);
+  assert.equal(replay.exitCode, 0, replay.stderr);
+  assert.equal(
+    JSON.parse(replay.stdout).record.reference.path,
+    "/home/bob/tasks.md",
+  );
+  assert.equal(
+    JSON.parse(replay.stdout).availability,
+    "source-reconciliation-required",
+  );
+  const changed = await f.run(
+    added.args.map((arg) =>
+      arg === "Original obligation" ? "Another obligation" : arg,
+    ),
+  );
+  assert.equal(changed.exitCode, 1);
+});
+
 test("cancellation during a status read retains the committed obligation and same-request recovery creates no duplicate", async (t) => {
   const f = fixture(t);
   const controller = new AbortController();
