@@ -96,11 +96,13 @@ test("drops every inherited BB variable so a thread's context cannot pick the ta
     });
 });
 
-test("refuses the default instance in every spelling of its address, before running anything", () => {
+test("refuses the default server port on every host, before running anything", () => {
   for (const url of [
     "http://127.0.0.1:38886",
     "http://localhost:38886/",
     "http://LOCALHOST:38886",
+    // A trailing dot is the same host, and no list of spellings is complete.
+    "http://localhost.:38886",
     "http://[::1]:38886",
     "http://0.0.0.0:38886",
     "http://127.1:38886",
@@ -109,29 +111,20 @@ test("refuses the default instance in every spelling of its address, before runn
     "http://[::ffff:127.0.0.1]:38886",
     "http://bb.localhost:38886",
     "https://127.0.0.1:38886",
+    // Names and addresses that can still be this machine.
+    "http://my-mac.local:38886",
+    "http://192.168.1.20:38886",
+    "http://alias.example.test:38886",
   ]) {
     const f = fixture({
       argv: ["--url", url, "--data-dir", DEV, "--", "status"],
     });
     assert.equal(f.code, exit.refused, url);
     assert.deepEqual(f.calls, [], url);
-    assert.match(f.output, /default BB instance/, url);
+    assert.match(f.output, /default BB server port/, url);
   }
-  // Another port on this machine, or that port on another machine, is not it.
+  // Another port is accepted, subject to the identity check.
   assert.equal(fixture().code, 0);
-  assert.equal(
-    fixture({
-      argv: [
-        "--url",
-        "http://10.0.0.5:38886",
-        "--data-dir",
-        DEV,
-        "--",
-        "status",
-      ],
-    }).code,
-    0,
-  );
 });
 
 test("refuses the default data directory in every spelling of its path", () => {
@@ -280,6 +273,26 @@ test("incomplete or malformed invocations print usage and run nothing", () => {
       DEV,
       "--daemon-port",
       "x",
+      "--",
+      "status",
+    ],
+    [
+      "--url",
+      "http://127.0.0.1:26207",
+      "--data-dir",
+      DEV,
+      "--daemon-port",
+      "65536",
+      "--",
+      "status",
+    ],
+    [
+      "--url",
+      "http://127.0.0.1:26207",
+      "--data-dir",
+      DEV,
+      "--daemon-port",
+      "0",
       "--",
       "status",
     ],

@@ -107,7 +107,7 @@ bun run bb-target --url <server-url> --data-dir <path> [--daemon-port <port>] [-
 
 - Inside a bb thread, inherited `BB_*` variables point the CLI at the instance the thread runs in. The command drops all of them and sets only the target it was given.
 - A URL alone does not identify an instance: a port can be forwarded or reused. The data directory the server reports does.
-- The default instance must not be reachable by mistake. The command refuses port 38886 on this machine and `~/.bb`, in any spelling of the address or path.
+- The default instance must not be reachable by mistake. The command refuses port 38886, the default server port, on every host, and `~/.bb` in any spelling of the path. It refuses the port everywhere because a hostname can reach this machine in more spellings than can be listed, and an isolated instance has no reason to use it.
 
 It runs one command and returns its exit code. It does not start, stop, install, reload, or retry anything, and it never prints the forwarded arguments. Pass `--cli` when the instance needs its own CLI entry, such as a source build's `dist/bb.js`; pass `--daemon-port` when it has its own host daemon. How an isolated instance is created is outside this repository. Its cases are covered with injected process execution in [`scripts/bb-target.test.mjs`](../../scripts/bb-target.test.mjs).
 

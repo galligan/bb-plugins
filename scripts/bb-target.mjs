@@ -19,7 +19,8 @@ const usage = [
   "",
   "Runs one bb command against the named BB instance, after checking that the",
   "instance at <server-url> reports <path> as its data directory. It refuses the",
-  "default instance. It never starts, stops, installs, or retries anything.",
+  "default server port and the default data directory. It never starts, stops,",
+  "installs, or retries anything.",
 ].join("\n");
 
 /** The path as the filesystem names it, or resolved lexically if absent. */
@@ -30,20 +31,6 @@ function canonical(file, realpath) {
   } catch {
     return resolved;
   }
-}
-
-/** Whether a URL host names this machine, in any spelling. */
-function isLoopback(hostname) {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  return (
-    host === "localhost" ||
-    host.endsWith(".localhost") ||
-    host === "0.0.0.0" ||
-    host === "::" ||
-    host === "::1" ||
-    host.startsWith("127.") ||
-    /^::ffff:(?:127\.|7f[0-9a-f]{2}:)/.test(host)
-  );
 }
 
 function parse(argv) {
@@ -95,15 +82,19 @@ export function target({
   }
   if (
     options.daemonPort !== undefined &&
-    !/^[1-9]\d{0,4}$/.test(options.daemonPort)
+    (!/^[1-9]\d{0,4}$/.test(options.daemonPort) ||
+      Number(options.daemonPort) > 65535)
   ) {
     log("bb-target: --daemon-port must be a port number.");
     return exit.usage;
   }
   const port = url.port || (url.protocol === "https:" ? "443" : "80");
-  if (isLoopback(url.hostname) && port === DEFAULT_PORT) {
+  // Refused on every host. A hostname can reach this machine in more spellings
+  // than can be listed (a trailing dot, a DNS alias, its own LAN address), and
+  // an isolated instance has no reason to use the default port.
+  if (port === DEFAULT_PORT) {
     log(
-      `bb-target: refused. ${url.origin} is the default BB instance on this machine. Name an isolated instance.`,
+      `bb-target: refused. ${url.origin} uses ${DEFAULT_PORT}, the default BB server port. Name an isolated instance on its own port.`,
     );
     return exit.refused;
   }
