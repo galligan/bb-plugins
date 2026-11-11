@@ -23,27 +23,39 @@ export class RadioOperations {
       );
     signal?.throwIfAborted();
     requireAuthor(this.store.identities, context);
-    const projectId = context.scope.currentProjectId;
-    if (!projectId || !context.scope.projectIds.includes(projectId))
-      throw new RadioError(
-        "forbidden",
-        "Choose an authorized current project.",
-      );
-    const project = this.store.projects.get(projectId);
+    const selectedProjectId = context.scope.currentProjectId;
+    if (
+      context.scope.projectIds.length > 100 ||
+      (selectedProjectId &&
+        !context.scope.projectIds.includes(selectedProjectId))
+    )
+      throw new RadioError("forbidden", "Invalid authorized project scope.");
     const request = parsed.data;
     const store = this.store;
+    const currentProject = () => {
+      if (!selectedProjectId)
+        throw new RadioError(
+          "invalid_input",
+          "Choose a current project for this project-relative operation.",
+        );
+      return store.projects.get(selectedProjectId);
+    };
     switch (request.op) {
-      case "whoami":
+      case "whoami": {
+        const project = selectedProjectId ? currentProject() : null;
         return {
           stationId: store.stationId,
           actorId: context.authorId,
           sessionId: context.sessionId ?? null,
           project,
-          handle: store.handles.primary(
-            projectId,
-            context.sessionId ?? context.authorId,
-          ),
+          handle: project
+            ? store.handles.primary(
+                project.id,
+                context.sessionId ?? context.authorId,
+              )
+            : null,
         };
+      }
       case "tx":
       case "reply":
         return store.transmissions.send(context, request.input);
@@ -111,9 +123,12 @@ export class RadioOperations {
       case "dispatch-list":
         return store.dispatches.list(context.scope, request.input);
       case "channels":
-        return this.channels(projectId, request.input);
+        return this.channels(currentProject().id, request.input);
       case "channel-create":
-        return store.projects.addSubchannel(projectId, request.input.name);
+        return store.projects.addSubchannel(
+          currentProject().id,
+          request.input.name,
+        );
       case "channel-rename": {
         requireChannel(store.projects, request.input.id, context.scope);
         return store.projects.renameChannel(
@@ -122,29 +137,29 @@ export class RadioOperations {
         );
       }
       case "project-rename":
-        return store.projects.rename(projectId, request.input.name);
+        return store.projects.rename(currentProject().id, request.input.name);
       case "handles":
-        return this.handles(projectId, request.input);
+        return this.handles(currentProject().id, request.input);
       case "handle-assign":
       case "handle-rename":
         return store.handles[
           request.op === "handle-assign" ? "assign" : "rename"
         ](
-          projectId,
+          currentProject().id,
           request.input.targetId ?? context.sessionId ?? context.authorId,
           request.input.name,
           context.caller,
         );
       case "handle-reclaim":
         return store.handles.reclaim(
-          projectId,
+          currentProject().id,
           request.input.targetId,
           request.input.name,
           context.caller,
         );
       case "alias-remove":
         store.handles.removeAlias(
-          projectId,
+          currentProject().id,
           request.input.name,
           context.caller,
         );

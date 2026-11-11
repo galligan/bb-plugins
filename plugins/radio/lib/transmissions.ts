@@ -86,7 +86,11 @@ export class Transmissions {
         }
         const channel = requireChannel(
           this.store.projects,
-          request.channelId ?? this.store.projects.resolvePath(request.ch!).id,
+          request.channelId ??
+            this.store.projects.resolvePath(
+              request.ch!,
+              context.scope.projectIds,
+            ).id,
           context.scope,
         );
         let replyForId: string | null = null;
