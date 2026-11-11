@@ -131,6 +131,17 @@ function sourceFiles(directory) {
   });
 }
 
+/** Whether a directory holds JavaScript or TypeScript outside generated output. */
+function hasCode(directory) {
+  return readdirSync(directory, { withFileTypes: true }).some((entry) => {
+    if (["node_modules", ".git", "dist", "coverage"].includes(entry.name))
+      return false;
+    return entry.isDirectory()
+      ? hasCode(path.join(directory, entry.name))
+      : entry.isFile() && /\.[cm]?[jt]sx?$/.test(entry.name);
+  });
+}
+
 export async function buildReport(root) {
   const manifest = readJson(path.join(root, "package.json"));
   if (
@@ -152,10 +163,10 @@ export async function buildReport(root) {
     const directory = `plugins/${entry.name}`;
     const file = path.join(root, directory, "package.json");
     if (!existsSync(file)) {
-      // A removed plugin can leave ignored `node_modules` or `dist` behind in a
-      // checkout. That is not a package. Source without a manifest still is an
-      // error.
-      if (sourceFiles(path.join(root, directory)).length === 0) continue;
+      // A removed plugin can leave ignored files behind in a checkout:
+      // `node_modules`, `dist`, coverage output, logs, `.DS_Store`. That is not
+      // a package. Code without a manifest still is an error.
+      if (!hasCode(path.join(root, directory))) continue;
       throw new Error(
         `${directory}: missing package.json; cannot report plugin compatibility.`,
       );

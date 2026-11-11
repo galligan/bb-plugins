@@ -137,6 +137,9 @@ test("report reads actual manifests, ignore rules and policy without writes or e
     // What a removed plugin leaves in a checkout: ignored output, no manifest.
     put("plugins/removed/node_modules/dep/index.js", "");
     put("plugins/removed/dist/server.js", "");
+    put("plugins/removed/coverage/lcov-report/index.js", "");
+    put("plugins/removed/.DS_Store", "");
+    put("plugins/removed/debug.log", "");
     const before = readFileSync(path.join(root, "package.json"), "utf8");
     const report = await buildReport(root);
     assert.deepEqual(
@@ -158,7 +161,7 @@ test("report reads actual manifests, ignore rules and policy without writes or e
       (await buildReport(root)).plugins[0].coverage["format:check"].status,
       "included",
     );
-    // Source without a manifest is still an error, not something to skip.
+    // Code without a manifest is still an error, not something to skip.
     put("plugins/removed/server.ts", "export default () => {};\n");
     await assert.rejects(
       buildReport(root),
