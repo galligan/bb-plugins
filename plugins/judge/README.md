@@ -129,6 +129,8 @@ The BB setting **Enable judge_ask agent tool and authoring skill** defaults to o
 
 Tool results are bounded to 64 KiB; oversized answers are omitted whole while run/model/status diagnostics remain available. No distribution is clipped. Full persisted verdicts remain accessible through the fixed `runs.get` RPC. Enabling access performs no inference and does not change model policy/defaults. See [agent contract and verification](docs/AGENT-ACCESS.md).
 
+Full-factory offline exposure tests now cover enabled startup, disabled selection, manifest/skill identity, provider/session context fixtures, reload and the exact diagnostic payload's persisted privacy refusal before network access. These tests narrow the plugin registration boundary; they do not establish native client visibility. See [factory exposure coverage and its limits](docs/AGENT-ACCESS.md#factory-exposure-regression-coverage).
+
 ## Agent access and remaining delivery gates
 
 **Enable judge_ask agent tool and authoring skill (requests may incur charges)** defaults off. When enabled, BB registers `judge_ask` and the Judge authoring skill for selected agents. The tool accepts exactly one `ask` or `run`, injects the caller thread/project, enforces the same limits/privacy/budget and offers no management, calibration or trigger action. Ad hoc tool state and source overrides are sensitive. A client may require a fresh runtime to expose newly configured tools; the controlled same-owner Codex restart in this spike still did not expose a callable tool, so native live invocation remains unverified. Disable revokes in-flight work; no automatic provider request is made by the selection setting. See [agent access](docs/AGENT-ACCESS.md) for the precise contract and offline proof.
