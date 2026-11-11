@@ -4,6 +4,8 @@ import type { CommitmentAction } from "../../lib/commitment-contracts.ts";
 import type { ActingIdentity } from "./acting-context.ts";
 
 export const commitmentOutcomeSchema = z.object({
+  // Older confirmed recovery records passed exact-session checks and had no flag.
+  replayed: z.boolean().default(false),
   commitment: commitmentSchema.extend({ stationId: z.string() }),
   event: commitmentEventSchema,
 });
@@ -32,6 +34,10 @@ export function outcomeMatchesRequest(
   outcome: CommitmentOutcomeView,
 ) {
   const { commitment, event } = outcome;
+  const historicalActorWilco =
+    request.kind === "wilco" &&
+    request.targetId === scope.identity.actorId &&
+    outcome.replayed;
   if (
     event.stationId !== scope.identity.stationId ||
     commitment.stationId !== scope.identity.stationId ||
@@ -39,7 +45,7 @@ export function outcomeMatchesRequest(
     commitment.txId !== scope.txId ||
     event.commitmentId !== commitment.id ||
     event.actorId !== scope.identity.actorId ||
-    event.sessionId !== scope.identity.sessionId ||
+    (!historicalActorWilco && event.sessionId !== scope.identity.sessionId) ||
     event.kind !== request.kind
   )
     return false;
@@ -48,7 +54,9 @@ export function outcomeMatchesRequest(
       return (
         commitment.targetId === request.targetId &&
         commitment.ownerActorId === scope.identity.actorId &&
-        commitment.openingSessionId === scope.identity.sessionId &&
+        (historicalActorWilco
+          ? event.sessionId === commitment.openingSessionId
+          : commitment.openingSessionId === scope.identity.sessionId) &&
         commitment.status === "open" &&
         event.payload.generation === commitment.generation
       );

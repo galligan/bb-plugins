@@ -36,12 +36,18 @@ afterEach(async () => {
 });
 async function fixture(exclusive = false) {
   const projectId = "proj_work";
+  const access = { deleted: false };
   const host = createFakePluginHost({
     pluginId: "radio",
     sdk: {
       threads: {
         get: async ({ threadId }) =>
-          makeThreadResponse({ id: threadId, projectId, title: "Work test" }),
+          makeThreadResponse({
+            id: threadId,
+            projectId,
+            title: "Work test",
+            deletedAt: access.deleted ? Date.now() : null,
+          }),
       },
       projects: {
         get: async ({ projectId }) => ({
@@ -78,6 +84,11 @@ async function fixture(exclusive = false) {
     input: { name: "work-agent", targetId: worker.actorId },
   });
   if (!handle.ok) throw new Error(handle.error.message);
+  const rival = await who("thr_rival");
+  await rpc("thr_rival", {
+    op: "handle-assign",
+    input: { name: "rival", targetId: rival.actorId },
+  });
   const store = openRadioStorage(host.bb.storage);
   store.identities.registerThread("thr_other", worker.actorId);
   const other = await who("thr_other");
@@ -91,7 +102,7 @@ async function fixture(exclusive = false) {
       requireAck: true,
       expectReply: true,
       recipientIds: exclusive
-        ? [worker.actorId]
+        ? [worker.actorId, rival.actorId]
         : [worker.actorId, worker.sessionId!],
     },
   });
@@ -180,6 +191,8 @@ async function fixture(exclusive = false) {
     author,
     worker,
     other,
+    rival,
+    access,
     tx,
     projectId,
     mount,
@@ -292,6 +305,109 @@ describe("Commitment UI with actual backend", () => {
     });
     expect(f.count("commitments")).toBe(1);
     expect(f.count("response_events")).toBe(0);
+    slot.lifecycle.unmount();
+  });
+  it("confirms an existing actor-wide commitment from another owned session and retains replay evidence after remount", async () => {
+    const f = await fixture(true);
+    const original = await f.work("thr_worker", {
+      kind: "wilco",
+      txId: f.tx.id,
+      targetId: f.worker.actorId,
+      idempotencyKey: "original-actor-wilco",
+    });
+    let slot = await f.mount(f.other);
+    await waitFor(() =>
+      expect(
+        (
+          slot.getByRole("button", {
+            name: "Record wilco (accept work)",
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(false),
+    );
+    fireEvent.click(
+      slot.getByRole("button", { name: "Record wilco (accept work)" }),
+    );
+    await recorded(slot, "wilco");
+    expect(f.behavior.outcomes[0]).toMatchObject({
+      replayed: true,
+      commitment: {
+        id: original.commitment.id,
+        openingSessionId: f.worker.sessionId,
+      },
+      event: { id: original.event.id, sessionId: f.worker.sessionId },
+    });
+    expect(f.count("commitments")).toBe(1);
+    expect(f.count("commitment_events")).toBe(1);
+    slot.lifecycle.unmount();
+    slot = await f.mount(f.other);
+    await recorded(slot, "wilco");
+    expect(slot.queryByRole("alert")).toBeNull();
+    expect(f.behavior.attempts).toHaveLength(1);
+    slot.lifecycle.unmount();
+  });
+  it("disables a known competing exclusive claim without creating pending recovery", async () => {
+    const f = await fixture(true);
+    await f.work("thr_worker", {
+      kind: "wilco",
+      txId: f.tx.id,
+      targetId: f.worker.actorId,
+      idempotencyKey: "worker-wins",
+    });
+    const slot = await f.mount(f.rival);
+    expect(await slot.findByText(/Exclusive claim is held by/)).toBeTruthy();
+    const button = slot.getByRole("button", {
+      name: "Record wilco (accept work)",
+    }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(f.behavior.attempts).toEqual([]);
+    expect(
+      sessionStorage.getItem(
+        workRecoveryKey({
+          identity: f.rival,
+          projectId: f.projectId,
+          txId: f.tx.id,
+        }),
+      ),
+    ).toBeNull();
+    expect(f.count("commitments")).toBe(1);
+    slot.lifecycle.unmount();
+  });
+  it("retains exact recovery when an accepted lost action is later refused before replay lookup", async () => {
+    const f = await fixture(true);
+    const slot = await f.mount();
+    f.behavior.loseNext = true;
+    fireEvent.click(
+      slot.getByRole("button", { name: "Record wilco (accept work)" }),
+    );
+    expect(await slot.findByRole("alert")).toBeTruthy();
+    const key = workRecoveryKey({
+      identity: f.worker,
+      projectId: f.projectId,
+      txId: f.tx.id,
+    });
+    const saved = sessionStorage.getItem(key);
+    f.access.deleted = true;
+    fireEvent.click(
+      slot.getByRole("button", { name: "Retry original work action" }),
+    );
+    expect(
+      await slot.findByText(/Unknown or deleted invoking BB thread/),
+    ).toBeTruthy();
+    expect(sessionStorage.getItem(key)).toBe(saved);
+    expect(f.count("commitments")).toBe(1);
+    f.access.deleted = false;
+    fireEvent.click(
+      slot.getByRole("button", { name: "Retry original work action" }),
+    );
+    await recorded(slot, "wilco");
+    expect(f.behavior.attempts).toEqual([
+      f.behavior.attempts[0],
+      f.behavior.attempts[0],
+      f.behavior.attempts[0],
+    ]);
+    expect(f.count("commitment_events")).toBe(1);
     slot.lifecycle.unmount();
   });
   it("keeps an exact-session commitment closed to other owned sessions", async () => {

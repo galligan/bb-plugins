@@ -2,7 +2,11 @@ import { useId, useState } from "react";
 import { z } from "zod";
 import { useActing } from "./acting-context.ts";
 import { useBrowse } from "./use-browse.ts";
-import { commitmentEventSchema } from "./commitment-views.ts";
+import {
+  commitmentEventSchema,
+  commitmentSchema,
+  type CommitmentView,
+} from "./commitment-views.ts";
 import { transmissionSchema, pageSchema } from "./view-schemas.ts";
 import { WorkActionPanel, type WorkRecovery } from "./work-action-panel.tsx";
 import { RadioLink } from "./link.tsx";
@@ -35,6 +39,14 @@ export function TransmissionWork({
   );
   const latest =
     query.data && !query.data.hasMore ? query.data.items.at(-1) : undefined;
+  const needsClaim = tx.requestMode === "exclusive" && latest?.kind === "wilco";
+  const claimQuery = useBrowse(
+    projectId,
+    { op: "commitment", input: { id: latest?.commitmentId ?? tx.id } },
+    commitmentSchema,
+    needsClaim,
+  );
+  const claim = needsClaim ? claimQuery.data : undefined;
   return (
     <section
       aria-label="Work history"
@@ -96,6 +108,14 @@ export function TransmissionWork({
           ) : null}
         </>
       ) : null}
+      {needsClaim ? (
+        <ReadStatus
+          loading={claimQuery.isLoading}
+          refreshing={claimQuery.isFetching && !claimQuery.isLoading}
+          error={claimQuery.error}
+          retry={claimQuery.refetch}
+        />
+      ) : null}
       <WorkActionPanel txId={tx.id}>
         {(recovery) => (
           <AcceptOrReopen
@@ -103,6 +123,11 @@ export function TransmissionWork({
             tx={tx}
             recovery={recovery}
             latest={latest}
+            claim={claim}
+            claimPending={
+              needsClaim &&
+              (!claim || !!claimQuery.error || claimQuery.isFetching)
+            }
           />
         )}
       </WorkActionPanel>
@@ -113,10 +138,14 @@ function AcceptOrReopen({
   tx,
   recovery,
   latest,
+  claim,
+  claimPending,
 }: {
   tx: TransmissionView;
   recovery: WorkRecovery;
   latest?: z.infer<typeof commitmentEventSchema>;
+  claim?: CommitmentView;
+  claimPending: boolean;
 }) {
   const acting = useActing();
   const id = useId();
@@ -134,10 +163,21 @@ function AcceptOrReopen({
         ? targets[0]!
         : "",
   );
-  const exclusiveClosed =
+  const exclusiveState =
+    tx.requestMode === "exclusive"
+      ? claim && claim.status !== "open"
+        ? claim.status
+        : latest?.kind === "done"
+          ? "done"
+          : latest?.kind === "abandon"
+            ? "abandoned"
+            : null
+      : null;
+  const exclusiveClosed = !!exclusiveState;
+  const claimedByAnother =
     tx.requestMode === "exclusive" &&
-    !!latest &&
-    ["done", "abandon"].includes(latest.kind);
+    claim?.status === "open" &&
+    claim.targetId !== targetId;
   return (
     <div className="space-y-3">
       <fieldset
@@ -171,7 +211,11 @@ function AcceptOrReopen({
         <Button
           size="sm"
           disabled={
-            recovery.blocked || exclusiveClosed || !targets.includes(targetId)
+            recovery.blocked ||
+            exclusiveClosed ||
+            claimPending ||
+            claimedByAnother ||
+            !targets.includes(targetId)
           }
           onClick={() =>
             void recovery.send({
@@ -192,9 +236,24 @@ function AcceptOrReopen({
           ? " The server accepts one exclusive claimant at a time."
           : ""}
       </p>
+      {claimedByAnother ? (
+        <p className="text-sm text-muted-foreground">
+          Exclusive claim is held by <code>{claim.targetId}</code>.{" "}
+          <RadioLink
+            route={{
+              projectId: acting.projectId,
+              kind: "commitment",
+              id: claim.id,
+            }}
+          >
+            Inspect current claim
+          </RadioLink>
+          .
+        </p>
+      ) : null}
       {exclusiveClosed ? (
         <p className="text-sm text-muted-foreground">
-          {latest?.kind === "done"
+          {exclusiveState === "done"
             ? "This exclusive request completed; create a new transmission for new work."
             : "This exclusive request was abandoned and stays closed until its original author reopens it."}
         </p>
