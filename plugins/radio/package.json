@@ -15,12 +15,14 @@
   },
   "bb": {
     "name": "Radio [Experimental]",
-    "description": "Radio storage foundation. Communication surfaces are not implemented yet.",
+    "description": "Short durable transmissions, dispatches, explicit receipts and commitments through local CLI, RPC and native tools.",
     "branding": {
       "icon": "Radio"
     },
     "server": "./server.ts",
-    "skills": []
+    "skills": [
+      "skills"
+    ]
   },
   "scripts": {
     "check": "tsc --noEmit",
