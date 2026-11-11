@@ -44,19 +44,32 @@ To update actionlint, change `.actionlint-version`, update the version and relea
 
 ## Choose the test boundary
 
-| Behavior                                               | Verification                                                                                                 |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Parsing, state guards, path mapping                    | Pure functions with direct assertions                                                                        |
-| Git state, worktree removal, subprocess lifetime       | Temporary real repositories and processes; verify preserved content and failure behavior                     |
-| Repository API automation                              | Injected API client; test matching, pagination calls, race/error handling, and no mutation on rejected input |
-| Plugin registration, RPC schemas, host signal delivery | Public SDK test harness supported by the package's SDK pin                                                   |
-| UI layout, host selection, routing, install/reload     | Live check against an isolated BB instance                                                                   |
+Verify behavior in a test before starting BB. The public SDK harnesses load a plugin's real entry files in-process, with no daemon, app, or network. Use a live instance only for the last row of this table.
 
-The current SDK provides `@get-bb/plugin-sdk/testing`, `/testing/host`, and `/testing/app`. Use the installed `bb-plugin-authoring` testing references and the package's declarations before adopting a harness; older pins may lack those exports. Keep pure logic tests independent of a running daemon. Existing fixtures in [Worktree+](../../plugins/wt/lib/fixture.ts) and [Graphite](../../plugins/graphite/lib/stack/fixture.ts) are examples, not a mandate to replace the package's test runner.
+| Behavior                                                                                                                                                      | Verification                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Parsing, state guards, path mapping                                                                                                                           | Pure functions with direct assertions                                                                        |
+| Git state, worktree removal, subprocess lifetime                                                                                                              | Temporary real repositories and processes; verify preserved content and failure behavior                     |
+| Repository API automation                                                                                                                                     | Injected API client; test matching, pagination calls, race/error handling, and no mutation on rejected input |
+| Server registration, RPC, CLI, HTTP and WebSocket routes, agent tools, services, schedules, settings changes, thread events, install, reload, and disposal    | `createFakePluginHost` from `@get-bb/plugin-sdk/testing`, loading the real `server.ts`                       |
+| Host-entry calls, signals, cancellation, and disposal                                                                                                         | `experimental_createHostEntryHarness` from `@get-bb/plugin-sdk/testing/host`, loading the real `host.ts`     |
+| Frontend registration and slot behavior: loading, empty, error/retry, pending and failed writes, keyboard activation, navigation and RPC calls, and reconnect | `loadPluginApp` and `renderSlot` from `@get-bb/plugin-sdk/testing/app`, loading the real `app.tsx`           |
+| Imports limited to the public SDK                                                                                                                             | `experimental_scanPublicSdkOnly` in one package test, asserting no violations or private dependencies        |
+| Layout and CSS, themes, real routing, host selection, crash isolation, other plugins, worker startup and crashes, enforced HTTP auth, restart timers and cron | Live check against an isolated BB instance                                                                   |
+
+A package that has the entry file covers it with the matching harness: the server factory with its registrations asserted, the host entry, the app's registrations, and the import scan. [Graphite's server](../../plugins/graphite/lib/server.test.ts) and [host-entry](../../plugins/graphite/lib/host-entry.test.ts) tests, [Radio's frontend tests](../../plugins/radio/tests/), and the [bbots import scan](../../plugins/bbots/lib/server.test.ts) are working examples. Worktree+ and Graphite have no frontend harness tests yet, and Rex has no harness tests; add the missing suite with the first behavior change to that entry rather than checking the change live.
+
+Every package that depends on the public SDK can import all three entrypoints; the [compatibility report](compatibility-report.md) lists current pins. Linear vendors declarations instead and cannot import a harness until it depends on the SDK. Check the package's pinned declarations and the `bb-plugin-authoring` testing references before using a harness member, because `experimental_` names can change between releases.
+
+Follow the SDK's own test setup. Its README and `@get-bb/plugin-sdk/testing/app` declarations document frontend tests under Vitest with jsdom (`// @vitest-environment jsdom`), so frontend suites use that, as [Radio](../../plugins/radio/vitest.config.ts) and the [nav-panel scaffold](../../scaffolds/nav-panel/app.test.tsx) do. Judge's frontend suite still runs under `node --test` with hand-installed jsdom globals; do not copy that setup. The backend and host-entry harnesses are framework-independent. The SDK's examples use Vitest; this repository's existing `node --test` suites remain valid, and a package keeps one backend runner rather than mixing two. `bb plugin new` adds no test runner, so each package declares its own: `better-sqlite3` for backend harness tests, and React, React DOM, Testing Library, and jsdom for frontend tests. Never mock plugin storage: the fake host supplies a real temporary database.
+
+Keep pure logic tests independent of both the harness and a running daemon. Existing fixtures in [Worktree+](../../plugins/wt/lib/fixture.ts) and [Graphite](../../plugins/graphite/lib/stack/fixture.ts) are examples, not a mandate to replace the package's test runner.
 
 Build success verifies bundle generation, not live behavior. Keep backend, host, frontend, and live coverage distinct in a handoff. Existing SDK warnings should be reported as compatibility debt; a warning is not evidence that an obsolete call is the preferred implementation.
 
 ## Live testing
+
+Go live only for a boundary the table above assigns to a live check, and name that boundary in the handoff. A live check does not replace a harness test for behavior the harness can drive.
 
 For frontend changes, use the [UI review matrix](ui-ux.md#ui-review-and-verification) to cover theme, layout, keyboard/touch interaction, data states, and lifecycle behavior on the affected surface.
 

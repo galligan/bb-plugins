@@ -86,15 +86,15 @@ Read BB-owned state through public host hooks and `useSdk()`. Use plugin RPC for
 
 For a UI change, state which host surface and existing component/recipe it reuses. If custom UI is needed, identify the capability missing from those options. This is a design explanation in the PR, not a new approval gate.
 
-Verify the interaction in the host, not only in a standalone component render:
+Cover behavior with `@get-bb/plugin-sdk/testing/app` harness tests first, then check in the host what a jsdom render cannot show:
 
-| Area        | Check                                                                                                          |
-| ----------- | -------------------------------------------------------------------------------------------------------------- |
-| Integration | One title/header, correct navigation and panel behavior, correct thread/project/host target                    |
-| Themes      | Light, dark, and a non-default palette; legible text, selected states, and portal content                      |
-| Layout      | Wide window, narrow split/panel, compact/coarse-pointer view; long names and larger text                       |
-| Input       | Keyboard-only navigation, focus return, Escape, touch access to secondary actions                              |
-| State       | First load, empty, no matches, error/retry, offline/unavailable host, pending and failed writes                |
-| Lifecycle   | Close/reopen the panel, switch threads, reload the plugin, reconnect data; no duplicate effects or lost drafts |
+| Area        | Check                                                                                                          | Verify with                                                                         |
+| ----------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Integration | One title/header, correct navigation and panel behavior, correct thread/project/host target                    | Harness for registrations, navigation calls, and targets; live for the host chrome  |
+| Themes      | Light, dark, and a non-default palette; legible text, selected states, and portal content                      | Live                                                                                |
+| Layout      | Wide window, narrow split/panel, compact/coarse-pointer view; long names and larger text                       | Live                                                                                |
+| Input       | Keyboard-only navigation, focus return, Escape, touch access to secondary actions                              | Harness for keyboard activation and dismissal; live for host focus order and touch  |
+| State       | First load, empty, no matches, error/retry, offline/unavailable host, pending and failed writes                | Harness                                                                             |
+| Lifecycle   | Close/reopen the panel, switch threads, reload the plugin, reconnect data; no duplicate effects or lost drafts | Harness for remount and reconnect; live for thread switching and reload in the host |
 
-Use SDK harness tests for contract and action behavior, and live visual/interaction checks for layout, focus, portals, and client-specific behavior. Follow [verification](verification.md) for isolation. Record what was actually exercised; source inspection or a screenshot does not establish keyboard, touch, or lifecycle correctness.
+Live checks are for layout, host focus, portals, and client-specific behavior; they do not replace a harness test for a row the harness can verify. Follow [verification](verification.md#choose-the-test-boundary) for the boundary and for isolation. Record what was actually exercised; source inspection or a screenshot does not establish keyboard, touch, or lifecycle correctness.

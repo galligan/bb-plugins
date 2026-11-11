@@ -40,9 +40,11 @@
 - If a change calls Rex, test it against `FakeRex`. If `FakeRex` lacks the method, add it there in the shape the Rex API page gives.
 - If a change touches decoding, scrolling, or history, test it against the real WASM through `lib/pane-fixture.ts`.
 - `lib/relay.test.ts` uses real sockets on a Unix socket in a temporary directory.
+- No test loads `server.ts` or `app.tsx` yet. If a change touches a route, `bb rex`, the setting, a listener, or the tab registration, test it through `createFakePluginHost` from `@get-bb/plugin-sdk/testing` or `loadPluginApp` from `@get-bb/plugin-sdk/testing/app`. Do not check it in the running app instead.
 
 ## Checking in the running app
 
+- Check in the running app only what a test cannot show: drawing, layout, scrolling, and the host's tab strip. Use an isolated bb instance; see [verification](../../docs/dev/verification.md#choose-the-test-boundary).
 - Use a Rex session created for the check, under a label of its own. Destroy it afterwards.
 - MUST NOT attach to, stream, or type into a session you did not create. Reading session, window, and block labels for the window menu is allowed.
 - A thread's own window is closed when the thread is archived. To check that, use a thread created for the check.
