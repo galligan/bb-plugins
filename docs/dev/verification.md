@@ -117,6 +117,30 @@ It runs one command and returns its exit code. It does not start, stop, install,
 
 Say what kind of instance produced live evidence. One built from source is evidence for that commit; it does not establish compatibility with the released binary that reports the same version.
 
+To show that a built plugin directory starts on an isolated instance, without leaving it there:
+
+```sh
+bun run load-check --url <server-url> --data-dir <path> [--daemon-port <port>] [--cli <bb-entry>] --plugin <id> --artifact <built-plugin-dir> --original <current-plugin-dir> --receipt <file> [-- <read-only bb arguments>]
+```
+
+This works only for a plugin that the instance already runs, enabled, from a local path. `bb plugin install <path>` over such an install is a move that bb supports: it keeps settings, secrets and schedules, and keeps the old install if the new checkout fails to start. [`scripts/load-check.mjs`](../../scripts/load-check.mjs) names the instance through the same checks as `bb-target`, then:
+
+1. Refuses, changing nothing, unless the plugin runs from `--original`, both directories hold the same package, and no plugin install is queued or running.
+2. Sends one install of `--artifact`, then reads the install queue and the plugin list to learn what happened. An install command that times out may still have been accepted, so the command's exit alone never decides, and no install is sent twice.
+3. If the plugin runs from the artifact, runs the optional command after `--` once. That command must be read-only; its arguments are never printed or recorded, and its output is written beside the receipt.
+4. Sends one install of `--original` and checks that the plugin runs from there again.
+
+| Exit | Meaning                                                                                                                          |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | The plugin ran from the artifact and runs from the original path again.                                                          |
+| 1    | bb did not run the artifact, or the probe failed. The original install is verified running.                                      |
+| 3    | Refused before any install.                                                                                                      |
+| 4    | The final state is not verified as the original install: read the receipt and `plugin list --json` before sending anything else. |
+
+The receipt is JSON, rewritten after every step, with the baseline, what was observed on the artifact, the final state, and both the first failure and any restore failure. The restore runs after an ordinary failure of the script. It cannot run if the process is killed or the machine is lost between the two installs; the plugin then stays on the artifact, and the receipt's `restoreArguments` are the bb arguments that move it back.
+
+A pass shows that bb registered the plugin from the artifact and reports it running. Only the probe exercises a host entry, and nothing here renders the app. A plugin installed from git or npm cannot be checked this way: bb refuses to replace that source in place, and removing the plugin first deletes its settings, secrets and schedules. The cases are covered with injected process execution in [`scripts/load-check.test.mjs`](../../scripts/load-check.test.mjs).
+
 Graphite's former [isolated-instance script](../../plugins/graphite/scripts/bb-test-instance.sh) is retired: it exits with a notice and starts nothing. Its [setup notes](../../plugins/graphite/.agents/plans/20260918-init/testing-setup.md) describe BB 0.43.1 in September 2026 and are kept as history, not as a procedure. Use an instance provided for the purpose, reached through `bb-target`. One caution from those notes still applies to anyone running BB's server from the installed app: its native SQLite binding is built for the app's Electron runtime, not system Node.
 
 After the package is installed in the intended instance, `bb plugin dev` rebuilds and reloads it on changes. Exercise the affected CLI/RPC or UI flow and inspect plugin logs. Verify cancellation and disposal when changing resource ownership; a successful happy-path call alone does not test cleanup.
