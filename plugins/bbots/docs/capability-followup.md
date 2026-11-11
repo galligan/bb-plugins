@@ -1,5 +1,7 @@
 # Capability follow-up
 
+**Historical investigation; current disposition:** Matt directed plugin implementation without maintainer changes. BOTS-18 is deferred/non-blocking; no further upstream pings or waiting for releases. Preserve the prototype/evidence/draft without merging/deploying it. Old statements below that BOTS-4 waits for BOTS-3/upstream alignment are superseded by [the implementation plan](plan.md) and [support boundary](support-boundary.md).
+
 Date: 2026-11-10. Tasks BOTS-3 and BOTS-18 remain incomplete. Matt's release and separate core/SDK authorization continue to apply; there is no executable Bots package yet.
 
 ## Deferred compaction, queues and Stop
