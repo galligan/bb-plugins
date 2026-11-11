@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test } from "vitest";
-import { cleanup, waitFor } from "@testing-library/react";
+import { act, cleanup, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { loadPluginApp, renderSlot } from "@get-bb/plugin-sdk/testing/app";
 import { view, soul } from "./fixture.ts";
@@ -19,7 +19,18 @@ const machine = makeHostResponse({
 afterEach(() => {
   cleanup();
   sessionStorage.clear();
+  setPageVisible(true);
 });
+
+function setPageVisible(visible: boolean) {
+  act(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: visible ? "visible" : "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}
 
 test("registers an additive panel and owned-only header without replacing navigation or composer", async () => {
   const app = await loaded();
@@ -121,6 +132,82 @@ test("read failure is distinct from empty and retry restores the list", async ()
   await userEvent.click(slot.getByRole("button", { name: "Refresh" }));
   await slot.findByText("No bots yet. Create Bob or choose another name.");
   slot.lifecycle.unmount();
+});
+
+test("navigation panel reads and creation work without a secondary-tab visibility context", async () => {
+  const app = await loaded();
+  const slot = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "new" },
+    {
+      // Native nav panels are not secondary tabs. That hook defaults false there.
+      tabVisible: false,
+      rpc: { list: () => ({ bots: [view.bot], hasMore: false }) },
+      sdk: { hosts: { list: async () => [machine] } },
+    },
+  );
+  await slot.findByRole("button", { name: "Bob" });
+  await slot.findByRole("option", { name: "Fixture machine" });
+  await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
+  expect(
+    (slot.getByRole("button", { name: "Create bot" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false);
+  slot.lifecycle.unmount();
+});
+
+test("browser hide aborts machine discovery and stale responses cannot unlock creation", async () => {
+  const app = await loaded();
+  let resolve!: (machines: (typeof machine)[]) => void;
+  let signal: AbortSignal | undefined;
+  let reads = 0;
+  let lists = 0;
+  const slot = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "new" },
+    {
+      tabVisible: false,
+      rpc: {
+        list: () => {
+          lists++;
+          return { bots: [], hasMore: false };
+        },
+      },
+      sdk: {
+        hosts: {
+          list: async (args) => {
+            signal = args?.signal;
+            reads++;
+            if (reads > 1) return [machine];
+            return new Promise<(typeof machine)[]>((yes) => {
+              resolve = yes;
+            });
+          },
+        },
+      },
+    },
+  );
+  await waitFor(() => expect(reads).toBe(1));
+  setPageVisible(false);
+  expect(signal?.aborted).toBe(true);
+  const before = lists;
+  await act(async () => resolve([machine]));
+  await slot.behavior.experimental_invalidateRpc(["bots"]);
+  expect(lists).toBe(before);
+  expect(slot.queryByRole("option", { name: "Fixture machine" })).toBeNull();
+  expect(
+    (slot.getByRole("button", { name: "Create bot" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  setPageVisible(true);
+  await slot.findByRole("option", { name: "Fixture machine" });
+  await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
+  expect(
+    (slot.getByRole("button", { name: "Create bot" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false);
+  slot.lifecycle.unmount();
+  expect(signal?.aborted).toBe(true);
 });
 
 test("native open preserves the host conversation and offline setup is actionable", async () => {
