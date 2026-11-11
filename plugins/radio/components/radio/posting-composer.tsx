@@ -8,6 +8,7 @@ import { transmissionSchema } from "./view-schemas.ts";
 import { PostingFieldsView } from "./posting-fields.tsx";
 import {
   blankFields,
+  decodeDraft,
   draftKey,
   makePostingRequest,
   readDraft,
@@ -40,13 +41,17 @@ export function PostingComposer({
 function Composer({ scope }: { scope: PostingScope }) {
   const { perform, pending } = useActing();
   const visible = experimental_useTabVisible();
+  const unreadableRaw = useRef<string | null | undefined>(undefined);
   const [state, setState] = useState<{
     draft: PostingDraft | null;
     error: string | null;
   }>(() => {
+    let raw: string | null | undefined;
     try {
-      return { draft: readDraft(scope), error: null };
+      raw = sessionStorage.getItem(draftKey(scope));
+      return { draft: decodeDraft(scope, raw), error: null };
     } catch {
+      unreadableRaw.current = raw;
       return {
         draft: null,
         error:
@@ -62,6 +67,37 @@ function Composer({ scope }: { scope: PostingScope }) {
     next: PostingDraft,
     expectedKey = draft?.request?.idempotencyKey,
   ) {
+    if (!draft) {
+      let raw: string | null;
+      try {
+        raw = sessionStorage.getItem(draftKey(scope));
+      } catch {
+        setState({
+          draft: null,
+          error:
+            "Recovery storage is unavailable; the saved draft was not replaced.",
+        });
+        return false;
+      }
+      if (raw !== unreadableRaw.current) {
+        try {
+          setState({
+            draft: decodeDraft(scope, raw),
+            error:
+              "Saved draft changed in another panel. Inspect its original request before editing again.",
+          });
+        } catch {
+          unreadableRaw.current = raw;
+          setState({
+            draft: null,
+            error:
+              "The unreadable saved draft changed. Inspect history again before replacing it.",
+          });
+        }
+        setCheckedHistory(false);
+        return false;
+      }
+    }
     if (draft) {
       let current: PostingDraft;
       try {

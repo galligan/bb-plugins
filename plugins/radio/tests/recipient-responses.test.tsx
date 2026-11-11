@@ -369,6 +369,53 @@ describe("Explicit recipient responses against actual backend", () => {
     expect(f.count("response_events")).toBe(1);
     slot.lifecycle.unmount();
   });
+  it("does not let a stale unreadable panel erase a newer pending response", async () => {
+    const f = await fixture();
+    const key = responseRecoveryKey({
+      identity: f.who,
+      projectId: f.projectId,
+      txId: f.tx.id,
+    });
+    sessionStorage.setItem(key, "{broken");
+    const stale = await f.mount();
+    const current = await f.mount();
+    fireEvent.click(
+      within(current.container).getByLabelText(/I inspected response history/),
+    );
+    fireEvent.click(
+      within(current.container).getByRole("button", {
+        name: "Clear response recovery",
+      }),
+    );
+    f.behavior.loseNext = true;
+    fireEvent.click(
+      within(current.container).getByRole("button", { name: "Record ack" }),
+    );
+    expect(await within(current.container).findByRole("alert")).toBeTruthy();
+    const pending = sessionStorage.getItem(key);
+    fireEvent.click(
+      within(stale.container).getByLabelText(/I inspected response history/),
+    );
+    fireEvent.click(
+      within(stale.container).getByRole("button", {
+        name: "Clear response recovery",
+      }),
+    );
+    expect(sessionStorage.getItem(key)).toBe(pending);
+    expect(
+      within(stale.container).getByRole("button", {
+        name: "Retry original response",
+      }),
+    ).toBeTruthy();
+    stale.lifecycle.unmount();
+    fireEvent.click(
+      current.getByRole("button", { name: "Retry original response" }),
+    );
+    await recorded(current, "ack");
+    expect(f.behavior.attempts[1]).toEqual(f.behavior.attempts[0]);
+    expect(f.count("response_events")).toBe(1);
+    current.lifecycle.unmount();
+  });
   it("paginates real response history without recording receipt or new response facts", async () => {
     const f = await fixture();
     for (let index = 0; index < 25; index++) {

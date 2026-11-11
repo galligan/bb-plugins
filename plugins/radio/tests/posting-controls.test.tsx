@@ -410,6 +410,52 @@ describe("Radio posting and reply recovery", () => {
     expect(second.requests[0]!.input).toEqual(original);
     second.slot.lifecycle.unmount();
   });
+  it("does not let a stale unreadable panel overwrite a newer pending send", async () => {
+    sessionStorage.setItem(draftKey(scope), "{broken");
+    const stale = await mount();
+    const current = await mount({
+      handler: async () => {
+        throw new Error("lost response");
+      },
+    });
+    fireEvent.click(
+      within(current.slot.container).getByLabelText(
+        /I checked channel history/,
+      ),
+    );
+    fireEvent.click(
+      within(current.slot.container).getByRole("button", {
+        name: "Edit as new request",
+      }),
+    );
+    edit(current.slot, "Transmission", "New pending send");
+    fireEvent.click(
+      within(current.slot.container).getByRole("button", {
+        name: "Send transmission",
+      }),
+    );
+    expect(
+      await within(current.slot.container).findByRole("alert"),
+    ).toBeTruthy();
+    const pending = readDraft(scope).request;
+    fireEvent.click(
+      within(stale.slot.container).getByLabelText(/I checked channel history/),
+    );
+    fireEvent.click(
+      within(stale.slot.container).getByRole("button", {
+        name: "Edit as new request",
+      }),
+    );
+    expect(readDraft(scope).request).toEqual(pending);
+    expect(
+      within(stale.slot.container).getByRole("button", {
+        name: "Retry original request",
+      }),
+    ).toBeTruthy();
+    expect(stale.requests).toEqual([]);
+    stale.slot.lifecycle.unmount();
+    current.slot.lifecycle.unmount();
+  });
   it("does not post from a hidden panel and scopes recovery by station, project, channel and parent", async () => {
     const { slot, requests } = await mount({ visible: false });
     edit(slot, "Transmission", "Hidden draft");

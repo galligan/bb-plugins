@@ -25,14 +25,16 @@ export function responseRecoveryKey({
 }: ResponseScope) {
   return `radio-response-v1:${JSON.stringify([identity.stationId, projectId, identity.actorId, identity.sessionId, txId])}`;
 }
-function read(scope: ResponseScope) {
-  const raw = sessionStorage.getItem(responseRecoveryKey(scope));
+function decode(scope: ResponseScope, raw: string | null) {
   if (!raw) return null;
   if (raw.length > 20000) throw new Error("Saved response exceeds its bound.");
   const saved = savedSchema.parse(JSON.parse(raw));
   if (saved.request.txId !== scope.txId)
     throw new Error("Saved response destination changed.");
   return saved;
+}
+function read(scope: ResponseScope) {
+  return decode(scope, sessionStorage.getItem(responseRecoveryKey(scope)));
 }
 function write(scope: ResponseScope, value: SavedResponse | null) {
   const key = responseRecoveryKey(scope);
@@ -43,14 +45,18 @@ function write(scope: ResponseScope, value: SavedResponse | null) {
 export function useResponseRecovery(scope: ResponseScope) {
   const acting = useActing();
   const visible = experimental_useTabVisible();
+  const unreadableRaw = useRef<string | null | undefined>(undefined);
   const [state, setState] = useState<{
     saved: SavedResponse | null;
     error: string | null;
     unreadable: boolean;
   }>(() => {
+    let raw: string | null | undefined;
     try {
-      return { saved: read(scope), error: null, unreadable: false };
+      raw = sessionStorage.getItem(responseRecoveryKey(scope));
+      return { saved: decode(scope, raw), error: null, unreadable: false };
     } catch {
+      unreadableRaw.current = raw;
       return {
         saved: null,
         error:
@@ -160,8 +166,28 @@ export function useResponseRecovery(scope: ResponseScope) {
   function clear() {
     if (!visible || busy.current || acting.pending) return;
     try {
+      const raw = sessionStorage.getItem(responseRecoveryKey(scope));
+      if (state.unreadable && raw !== unreadableRaw.current) {
+        try {
+          setState({
+            saved: decode(scope, raw),
+            error:
+              "Recovery changed in another panel. Inspect the current response before clearing it.",
+            unreadable: false,
+          });
+        } catch {
+          unreadableRaw.current = raw;
+          setState({
+            saved: null,
+            error:
+              "The unreadable recovery record changed. Inspect history again before clearing it.",
+            unreadable: true,
+          });
+        }
+        return;
+      }
       if (!state.unreadable) {
-        const current = read(scope);
+        const current = decode(scope, raw);
         if (
           current &&
           !current.event &&
