@@ -1,6 +1,7 @@
+import { useRadioVisible } from "./use-radio-visible.ts";
 import { choiceLabels } from "./choice-labels.ts";
 import { useEffect, useId, useState } from "react";
-import { useSdk, experimental_useTabVisible } from "@get-bb/plugin-sdk/app";
+import { useSdk } from "@get-bb/plugin-sdk/app";
 import {
   Select,
   SelectTrigger,
@@ -23,7 +24,7 @@ export function ThreadPicker({
   disabled: boolean;
 }) {
   const sdk = useSdk();
-  const visible = experimental_useTabVisible();
+  const visible = useRadioVisible();
   const fieldId = useId();
   const [offset, setOffset] = useState(0);
   const [refresh, setRefresh] = useState(0);

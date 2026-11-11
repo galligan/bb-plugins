@@ -1,10 +1,7 @@
+import { useRadioVisible } from "./use-radio-visible.ts";
 import { choiceLabels } from "./choice-labels.ts";
 import { useEffect, useState, useId } from "react";
-import {
-  useSdk,
-  useBbNavigate,
-  experimental_useTabVisible,
-} from "@get-bb/plugin-sdk/app";
+import { useSdk, useBbNavigate } from "@get-bb/plugin-sdk/app";
 import {
   Select,
   SelectTrigger,
@@ -19,7 +16,7 @@ export function ProjectPicker({ projectId }: { projectId: string }) {
   const fieldId = useId();
   const sdk = useSdk();
   const navigate = useBbNavigate();
-  const visible = experimental_useTabVisible();
+  const visible = useRadioVisible();
   const [refresh, setRefresh] = useState(0);
   const [state, setState] = useState<{
     projects: { id: string; name: string }[];

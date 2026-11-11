@@ -1,6 +1,6 @@
+import { useRadioVisible } from "./use-radio-visible.ts";
 import { replaceRecoveryRecord } from "./recovery-storage.ts";
 import { useRef, useState } from "react";
-import { experimental_useTabVisible } from "@get-bb/plugin-sdk/app";
 import { z } from "zod";
 import { responseSchema } from "../../lib/protocol-contracts.ts";
 import { useActing, type ActingIdentity } from "./acting-context.ts";
@@ -45,7 +45,7 @@ function write(scope: ResponseScope, value: SavedResponse | null) {
 }
 export function useResponseRecovery(scope: ResponseScope) {
   const acting = useActing();
-  const visible = experimental_useTabVisible();
+  const visible = useRadioVisible();
   const unreadableRaw = useRef<string | null | undefined>(undefined);
   const [state, setState] = useState<{
     saved: SavedResponse | null;

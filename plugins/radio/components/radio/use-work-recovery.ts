@@ -1,6 +1,6 @@
+import { useRadioVisible } from "./use-radio-visible.ts";
 import { useRef, useState } from "react";
 import { z } from "zod";
-import { experimental_useTabVisible } from "@get-bb/plugin-sdk/app";
 import {
   commitmentActionSchema,
   type CommitmentAction,
@@ -48,7 +48,7 @@ function write(scope: WorkScope, saved: SavedWork | null) {
 }
 export function useWorkRecovery(scope: WorkScope) {
   const acting = useActing();
-  const visible = experimental_useTabVisible();
+  const visible = useRadioVisible();
   const unreadableRaw = useRef<string | null | undefined>(undefined);
   const [state, setState] = useState<{
     saved: SavedWork | null;

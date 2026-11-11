@@ -1,8 +1,6 @@
+import { useRadioVisible } from "./use-radio-visible.ts";
 import { useRef } from "react";
-import {
-  experimental_useRpcQuery,
-  experimental_useTabVisible,
-} from "@get-bb/plugin-sdk/app";
+import { experimental_useRpcQuery } from "@get-bb/plugin-sdk/app";
 import { z } from "zod";
 import {
   browseContract,
@@ -15,7 +13,7 @@ export function useBrowse<T>(
   schema: z.ZodType<T>,
   enabled = true,
 ) {
-  const visible = experimental_useTabVisible();
+  const visible = useRadioVisible();
   const query = experimental_useRpcQuery({
     contract: browseContract,
     method: "browse",

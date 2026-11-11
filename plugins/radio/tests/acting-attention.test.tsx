@@ -1,3 +1,4 @@
+import { setPageVisible } from "./page-visibility.ts";
 import { describe, it, expect } from "vitest";
 import { act, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -10,6 +11,7 @@ import { project, identity, attention } from "./acting-fixture.ts";
 export async function mount(
   options: {
     operatorGate?: Promise<void>;
+    sideTabVisible?: boolean;
     rejectOperator?: boolean;
     rejectThread?: boolean;
     visible?: boolean;
@@ -17,6 +19,7 @@ export async function mount(
     duplicateTitles?: boolean;
   } = {},
 ) {
+  setPageVisible(options.visible ?? true);
   const app = await loadPluginApp(() => import("../app.tsx"));
   const contract = { ...browseContract, ...rpcContract };
   return renderSlot(
@@ -24,7 +27,7 @@ export async function mount(
     { subPath: "proj_one" },
     {
       pluginId: "radio",
-      tabVisible: options.visible ?? true,
+      tabVisible: options.sideTabVisible ?? false,
       experimental_rpcContract: contract,
       sdk: {
         projects: {
@@ -161,6 +164,61 @@ export function calls(slot: Awaited<ReturnType<typeof mount>>) {
 }
 
 describe("Explicit acting identity and bounded attention", () => {
+  it("keeps a visible navigation-page operator unlocked with side-tab visibility false, and locks on browser hide", async () => {
+    const slot = await mount({ sideTabVisible: false });
+    await choose(slot, "Act as", "@user (operator)");
+    fireEvent.change(slot.getByLabelText("Operator credential"), {
+      target: { value: "operator-test-secret" },
+    });
+    fireEvent.click(slot.getByRole("button", { name: "Unlock @user" }));
+    expect(
+      await slot.findByRole("button", { name: "Check attention" }),
+    ).toBeTruthy();
+    expect(calls(slot)).toHaveLength(1);
+    await slot.behavior.experimental_invalidateRpc(["radio"]);
+    expect(calls(slot)).toHaveLength(1);
+    setPageVisible(false);
+    await waitFor(() =>
+      expect(
+        slot.getByRole("combobox", { name: "Act as" }).textContent,
+      ).toContain("Browse only"),
+    );
+    expect(slot.queryByRole("button", { name: "Check attention" })).toBeNull();
+    setPageVisible(true);
+    expect(
+      slot.getByRole("combobox", { name: "Act as" }).textContent,
+    ).toContain("Browse only");
+    expect(calls(slot)).toHaveLength(1);
+    slot.lifecycle.unmount();
+  });
+  it("does not restore operator authority when a late unlock resolves after browser hiding", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const slot = await mount({ sideTabVisible: false, operatorGate: gate });
+    await choose(slot, "Act as", "@user (operator)");
+    fireEvent.change(slot.getByLabelText("Operator credential"), {
+      target: { value: "operator-test-secret" },
+    });
+    fireEvent.click(slot.getByRole("button", { name: "Unlock @user" }));
+    await waitFor(() => expect(calls(slot)).toHaveLength(1));
+    setPageVisible(false);
+    await act(async () => {
+      release();
+      await gate;
+    });
+    setPageVisible(true);
+    await waitFor(() =>
+      expect(
+        slot.getByRole("combobox", { name: "Act as" }).textContent,
+      ).toContain("Browse only"),
+    );
+    expect(slot.queryByRole("button", { name: "Check attention" })).toBeNull();
+    expect(calls(slot)).toHaveLength(1);
+    slot.lifecycle.unmount();
+  });
+
   it("starts browse-only and uses only the explicitly selected verified thread for watched reads", async () => {
     const slot = await mount();
     expect(calls(slot)).toEqual([]);
@@ -404,7 +462,7 @@ describe("Explicit acting identity and bounded attention", () => {
     expect(calls(thread).every((call) => !call.context.asUser)).toBe(true);
     thread.lifecycle.unmount();
   });
-  it("does not unlock operator mode while its host panel is hidden", async () => {
+  it("does not unlock operator mode while its browser page is hidden", async () => {
     const slot = await mount({ visible: false });
     await choose(slot, "Act as", "@user (operator)");
     await waitFor(() =>

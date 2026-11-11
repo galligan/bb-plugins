@@ -1,5 +1,5 @@
+import { useRadioVisible } from "./use-radio-visible.ts";
 import { useRef, useState } from "react";
-import { experimental_useTabVisible } from "@get-bb/plugin-sdk/app";
 import { z } from "zod";
 import { useActing } from "./acting-context.ts";
 import { pageSchema } from "./view-schemas.ts";
@@ -27,7 +27,7 @@ const changeSchema = z.discriminatedUnion("state", [
 /** These state-setting operations have no replay key. Reads and new writes are explicit. */
 export function useSubscriptions(channelId: string, targetId: string) {
   const acting = useActing();
-  const visible = experimental_useTabVisible();
+  const visible = useRadioVisible();
   const busy = useRef(false);
   const [pending, setPending] = useState(false);
   const [cursors, setCursors] = useState([0]);

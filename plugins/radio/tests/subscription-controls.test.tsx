@@ -1,3 +1,4 @@
+import { setPageVisible } from "./page-visibility.ts";
 import { afterEach, beforeEach, describe, it, expect } from "vitest";
 import { fireEvent, waitFor } from "@testing-library/react";
 import { definePluginApp } from "@get-bb/plugin-sdk/app";
@@ -112,12 +113,14 @@ async function fixture(human = false) {
       });
     }),
   }));
-  const mount = (visible = true) =>
-    renderSlot(
+  const mount = (visible = true) => {
+    setPageVisible(visible);
+    return renderSlot(
       app.navPanels[0]!,
       { subPath: "" },
-      { pluginId: "radio", tabVisible: visible },
+      { pluginId: "radio", tabVisible: false },
     );
+  };
   async function snapshot(key: string, direct = false) {
     const result = await rpc({
       op: "tx",
