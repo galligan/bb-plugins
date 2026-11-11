@@ -7,7 +7,8 @@ import path from "node:path";
 export const exit = { usage: 2, refused: 3 };
 
 const DEFAULT_PORT = "38886";
-const FLAGS = {
+/** The flags that name an instance. Commands built on `select` add their own. */
+export const targetFlags = {
   "--url": "url",
   "--data-dir": "dataDir",
   "--daemon-port": "daemonPort",
@@ -24,7 +25,7 @@ const usage = [
 ].join("\n");
 
 /** The path as the filesystem names it, or resolved lexically if absent. */
-function canonical(file, realpath) {
+export function canonical(file, realpath) {
   const resolved = path.resolve(file);
   try {
     return realpath(resolved);
@@ -33,43 +34,44 @@ function canonical(file, realpath) {
   }
 }
 
-function parse(argv) {
+/**
+ * Read `--flag value` pairs up to `--`, and the arguments after it. Returns
+ * null for an unknown flag, a flag without a value, or a repeated flag.
+ */
+export function parseFlags(argv, flags) {
   const split = argv.indexOf("--");
-  if (split === -1) return null;
+  const head = split === -1 ? argv : argv.slice(0, split);
   const options = {};
-  const flags = argv.slice(0, split);
-  for (let index = 0; index < flags.length; index += 2) {
-    const name = FLAGS[flags[index]];
-    const value = flags[index + 1];
+  for (let index = 0; index < head.length; index += 2) {
+    const name = flags[head[index]];
+    const value = head[index + 1];
     if (name === undefined || value === undefined || name in options)
       return null;
     options[name] = value;
   }
-  const forwarded = argv.slice(split + 1);
-  if (!options.url || !options.dataDir || forwarded.length === 0) return null;
-  return { ...options, forwarded };
+  return { options, forwarded: split === -1 ? [] : argv.slice(split + 1) };
 }
 
 /**
- * Forward one bb command to an explicitly named instance.
+ * Check that the named instance is an isolated one that answers as itself, and
+ * return how to run bb against it: `{ bb, command, origin, dataDir }`, where
+ * `bb(args, spawnOptions)` runs one command. Returns `{ code }` when the
+ * instance is refused; nothing has been sent to it beyond `status --json`.
  *
  * The inherited environment is not trusted to select the target: every `BB_*`
  * variable is dropped, because inside a bb thread they point the CLI at the
- * instance that thread runs in. Forwarded arguments are never printed.
+ * instance that thread runs in.
  */
-export function target({
-  argv,
-  env = process.env,
-  run = spawnSync,
-  realpath = realpathSync.native,
-  home = homedir(),
-  log = console.error,
-}) {
-  const options = parse(argv);
-  if (options === null) {
-    log(usage);
-    return exit.usage;
-  }
+export function select(
+  options,
+  {
+    env = process.env,
+    run = spawnSync,
+    realpath = realpathSync.native,
+    home = homedir(),
+    log = console.error,
+  } = {},
+) {
   let url;
   try {
     url = new URL(options.url);
@@ -78,7 +80,7 @@ export function target({
   }
   if (url === null || !["http:", "https:"].includes(url.protocol)) {
     log(`bb-target: ${options.url} is not an http(s) server URL.`);
-    return exit.usage;
+    return { code: exit.usage };
   }
   if (
     options.daemonPort !== undefined &&
@@ -86,7 +88,7 @@ export function target({
       Number(options.daemonPort) > 65535)
   ) {
     log("bb-target: --daemon-port must be a port number.");
-    return exit.usage;
+    return { code: exit.usage };
   }
   const port = url.port || (url.protocol === "https:" ? "443" : "80");
   // Refused on every host. A hostname can reach this machine in more spellings
@@ -96,14 +98,14 @@ export function target({
     log(
       `bb-target: refused. ${url.origin} uses ${DEFAULT_PORT}, the default BB server port. Name an isolated instance on its own port.`,
     );
-    return exit.refused;
+    return { code: exit.refused };
   }
   const dataDir = canonical(options.dataDir, realpath);
   if (dataDir === canonical(path.join(home, ".bb"), realpath)) {
     log(
       `bb-target: refused. ${dataDir} is the default BB data directory. Name an isolated instance.`,
     );
-    return exit.refused;
+    return { code: exit.refused };
   }
 
   const selected = Object.fromEntries(
@@ -136,22 +138,47 @@ export function target({
     log(
       `bb-target: refused. Could not confirm which instance answers at ${url.origin}; nothing was forwarded.`,
     );
-    return exit.refused;
+    return { code: exit.refused };
   }
   if (canonical(reported, realpath) !== dataDir) {
     log(
       `bb-target: refused. ${url.origin} serves ${reported}, not ${dataDir}; nothing was forwarded.`,
     );
-    return exit.refused;
+    return { code: exit.refused };
   }
 
-  log(`bb-target: ${url.origin} serves ${dataDir}.`);
-  const result = run(command, [...prefix, ...options.forwarded], {
-    env: selected,
-    stdio: "inherit",
-  });
+  return {
+    bb: (args, spawnOptions) =>
+      run(command, [...prefix, ...args], { env: selected, ...spawnOptions }),
+    command,
+    origin: url.origin,
+    dataDir,
+  };
+}
+
+/**
+ * Forward one bb command to an explicitly named instance. Forwarded arguments
+ * are never printed.
+ */
+export function target({ argv, log = console.error, ...dependencies }) {
+  const parsed = parseFlags(argv, targetFlags);
+  if (
+    parsed === null ||
+    !parsed.options.url ||
+    !parsed.options.dataDir ||
+    parsed.forwarded.length === 0
+  ) {
+    log(usage);
+    return exit.usage;
+  }
+  const instance = select(parsed.options, { ...dependencies, log });
+  if ("code" in instance) return instance.code;
+  log(`bb-target: ${instance.origin} serves ${instance.dataDir}.`);
+  const result = instance.bb(parsed.forwarded, { stdio: "inherit" });
   if (result.error) {
-    log(`bb-target: could not run ${command}: ${result.error.message}`);
+    log(
+      `bb-target: could not run ${instance.command}: ${result.error.message}`,
+    );
     return 1;
   }
   return result.status ?? 1;

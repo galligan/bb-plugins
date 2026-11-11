@@ -16,6 +16,7 @@
     "verify": "bun scripts/verify.mjs",
     "preflight": "bun scripts/preflight.mjs",
     "bb-target": "bun scripts/bb-target.mjs",
+    "load-check": "bun scripts/load-check.mjs",
     "lint:workflows": "bun scripts/lint-workflows.mjs"
   },
   "devDependencies": {
