@@ -98,7 +98,10 @@ export function createTaskSource(
         return {
           ...current,
           availability: "unavailable",
-          error: error instanceof Error ? error.message : "Tasks unavailable",
+          error:
+            error instanceof Error
+              ? error.message.slice(0, 1024)
+              : "Tasks unavailable",
           limitation:
             "The configured board remains authoritative. Reconnect Tasks or restore that board; no Markdown fallback or replacement was created.",
         };

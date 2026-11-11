@@ -10,7 +10,6 @@ import { openSoul } from "./lib/soul/store.ts";
 import { soulContract } from "./lib/soul/contracts.ts";
 import { uiContract } from "./lib/ui/contracts.ts";
 import { createTaskSource } from "./lib/tasks/source.ts";
-import { taskCommands } from "./lib/tasks/cli.ts";
 
 export default function plugin(bb: BbPluginApi) {
   const store = openSetup(bb.storage);
@@ -66,5 +65,5 @@ export default function plugin(bb: BbPluginApi) {
       },
     },
   );
-  bb.cli.register(botCli(store, service, soul, taskCommands(tasks, store)));
+  bb.cli.register(botCli(store, service, soul, tasks));
 }

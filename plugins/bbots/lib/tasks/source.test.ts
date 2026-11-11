@@ -155,6 +155,16 @@ test("task authority is initially unconfigured and selecting a stable board neit
   const current = await f.show();
   assert.equal(current.board.name, "Renamed");
   assert.equal(current.source.boardId, "tracker_existing");
+  const brief = await f.harness.behavior.runCli([
+    "brief",
+    f.setup.botId,
+    "--json",
+  ]);
+  assert.equal(brief.exitCode, 0, brief.stderr);
+  const state = JSON.parse(brief.stdout);
+  assert.equal(state.taskSource.source.boardId, "tracker_existing");
+  assert.equal(state.taskSource.availability, "available");
+  assert.equal(state.unavailable.includes("tasks"), false);
   assert.equal(f.creates, 0);
   assert.equal(f.harness.inspection.sdk.callsTo("threads.spawn").length, 0);
   assert.equal(f.harness.inspection.sdk.callsTo("projects.create").length, 0);
@@ -169,6 +179,16 @@ test("outage or removal preserves the configured task authority without Markdown
   const before = f.store.documents.get(f.setup.botId, "TASKS.json");
   f.offline();
   assert.equal((await f.show()).availability, "unavailable");
+  const brief = await f.harness.behavior.runCli([
+    "brief",
+    f.setup.botId,
+    "--json",
+  ]);
+  assert.equal(brief.exitCode, 0, brief.stderr);
+  const state = JSON.parse(brief.stdout);
+  assert.equal(state.taskSource.source.boardId, "tracker_existing");
+  assert.equal(state.taskSource.availability, "unavailable");
+  assert.equal(state.unavailable.includes("tasks"), true);
   assert.deepEqual(f.store.documents.get(f.setup.botId, "TASKS.json"), before);
   f.online();
   f.boards.delete("tracker_existing");
