@@ -45,9 +45,15 @@ assert(
 const actions = await page.$$(
   '[data-wt-row] button[aria-label="Remove worktree"]',
 );
-if (actions.length === 0) {
-  console.log("SKIPPED: touch target size (no worktree rows on this instance)");
+const projects = await page.$$("[data-wt-project]");
+if (projects.length === 0) {
+  console.log("SKIPPED: touch target size (no worktrees on this instance)");
 } else {
+  // Collapsed projects hide their rows. Refuse to pass without measuring.
+  assert(
+    actions.length > 0,
+    "Expand a project that has worktrees first; touch targets cannot be measured while every project is collapsed",
+  );
   assert(
     await page.evaluate(() =>
       [

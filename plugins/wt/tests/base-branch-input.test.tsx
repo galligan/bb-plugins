@@ -6,9 +6,15 @@ import type { PluginEnvironmentProviderInputsProps } from "@get-bb/plugin-sdk/ap
 
 type Props = PluginEnvironmentProviderInputsProps;
 
+type Base = { base: string | null };
+type Settle = {
+  resolve: (value: Base) => void;
+  reject: (reason: Error) => void;
+};
+
 async function input(
   props: Partial<Props>,
-  defaultBase: () => { base: string | null } = () => ({ base: "main" }),
+  defaultBase: () => Base | Promise<Base> = () => ({ base: "main" }),
 ) {
   const app = await loadPluginApp(() => import("../app.tsx"));
   const onChange = vi.fn<Props["onChange"]>();
@@ -56,15 +62,24 @@ test("it does not ask when a base is already picked, or when the project or mach
 });
 
 test("a machine with no default, or a failed lookup, leaves the inputs empty", async () => {
-  const none = await input({}, () => ({ base: null }));
-  await waitFor(() => expect(none.slot.inspection.rpcCalls).toHaveLength(1));
-  none.slot.lifecycle.unmount();
-  expect(none.onChange).not.toHaveBeenCalled();
-
-  const failed = await input({}, () => {
-    throw new Error("host unreachable");
-  });
-  await waitFor(() => expect(failed.slot.inspection.rpcCalls).toHaveLength(1));
-  failed.slot.lifecycle.unmount();
-  expect(failed.onChange).not.toHaveBeenCalled();
+  // Hold each reply, then let it and its continuations settle while the input
+  // is still mounted. Unmounting first would hide a wrong onChange.
+  for (const reply of [
+    (settle: Settle) => settle.resolve({ base: null }),
+    (settle: Settle) => settle.reject(new Error("host unreachable")),
+  ]) {
+    let settle!: Settle;
+    const { slot, onChange } = await input(
+      {},
+      () =>
+        new Promise<{ base: string | null }>((resolve, reject) => {
+          settle = { resolve, reject };
+        }),
+    );
+    await waitFor(() => expect(slot.inspection.rpcCalls).toHaveLength(1));
+    reply(settle);
+    await new Promise((done) => setTimeout(done, 0));
+    expect(onChange).not.toHaveBeenCalled();
+    slot.lifecycle.unmount();
+  }
 });
