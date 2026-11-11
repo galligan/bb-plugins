@@ -1,17 +1,26 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, describe, it } from "node:test";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import { createFakePluginHost } from "@get-bb/plugin-sdk/testing";
 
 import { currentStack, resolveEnvironment } from "./current-stack.ts";
 import { runVerb } from "./verbs.ts";
 
+const hosts: Array<ReturnType<typeof createFakePluginHost>["harness"]> = [];
+afterEach(async () => {
+  await Promise.all(hosts.splice(0).map((host) => host.lifecycle.dispose()));
+});
+
+// The public SDK fake host supplies `bb`; only the SDK methods that resolution
+// exercises are stubbed, and any other call throws naming its path.
 function bbWithEnvironments(
   environments: Array<{ id: string; isWorktree?: boolean }>,
   threadEnvironmentId: string | null,
   onHostCall?: (method: string, hostId: string) => void,
   status?: unknown,
 ): BbPluginApi {
-  const bb = {
+  const { bb, harness } = createFakePluginHost({
+    pluginId: "graphite",
     sdk: {
       environments: {
         list: async () =>
@@ -24,12 +33,7 @@ function bbWithEnvironments(
           })),
       },
       plugins: {
-        callRpc: async (request: {
-          pluginId: string;
-          method: string;
-          input: unknown;
-          outputSchema: { parse(value: unknown): unknown };
-        }) => {
+        callRpc: async (request) => {
           assert.equal(request.pluginId, "bb--git");
           assert.equal(request.method, "workspaceStatus");
           assert.ok(
@@ -59,34 +63,26 @@ function bbWithEnvironments(
         },
       },
     },
-    hosts: {
-      experimental_client: () => ({
-        call: async (
-          method: string,
-          _input: unknown,
-          options: { hostId: string },
-        ) => {
-          onHostCall?.(method, options.hostId);
-          if (method === "stack") {
-            return {
-              outcome: "stacked",
-              branch: "feature",
-              position: 2,
-              total: 2,
-              placement: "top",
-              needsRestack: false,
-              isStale: false,
-              warnings: [],
-              branches: [],
-            };
-          }
-          return { outcome: "ran", exitCode: 0, stdout: "", stderr: "" };
-        },
-      }),
+    experimental_callHostRpc: async ({ method, hostId }) => {
+      onHostCall?.(method, hostId);
+      if (method === "stack") {
+        return {
+          outcome: "stacked",
+          branch: "feature",
+          position: 2,
+          total: 2,
+          placement: "top",
+          needsRestack: false,
+          isStale: false,
+          warnings: [],
+          branches: [],
+        };
+      }
+      return { outcome: "ran", exitCode: 0, stdout: "", stderr: "" };
     },
-  };
-  // The test supplies only the SDK methods exercised by resolution.
-  return bb as unknown as BbPluginApi;
+  });
+  hosts.push(harness);
+  return bb;
 }
 
 describe("environment targeting", () => {
