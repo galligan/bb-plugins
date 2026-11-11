@@ -1,3 +1,4 @@
+import { choiceLabels } from "./choice-labels.ts";
 import { useEffect, useState, useId } from "react";
 import {
   useSdk,
@@ -49,6 +50,7 @@ export function ProjectPicker({ projectId }: { projectId: string }) {
       });
     return () => abort.abort();
   }, [sdk, refresh, visible]);
+  const choices = choiceLabels(state.projects, "Unnamed project");
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -66,11 +68,13 @@ export function ProjectPicker({ projectId }: { projectId: string }) {
           </SelectTrigger>
           <SelectContent>
             {projectId && !state.projects.some((p) => p.id === projectId) ? (
-              <SelectItem value={projectId}>Selected project</SelectItem>
+              <SelectItem value={projectId}>
+                Selected project · {projectId}
+              </SelectItem>
             ) : null}
-            {state.projects.map((project) => (
+            {choices.map((project) => (
               <SelectItem key={project.id} value={project.id}>
-                {project.name}
+                {project.label}
               </SelectItem>
             ))}
           </SelectContent>

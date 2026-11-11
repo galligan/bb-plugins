@@ -82,6 +82,7 @@ async function mount(
   subPath: string,
   handler?: (input: z.infer<typeof browseInputSchema>) => unknown,
   visible = true,
+  projects = [project],
 ) {
   const app = await loadPluginApp(() => import("../app.tsx"));
   expect(app.navPanels).toHaveLength(1);
@@ -94,16 +95,15 @@ async function mount(
       experimental_rpcContract: browseContract,
       sdk: {
         projects: {
-          list: async () => [
-            {
-              ...project,
-              kind: "standard",
+          list: async () =>
+            projects.map((item) => ({
+              ...item,
+              kind: "standard" as const,
               sources: [],
               createdAt: 0,
               updatedAt: 0,
               gitRemoteUrl: null,
-            },
-          ],
+            })),
         },
       },
       rpc: {
@@ -165,6 +165,39 @@ describe("Radio additive reader", () => {
     link.focus();
     await slot.behavior.experimental_invalidateRpc(["radio"]);
     expect(document.activeElement).toBe(link);
+    slot.lifecycle.unmount();
+  });
+  it("disambiguates duplicate and empty BB project names with canonical IDs", async () => {
+    const slot = await mount("", undefined, true, [
+      { ...project, name: "Same name" },
+      { ...project, id: "proj_two", name: "Same name " },
+      { ...project, id: "proj_empty", name: "" },
+    ]);
+    await waitFor(() =>
+      expect(
+        slot
+          .getByRole("button", { name: "Refresh projects" })
+          .hasAttribute("disabled"),
+      ).toBe(false),
+    );
+    const user = userEvent.setup();
+    slot.getByRole("combobox", { name: "Project" }).focus();
+    await user.keyboard("{Enter}");
+    expect(
+      await slot.findByRole("option", { name: "Same name · proj_one" }),
+    ).toBeTruthy();
+    expect(
+      slot.getByRole("option", { name: "Unnamed project · proj_empty" }),
+    ).toBeTruthy();
+    const target = slot.getByRole("option", { name: "Same name · proj_two" });
+    target.focus();
+    await user.keyboard("{Enter}");
+    expect(slot.inspection.navigateCalls).toContainEqual({
+      method: "toPluginPanel",
+      path: "radio",
+      options: { subPath: "proj_two" },
+    });
+    expect(slot.inspection.rpcCalls).toEqual([]);
     slot.lifecycle.unmount();
   });
   it("shows receipt unknown independently of ack and of a separately addressed session", async () => {
