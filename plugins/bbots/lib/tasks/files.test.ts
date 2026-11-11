@@ -112,6 +112,32 @@ test("concurrent host writes serialize with an exclusive lock and never overwrit
   ]);
 });
 
+test("a UTF-8 BOM survives an unchanged Markdown read/write round trip byte for byte", async (t) => {
+  const f = await fixture(t);
+  await f.init();
+  const markdown = "\uFEFF# Tasks with a byte-order mark\n";
+  const bytes = Buffer.from(markdown, "utf8");
+  await writeFile(f.file, bytes);
+  const read = await f.host.experimental_call("tasksRead", f.input);
+  assert.equal(read.markdown, markdown);
+  const written = await f.host.experimental_call("tasksWrite", {
+    ...f.input,
+    expectedHash: read.hash,
+    markdown: read.markdown,
+  });
+  assert.deepEqual(await readFile(f.file), bytes);
+  assert.equal(written.hash, read.hash);
+});
+
+test("a partial initialization file is preserved for manual inspection instead of overwritten on resume", async (t) => {
+  const f = await fixture(t);
+  const first = await f.init();
+  const partial = first.markdown.slice(0, 20);
+  await writeFile(f.file, partial);
+  await assert.rejects(f.init(), /differs.*intent.*no file was overwritten/);
+  assert.equal(await readFile(f.file, "utf8"), partial);
+});
+
 test("symlinked, multiply-linked and oversized task files are refused with the original content retained", async (t) => {
   const f = await fixture(t);
   const other = join(f.path, "preserve.md");

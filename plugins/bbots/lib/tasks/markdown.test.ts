@@ -174,6 +174,12 @@ async function fixture(t: TestContext) {
     receiptRestored() {
       lost = false;
     },
+    seedWorker(botId: string, threadId: string) {
+      current.bb.storage
+        .database()
+        .prepare("INSERT INTO conversations VALUES (?, ?, 'worker', ?, ?)")
+        .run(`conv_${randomUUID()}`, botId, threadId, new Date().toISOString());
+    },
   };
 }
 
@@ -263,6 +269,26 @@ test("later Tasks installation and home-host outages preserve the Markdown autho
   assert.equal((await f.show()).availability, "unavailable");
   assert.equal((await f.init()).exitCode, 1);
   await assert.rejects(readFile(join(f.home, "tasks.md")), { code: "ENOENT" });
+});
+
+test("an owned worker cannot read another bot's complete task file", async (t) => {
+  const f = await fixture(t);
+  assert.equal((await f.init()).exitCode, 0);
+  const other = f.store.profiles.create({
+    name: "Alice",
+    author: "fixture-user",
+    reason: "Another bot",
+  });
+  f.seedWorker(other.bot.id, "thr_alice_worker");
+  const before = f.calls.length;
+  const refused = await f.harness.behavior.runCli(
+    ["tasks", "read", f.setup.botId, "--json"],
+    { threadId: "thr_alice_worker" },
+  );
+  assert.equal(refused.exitCode, 1);
+  assert.match(refused.stderr, /another bot/);
+  assert.equal(f.calls.length, before, "refusal happens before file RPC");
+  assert.ok((await f.read()).markdown, "same-owner worker retains access");
 });
 
 test("a ready Tasks authority cannot become Markdown during an outage", async (t) => {

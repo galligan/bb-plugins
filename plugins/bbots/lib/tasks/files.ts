@@ -65,7 +65,10 @@ export async function readTasks(
     const content = buffer.subarray(0, count);
     return {
       path: filePath,
-      markdown: new TextDecoder("utf-8", { fatal: true }).decode(content),
+      markdown: new TextDecoder("utf-8", {
+        fatal: true,
+        ignoreBOM: true,
+      }).decode(content),
       hash: sha(content),
     };
   } finally {

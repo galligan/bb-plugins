@@ -88,8 +88,10 @@ export function markdownCommands(source: TaskSource, store: SetupStore) {
         "Read authoritative Markdown and content hash from the original home host; no task parsing",
       positionals: bot,
       options: { json },
-      run: async ({ positionals }, ctx) =>
-        result(await source.markdownRead(positionals.botId, ctx.signal)),
+      run: async ({ positionals }, ctx) => {
+        owner(positionals.botId, ctx.threadId);
+        return result(await source.markdownRead(positionals.botId, ctx.signal));
+      },
     }),
     "tasks write": cliCommand({
       summary:
