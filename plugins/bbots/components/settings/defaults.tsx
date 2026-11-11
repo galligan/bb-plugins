@@ -63,7 +63,7 @@ function DefaultsEditor({
     setSaved(false);
   }, []);
   const changeWorker = useCallback((choice: Choice | null) => {
-    setWorker(choice);
+    setWorker(choice ?? {});
     setSaved(false);
   }, []);
   async function save(event: FormEvent) {
@@ -180,6 +180,20 @@ function DefaultsEditor({
             Inherit main defaults
           </Button>
         )}
+        {(worker === null || Object.keys(worker).length > 0) && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setWorker({});
+              setEditWorker(false);
+              setChoosingWorker(false);
+            }}
+          >
+            Use independent BB defaults
+          </Button>
+        )}
       </div>
       <p className="text-xs leading-5 text-muted-foreground">
         Automatic fallback is disabled. Any stored fallback preference is
@@ -209,7 +223,8 @@ function DefaultsEditor({
             !dirty ||
             mutation.isPending ||
             (choosingMain && Object.keys(main).length === 0) ||
-            (choosingWorker && worker === null)
+            (choosingWorker &&
+              (worker === null || Object.keys(worker).length === 0))
           }
         >
           {mutation.isPending ? "Saving…" : "Save defaults"}

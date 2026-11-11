@@ -12,6 +12,54 @@ import { useState } from "react";
 import { ExecutionChoice } from "../components/execution-choice.tsx";
 import { experimental_PluginRpcCallError as RpcCallError } from "@get-bb/plugin-sdk/app";
 const loaded = () => loadPluginApp(() => import("../app.tsx"));
+
+test.each([
+  { providerId: "missing" },
+  { providerId: "codex", model: "removed-model" },
+  { providerId: "codex", permissionMode: "full" as const },
+])(
+  "unavailable saved choices permit an explicit replacement without changing the draft on display: %j",
+  async (initial) => {
+    const changes: unknown[] = [];
+    const slot = renderSlot(
+      {
+        component: () => (
+          <ExecutionChoice
+            hostId="host_test"
+            initial={initial}
+            onChoosing={() => {}}
+            onChange={(value) => changes.push(value)}
+          />
+        ),
+      },
+      {},
+      {
+        sdk: {
+          providers: {
+            list: async () => [provider],
+            models: async () => execution,
+          },
+        },
+      },
+    );
+    await slot.findByRole("alert");
+    expect(changes).toEqual([]);
+    await userEvent.click(
+      slot.getByRole("button", { name: "Choose available replacement" }),
+    );
+    await slot.findByTestId("bb-provider-model-picker");
+    expect(changes).toEqual([]);
+    await userEvent.click(
+      slot.getByRole("button", { name: "Apply execution selection" }),
+    );
+    expect(changes).toHaveLength(1);
+    expect(changes[0]).toMatchObject({
+      providerId: "codex",
+      model: "gpt-6.1-sol",
+      permissionMode: "accept-edits",
+    });
+  },
+);
 const machine = makeHostResponse({
   id: "host_test",
   name: "Fixture machine",

@@ -8,6 +8,7 @@ import {
 
 import type { ExecutionDefaults } from "../lib/soul/contracts.ts";
 import { Checkbox } from "./ui/checkbox.tsx";
+import { Button } from "./ui/button.tsx";
 
 export type Choice = ExperimentalProviderModelPickerValue & {
   permissionMode: "accept-edits" | "auto" | "full";
@@ -26,7 +27,7 @@ export function ExecutionChoice({
   label?: string;
 }) {
   const sdk = useSdk();
-  const [seed] = useState(initial);
+  const [seed, setSeed] = useState(initial);
   const initializeRequested = useRef(false);
   const [custom, setCustom] = useState(initial !== undefined);
   const [choice, setChoice] = useState<Choice | null>(null);
@@ -146,9 +147,30 @@ export function ExecutionChoice({
         <p role="status">Loading native execution choices…</p>
       )}
       {error && (
-        <p role="alert" className="text-destructive">
-          {error}
-        </p>
+        <div className="space-y-2">
+          <p role="alert" className="text-destructive">
+            {error}
+          </p>
+          {seed !== undefined && (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Your saved choice is retained. Load available replacements, then
+                select one explicitly before saving.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  initializeRequested.current = false;
+                  setSeed(undefined);
+                }}
+              >
+                Choose available replacement
+              </Button>
+            </>
+          )}
+        </div>
       )}
       {custom && choice && (
         <div className="flex flex-wrap gap-2">

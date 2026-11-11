@@ -216,3 +216,42 @@ test("settings and creation are distinct entity routes rather than a stacked bot
   expect(slot.queryByRole("button", { name: "Open Bob" })).toBeNull();
   expect(slot.queryByRole("form", { name: "Create a bot" })).toBeNull();
 });
+
+test("independent worker BB defaults and inheritance remain distinct explicit choices", async () => {
+  const writes: ReturnType<typeof defaultsWriteSchema.parse>[] = [];
+  const { slot } = await settingsFixture({
+    defaultsShow: () => ({
+      ...savedDefaults,
+      defaults: {
+        ...savedDefaults.defaults,
+        worker: savedDefaults.defaults.main,
+      },
+    }),
+    defaultsUpdate: (input) => {
+      const value = defaultsWriteSchema.parse(input);
+      writes.push(value);
+      return { ...savedDefaults, defaults: value.defaults, revision: 2 };
+    },
+  });
+  await userEvent.click(
+    await slot.findByRole("button", { name: "Change worker defaults" }),
+  );
+  await slot.findByTestId("bb-provider-model-picker");
+  await userEvent.click(
+    slot.getByRole("checkbox", { name: "Choose independent worker defaults" }),
+  );
+  await slot.findByText("Independent BB defaults");
+  await userEvent.click(slot.getByRole("button", { name: "Save defaults" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]?.defaults.worker).toEqual({});
+  await userEvent.click(
+    slot.getByRole("button", { name: "Inherit main defaults" }),
+  );
+  await userEvent.click(slot.getByRole("button", { name: "Save defaults" }));
+  await waitFor(() => expect(writes).toHaveLength(2));
+  expect(writes[1]?.defaults.worker).toBeNull();
+  await userEvent.click(
+    slot.getByRole("button", { name: "Use independent BB defaults" }),
+  );
+  await slot.findByText("Independent BB defaults");
+});
