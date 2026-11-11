@@ -8,7 +8,18 @@
     "lib": ["ES2022", "DOM"],
     "types": ["node"],
     "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./*"]
+    }
   },
-  "include": ["server.ts", "lib/**/*.ts"]
+  "include": [
+    "server.ts",
+    "app.tsx",
+    "lib",
+    "components",
+    "tests",
+    "vitest.config.ts"
+  ]
 }

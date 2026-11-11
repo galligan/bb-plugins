@@ -22,15 +22,21 @@
     "server": "./server.ts",
     "skills": [
       "skills"
-    ]
+    ],
+    "app": "./app.tsx"
   },
   "scripts": {
     "check": "tsc --noEmit",
     "build": "bb plugin build",
-    "test": "node --test \"lib/**/*.test.ts\""
+    "test": "node --test \"lib/**/*.test.ts\" && vitest run"
   },
   "dependencies": {
-    "zod": "4.6.7"
+    "zod": "4.6.7",
+    "@radix-ui/react-select": "2.4.1",
+    "@radix-ui/react-slot": "1.5.0",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "tailwind-merge": "3.7.0"
   },
   "devDependencies": {
     "@get-bb/plugin-sdk": "0.6.132",
@@ -40,6 +46,14 @@
     "better-sqlite3": "13.0.3",
     "cron-parser": "^5.5.0",
     "hono": "^4.11.9",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.1",
+    "vitest": "4.1.12",
+    "jsdom": "29.1.1"
   }
 }
