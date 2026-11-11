@@ -1,7 +1,7 @@
 {
   "scaffold": "collection-nav-panel",
-  "revision": 3,
-  "sdk": "0.6.138",
+  "revision": 4,
+  "sdk": "0.6.140",
   "bb": "0.49.0",
   "origin": "bb plugin new collection-example, BB 0.49.0; collection composition maintained by galligan/bb-plugins",
   "registry": "https://raw.githubusercontent.com/get-bb/bb/desktop-v0.49.0/packages/plugin-registry/r/{name}.json",

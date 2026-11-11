@@ -5,7 +5,7 @@
     "": {
       "name": "@galligan/bb-plugins-workspace",
       "devDependencies": {
-        "@get-bb/plugin-sdk": "0.6.138",
+        "@get-bb/plugin-sdk": "0.6.140",
         "oxlint": "1.93.0",
         "prettier": "3.10.0",
       },
@@ -21,7 +21,7 @@
         "zod": "^4.6.7",
       },
       "devDependencies": {
-        "@get-bb/plugin-sdk": "0.6.138",
+        "@get-bb/plugin-sdk": "0.6.140",
         "@testing-library/react": "16.3.3",
         "@testing-library/user-event": "14.6.9",
         "@types/better-sqlite3": "^7.6.12",
@@ -50,7 +50,7 @@
         "zod": "^4.6.7",
       },
       "devDependencies": {
-        "@get-bb/plugin-sdk": "0.6.138",
+        "@get-bb/plugin-sdk": "0.6.140",
         "@pierre/diffs": "^1.2.9",
         "@radix-ui/react-alert-dialog": "^1.1.19",
         "@radix-ui/react-context-menu": "^2.3.3",
@@ -92,7 +92,7 @@
         "zod": "4.6.7",
       },
       "devDependencies": {
-        "@get-bb/plugin-sdk": "0.6.138",
+        "@get-bb/plugin-sdk": "0.6.140",
         "@radix-ui/react-select": "^2.4.1",
         "@testing-library/react": "16.3.3",
         "@types/better-sqlite3": "^7.6.12",
@@ -123,7 +123,7 @@
         "zod": "4.6.7",
       },
       "devDependencies": {
-        "@get-bb/plugin-sdk": "0.6.138",
+        "@get-bb/plugin-sdk": "0.6.140",
         "@testing-library/react": "16.3.3",
         "@testing-library/user-event": "14.6.9",
         "@types/better-sqlite3": "^7.6.12",
@@ -150,7 +150,7 @@
         "zod": "^4.6.5",
       },
       "devDependencies": {
-        "@get-bb/plugin-sdk": "0.6.138",
+        "@get-bb/plugin-sdk": "0.6.140",
         "@pierre/diffs": "~1.2.12",
         "@radix-ui/react-alert-dialog": "^1.2.1",
         "@radix-ui/react-context-menu": "^2.4.1",
@@ -189,7 +189,7 @@
       "name": "bb-plugin-wt",
       "version": "0.1.0",
       "dependencies": {
-        "@get-bb/plugin-sdk": "0.6.138",
+        "@get-bb/plugin-sdk": "0.6.140",
         "@radix-ui/react-collapsible": "^1.2.1",
         "@radix-ui/react-radio-group": "^1.5.1",
         "@radix-ui/react-slot": "^1.5.0",
@@ -290,7 +290,7 @@
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.12", "", {}, "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="],
 
-    "@get-bb/plugin-sdk": ["@get-bb/plugin-sdk@0.6.138", "", { "dependencies": { "@tanstack/react-query": "^5.106.1", "cross-spawn": "^7.0.6", "zod": "^4.6.7" }, "peerDependencies": { "@testing-library/react": "^16.3.2", "@types/better-sqlite3": "^7.6.12", "@types/react": "^19.0.0", "better-sqlite3": ">=12", "cron-parser": "^5.5.0", "hono": "^4.11.9", "react": "^19.0.0", "react-dom": "^19.0.0" }, "optionalPeers": ["@testing-library/react", "@types/better-sqlite3", "@types/react", "better-sqlite3", "cron-parser", "hono", "react", "react-dom"] }, "sha512-9sm20bsi/Vk0VS8PPcd91T2taqK9cXia613JSwKVEpzFz9hFHaEdAbsbXRtsrYWuHsJDhYYUSmO63pSznnQsQg=="],
+    "@get-bb/plugin-sdk": ["@get-bb/plugin-sdk@0.6.140", "", { "dependencies": { "@tanstack/react-query": "^5.106.1", "cross-spawn": "^7.0.6", "zod": "^4.6.7" }, "peerDependencies": { "@testing-library/react": "^16.3.2", "@types/better-sqlite3": "^7.6.12", "@types/react": "^19.0.0", "better-sqlite3": ">=12", "cron-parser": "^5.5.0", "hono": "^4.11.9", "react": "^19.0.0", "react-dom": "^19.0.0" }, "optionalPeers": ["@testing-library/react", "@types/better-sqlite3", "@types/react", "better-sqlite3", "cron-parser", "hono", "react", "react-dom"] }, "sha512-JoVwOPJ4+Xw6Cc1wMbgyhbxpj4sGWEIjle0AJ8o33ZUlbCajO3r3NtGjXyLBTIXEEgrLt5KHY5pf1WazxAMD4Q=="],
 
     "@hugeicons/core-free-icons": ["@hugeicons/core-free-icons@4.3.5", "", {}, "sha512-Sv+NjHRPnQk+yZsGCMcGznCHdTfJR9PMMOEKcJYAQU4gy90dmlc9PwdtvYOImBZIjiheMsTLL5eMn2DmHxUiUg=="],
 

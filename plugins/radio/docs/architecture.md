@@ -4,7 +4,7 @@
 
 One BB server plugin owns one Radio database and domain service. Thin adapters expose CLI, native tools, typed local RPC, trusted-test HTTP (initially without outside-agent credentials) and additive UI. Use the public SDK; do not import BB internals, sibling plugin source, old Radio implementation code or Dispatch runtime code.
 
-Package identity is `bb-plugin-radio`, plugin ID `radio`, pinned to public SDK 0.6.138. The current backend initializes identity/project/channel storage, immutable transmissions and versioned Markdown dispatches; the shared local CLI/RPC/native adapters are implemented. Trusted-test HTTP is implemented but disabled by default; additive UI remains separate. Follow repository build/release procedures as each layer is implemented.
+Package identity is `bb-plugin-radio`, plugin ID `radio`, pinned to the repository's public SDK version. The current backend initializes identity/project/channel storage, immutable transmissions and versioned Markdown dispatches; the shared local CLI/RPC/native adapters are implemented. Trusted-test HTTP is implemented but disabled by default; additive UI remains separate. Follow repository build/release procedures as each layer is implemented.
 
 ## Persistence model
 

@@ -4,7 +4,7 @@ Persistent collaborators for BB, independent of the selected sidebar. The first 
 
 **Development preview:** `bb-plugin-bbots` (plugin ID `bbots`, display Bots) implements an additive create/open panel, CLI/RPC creation, persistent host homes, revisioned identity/SOUL, future execution defaults and a named/pinned native main conversation. Automated continuity, maintenance, workers and model fallback are not enabled. BOTS-6 creation passed a bounded shared Dev check; configuration and the minimal UI have offline harness evidence. Visual host acceptance for the UI remains pending. Do not install it into a production instance as part of development.
 
-The package uses the repository's published SDK pin (currently 0.6.138), with BB >=0.49.0 / runtime SDK >=0.6.132 manifest minima. The build pin is not the installed runtime SDK. Preflight reports the installed stable BB separately; new behavior must be checked on the actual target. BOTS-3 tracks affected feature limits; BOTS-18 stays deferred/non-blocking. No custom production core is required.
+The package uses the repository's published SDK pin, with BB >=0.49.0 / runtime SDK >=0.6.132 manifest minima. The build pin is not the installed runtime SDK. Preflight reports the installed stable BB separately; new behavior must be checked on the actual target. BOTS-3 tracks affected feature limits; BOTS-18 stays deferred/non-blocking. No custom production core is required.
 
 ## Create and recover
 
