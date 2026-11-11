@@ -4,6 +4,7 @@
 import { useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { COARSE_POINTER_COMPACT_ROW_HEIGHT_CLASS } from "@/components/ui/coarse-pointer-sizing";
 
 import { TargetMenu } from "./target-menu.tsx";
 import { TerminalView } from "./terminal-view.tsx";
@@ -41,7 +42,12 @@ export function RexTab({ threadId }: { threadId: string }) {
       <Notice>
         <p className="max-w-prose text-foreground">{pane.message}</p>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={reopen}>
+          <Button
+            variant="outline"
+            size="sm"
+            className={`${COARSE_POINTER_COMPACT_ROW_HEIGHT_CLASS} h-8`}
+            onClick={reopen}
+          >
             Try again
           </Button>
           {/* A window that cannot be shown can still be changed for another. */}
@@ -59,11 +65,10 @@ export function RexTab({ threadId }: { threadId: string }) {
           {pane.inputProblem ?? pane.historyProblem}
         </span>
         {!pane.live && (
-          // The height of the window menu beside it.
           <Button
             variant="outline"
             size="sm"
-            className="h-6 shrink-0 px-2"
+            className={`${COARSE_POINTER_COMPACT_ROW_HEIGHT_CLASS} h-6 shrink-0 px-2`}
             onClick={reopen}
           >
             Reconnect
