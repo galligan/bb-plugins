@@ -21,7 +21,7 @@ The existing server harness covers target creation, instructions, target selecti
 
 ## Live slot and resources
 
-The parent coordinates the slot. Until released, do not install, reload, change settings, open a Rex tab, or call `bb rex target` on Dev. Worktree+ has the first slot; Judge is reserved next. Rex also needs the disposable-thread prerequisite resolved below.
+The recorded slot is closed. Every subsequent run needs a new parent release; this recipe does not authorize Dev mutations. Until released, do not install, reload, change settings, open a Rex tab, or call `bb rex target` on Dev. Recheck the disposable-thread prerequisites below against the instance selected for that run.
 
 The proposed run uses:
 
@@ -44,7 +44,7 @@ Keep pass/fail/not-run evidence for each step. Abort on an unexpected target or 
 
 ## Disposable-thread prerequisite
 
-Read-only inspection of Dev source `365d7c5237ae270be0555b5b44ea61020252713e` found the following supported path. This is a proposal for parent decision, not live authorization:
+Pre-run read-only inspection of Dev source `365d7c5237ae270be0555b5b44ea61020252713e` established the following path for parent review. The recorded run above adds limited live evidence; future use still requires a new release:
 
 - `apps/cli/src/commands/thread/spawn.ts:415` exposes `--send-at`; normal creation requires a prompt and attempts initial dispatch. Empty input is not a dormant-thread mechanism; the empty-fork tests still enqueue `thread.start`.
 - `packages/server-contract/src/api/threads.ts` documents future `sendAt` as pending with no turn or environment work. `apps/server/src/services/threads/dispatch-attempt.ts:514` returns a time wait before admission/provisioning. Creation still performs host readiness, model/catalog resolution, placement selection, and message-dispatch hooks before that wait. It is not free of all provider-related operations; the inspected core path avoids inference and environment provisioning.
