@@ -132,8 +132,9 @@ export function harnessCoverage(manifest, sources, files, vitestConfig) {
   return { coverage, diagnostics };
 }
 
-/** Test tooling that every package should pin to the same version. */
+/** Tooling that every package should pin to the same version. */
 export const sharedTooling = [
+  "typescript",
   "better-sqlite3",
   "react",
   "react-dom",

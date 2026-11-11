@@ -126,7 +126,7 @@ test("report reads actual manifests, ignore rules and policy without writes or e
     };
     put(
       "package.json",
-      JSON.stringify({ ...configuration, packageManager: "bun@1.3.14" }),
+      JSON.stringify({ ...configuration, packageManager: "bun@1.4.4" }),
     );
     put(".node-version", "24\n");
     put(".prettierignore", "plugins/excluded/\nplugins/old/package.json\n");

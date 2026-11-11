@@ -18,6 +18,7 @@
     "server.ts",
     "lib/**/*.ts",
     "app.tsx",
+    "css.d.ts",
     "components/**/*.tsx",
     "components/**/*.ts"
   ]

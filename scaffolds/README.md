@@ -4,7 +4,7 @@ This is one vendored composition for an independently built BB plugin: a host-ow
 
 ## Generate and verify
 
-Use Bun 1.3.14 and Node 24 (the repository CI runtimes). The template began with `bb plugin new collection-example` on BB 0.49.0; its public SDK pin is 0.6.138 as of scaffold revision 2. Generation itself requires only Node and does not install dependencies or touch BB. From the repository root:
+Use the repository's pinned Bun and Node 24 (the repository CI runtimes). The template began with `bb plugin new collection-example` on BB 0.49.0; its public SDK pin is 0.6.138 as of scaffold revision 2, and it compiles with TypeScript 7.0.2 as of revision 3. Generation itself requires only Node and does not install dependencies or touch BB. From the repository root:
 
 ```sh
 mkdir -p scaffolds/.generated

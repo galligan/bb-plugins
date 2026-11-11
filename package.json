@@ -1,7 +1,7 @@
 {
   "name": "@galligan/bb-plugins-workspace",
   "private": true,
-  "packageManager": "bun@1.3.14",
+  "packageManager": "bun@1.4.4",
   "workspaces": [
     "plugins/*"
   ],
@@ -19,8 +19,8 @@
     "lint:workflows": "bun scripts/lint-workflows.mjs"
   },
   "devDependencies": {
-    "oxlint": "1.85.0",
-    "prettier": "^3.6.2",
+    "oxlint": "1.93.0",
+    "prettier": "3.10.0",
     "@get-bb/plugin-sdk": "0.6.138"
   }
 }
