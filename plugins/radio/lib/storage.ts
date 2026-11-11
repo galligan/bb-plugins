@@ -7,6 +7,7 @@ import { Transmissions } from "./transmissions.ts";
 import { Dispatches } from "./dispatches.ts";
 import { ResponseEvents } from "./response-events.ts";
 import { Commitments } from "./commitments.ts";
+import { Subscriptions } from "./subscriptions.ts";
 import { MIGRATIONS } from "./migrations.ts";
 export { MIGRATIONS } from "./migrations.ts";
 
@@ -21,6 +22,7 @@ export interface RadioStore {
   readonly dispatches: Dispatches;
   readonly responses: ResponseEvents;
   readonly commitments: Commitments;
+  readonly subscriptions: Subscriptions;
 }
 
 export function openRadioStorage(storage: Storage): RadioStore {
@@ -50,6 +52,7 @@ export function openRadioStorage(storage: Storage): RadioStore {
       projects,
       handles: new HandleRegistry(db, identities, projects),
       dispatches: new Dispatches(db, identitiesAndProjects),
+      subscriptions: new Subscriptions(db, identitiesAndProjects),
     };
     const communications = {
       ...domain,

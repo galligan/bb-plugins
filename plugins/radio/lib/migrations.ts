@@ -176,4 +176,13 @@ export const MIGRATIONS = [
   ) STRICT`,
   `CREATE INDEX commitment_owner_cursor ON commitments(owner_actor_id, status, seq)`,
   `CREATE INDEX commitment_tx_events ON commitment_events(tx_id, seq)`,
+  `CREATE TABLE subscriptions (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_id TEXT NOT NULL REFERENCES participants(id),
+    channel_id TEXT NOT NULL REFERENCES channels(id),
+    muted INTEGER NOT NULL CHECK(muted IN (0, 1)),
+    UNIQUE(target_id, channel_id)
+  ) STRICT`,
+  `CREATE INDEX subscription_channel ON subscriptions(channel_id, muted, target_id)`,
+  `ALTER TABLE transmissions ADD COLUMN audiences_json TEXT NOT NULL DEFAULT '[]'`,
 ];

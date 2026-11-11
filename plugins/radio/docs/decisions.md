@@ -58,6 +58,12 @@ Matt explicitly chose `standby` = waiting/unable to accept yet, without a work c
 
 The initial commitment contract allows independent discussion commitments per canonical target and one exclusive winner per generation. Exclusive requests with explicit recipients restrict claims to those exact targets; unassigned requests are claimable by authorized channel participants for themselves. Owner/session authority is explicit and no automatic transfer exists. Actor and session obligations remain distinct. Wilco/done never synthesize ack or received. Done requires a concise result, abandon a reason; open lists ignore recent-message windows. Exact action replay returns its original operation snapshot. Broader delegation/waiver/coverage extensions remain separate decisions.
 
+## Initial subscriptions and broadcast defaults
+
+The implemented rule is exact-channel selection: parent/main/subchannel relationships do not imply listener inclusion. Internal subscriptions are explicit and default to the invoking session; actor-wide listening requires explicit selection. Automatic project-main listening remains a proposed later registration default. Listen validates ownership/project scope; mute/unlisten can withdraw an owned binding after access loss. Credential adapters must invalidate eligibility on revocation. No listening operation grants wake authority.
+
+Tx acceptance snapshots unmuted channel listeners in its existing immediate transaction. Canonical target IDs deduplicate across direct/channel overlaps; distinct sessions of one actor remain distinct. Per-channel eligible counts (including zero) are frozen separately from the global unique recipient list. A 100-recipient overflow rejects the full send. Muting or leaving never changes historical audiences, direct mentions, required responses or commitments. Matt explicitly resolved mixed actor/session coverage as one recipient at a time; an answer satisfies only the canonical recipient it is sent for. Attention digest and explicit ambiguous-reply selection follow in the next layer.
+
 ## Unresolved product decisions
 
 | Decision                     | Why it matters / recommendation                                                                                         |

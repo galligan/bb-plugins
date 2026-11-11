@@ -67,6 +67,7 @@ export interface Transmission {
   tags: string[];
   tokens: (BodyToken & { targetId?: string; stationId?: string })[];
   recipientIds: string[];
+  audiences: { channelId: string; eligibleCount: number }[];
 }
 export const scanSchema = z
   .object({

@@ -154,7 +154,7 @@ test("reply and reference access is checked, same-channel replies never inherit 
   }
 });
 
-test("unknown addressing, unimplemented broadcasts and invalid refs leave no accepted request", async () => {
+test("unknown addressing and invalid refs leave no accepted request", async () => {
   const f = fixture();
   try {
     const hidden = f.store.identities.createActor();
@@ -164,7 +164,6 @@ test("unknown addressing, unimplemented broadcasts and invalid refs leave no acc
     });
     for (const change of [
       { body: "@missing unknown" },
-      { body: "@ch:one send" },
       { body: "@one:worker:" },
       { recipientIds: [hidden.id] },
       { refs: [{ kind: "participant", id: hidden.id }] },

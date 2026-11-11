@@ -49,3 +49,20 @@ export function requireAuthor(
       : [caller.kind, actor.id],
   );
 }
+
+/** Caller ownership is checked by requireAuthor before selecting its target. */
+export function requireOwnTarget(
+  identities: IdentityRegistry,
+  context: TransmissionContext,
+  targetId: string,
+) {
+  const target = identities.get(targetId);
+  if (target.id !== context.authorId && target.id !== context.sessionId)
+    throw new RadioError(
+      "forbidden",
+      "Act only for the invoking actor or exact acting session; obligations are not transferred.",
+    );
+  if (target.actorId && target.actorId !== context.authorId)
+    throw new RadioError("forbidden", "Target belongs to another actor.");
+  return target;
+}

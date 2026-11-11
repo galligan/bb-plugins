@@ -6,6 +6,7 @@ import { ProjectRegistry } from "./project-registry.ts";
 import { HandleRegistry } from "./handles.ts";
 import { Transmissions } from "./transmissions.ts";
 import { Dispatches } from "./dispatches.ts";
+import { Subscriptions } from "./subscriptions.ts";
 import type { TransmissionContext } from "./transmission-contracts.ts";
 
 const { dbPath, stationId, context, channelId } = workerData as {
@@ -25,6 +26,7 @@ const transmissions = new Transmissions(db, {
   projects,
   handles: new HandleRegistry(db, identities, projects),
   dispatches: new Dispatches(db, { stationId, identities, projects }),
+  subscriptions: new Subscriptions(db, { identities, projects }),
 });
 parentPort!.once("message", () => {
   try {
