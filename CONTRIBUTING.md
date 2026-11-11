@@ -34,7 +34,4 @@ Fork PRs are supported through `pull_request_target`. The workflow checks out th
 
 ## Distribution
 
-The root `.bb/plugins.json` advertises Graphite and Worktree+ from `plugins/`. Install a listed package from the repository's `main` branch with `bb plugin install git:<repo>@main --plugin <name>`. The `publish-plugin-branches` workflow continues to update only the legacy `linear` branch for existing installs. Do not edit that generated branch by hand.
-
-Root verification currently excludes Linear; add it back once its package
-passes the same format, lint, check, test, and build gates.
+The root `.bb/plugins.json` advertises Graphite and Worktree+ from `plugins/`. Install a listed package from the repository's `main` branch with `bb plugin install git:<repo>@main --plugin <name>`.

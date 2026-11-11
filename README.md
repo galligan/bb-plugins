@@ -8,12 +8,11 @@ from this repository without a separate distribution branch.
 
 ## Plugins
 
-| Plugin                                   | Description                                                        |
-| ---------------------------------------- | ------------------------------------------------------------------ |
-| [`bb-plugin-linear`](plugins/linear)     | Search and attach fresh Linear issue context from bb's prompt box. |
-| [`bb-plugin-graphite`](plugins/graphite) | Read and drive Graphite stacks from bb.                            |
-| [`bb-plugin-wt`](plugins/wt)             | Run threads in Git worktrees set up from the repo's own scripts.   |
-| [`bb-plugin-rex`](plugins/rex)           | Use a live Rex terminal pane beside a thread. Experimental.        |
+| Plugin                                   | Description                                                      |
+| ---------------------------------------- | ---------------------------------------------------------------- |
+| [`bb-plugin-graphite`](plugins/graphite) | Read and drive Graphite stacks from bb.                          |
+| [`bb-plugin-wt`](plugins/wt)             | Run threads in Git worktrees set up from the repo's own scripts. |
+| [`bb-plugin-rex`](plugins/rex)           | Use a live Rex terminal pane beside a thread. Experimental.      |
 
 ## In preparation
 
@@ -27,9 +26,7 @@ Install one plugin from the repository's `main` branch:
 bb plugin install git:https://github.com/galligan/bb-plugins.git@main --plugin graphite
 ```
 
-The collection advertises Graphite and Worktree+ (`wt`). The `linear` distribution
-branch remains available for existing installs while Linear's package and
-verification are brought up to the repository standard.
+The collection advertises Graphite and Worktree+ (`wt`).
 
 Check and apply compatible updates with:
 
@@ -55,7 +52,7 @@ bun run test
 bun run build
 ```
 
-These root checks cover Graphite, Worktree+, Rex, Judge, and the repository scripts where applicable. Linear is temporarily excluded from formatting, linting, type checks, tests, and builds until its existing package is brought up to the same standard. See [development guidance](docs/dev/README.md) for SDK/host patterns, lifecycle lessons, and verification boundaries.
+These root checks cover Graphite, Worktree+, Rex, Judge, and the repository scripts where applicable. See [development guidance](docs/dev/README.md) for SDK/host patterns, lifecycle lessons, and verification boundaries.
 
 For source development, clone this repository and install a package from its
 directory:
