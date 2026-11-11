@@ -2,6 +2,7 @@
 import { afterEach, expect, test } from "vitest";
 import { act, cleanup, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { chooseMachine } from "./native-controls.ts";
 import { loadPluginApp, renderSlot } from "@get-bb/plugin-sdk/testing/app";
 import { view, soul } from "./fixture.ts";
 import {
@@ -35,6 +36,9 @@ function setPageVisible(visible: boolean) {
 test("registers an additive panel and owned-only header without replacing navigation or composer", async () => {
   const app = await loaded();
   expect(app.navPanels).toHaveLength(1);
+  expect(app.navPanels[0]!.headerContent).toBeTypeOf("function");
+  expect(app.navPanels[0]!.experimental_usePageTitle).toBeTypeOf("function");
+  expect(app.settingsSections).toHaveLength(1);
   expect(app.threadActions).toHaveLength(1);
   expect(app.experimentalSidebarNavigations).toHaveLength(0);
   expect(app.threadLists).toHaveLength(0);
@@ -129,7 +133,7 @@ test("read failure is distinct from empty and retry restores the list", async ()
     slot.queryByText("No bots yet. Create Bob or choose another name."),
   ).toBeNull();
   fail = false;
-  await userEvent.click(slot.getByRole("button", { name: "Refresh" }));
+  await userEvent.click(slot.getByRole("button", { name: "Retry bot read" }));
   await slot.findByText("No bots yet. Create Bob or choose another name.");
   slot.lifecycle.unmount();
 });
@@ -146,9 +150,8 @@ test("navigation panel reads and creation work without a secondary-tab visibilit
       sdk: { hosts: { list: async () => [machine] } },
     },
   );
-  await slot.findByRole("button", { name: "Bob" });
-  await slot.findByRole("option", { name: "Fixture machine" });
-  await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
+  expect(slot.queryByRole("button", { name: "Open Bob" })).toBeNull();
+  await chooseMachine(slot);
   expect(
     (slot.getByRole("button", { name: "Create bot" }) as HTMLButtonElement)
       .disabled,
@@ -200,8 +203,7 @@ test("browser hide aborts machine discovery and stale responses cannot unlock cr
       .disabled,
   ).toBe(true);
   setPageVisible(true);
-  await slot.findByRole("option", { name: "Fixture machine" });
-  await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
+  await chooseMachine(slot);
   expect(
     (slot.getByRole("button", { name: "Create bot" }) as HTMLButtonElement)
       .disabled,
@@ -232,12 +234,12 @@ test("native open preserves the host conversation and offline setup is actionabl
   expect(
     (
       slot.getByRole("button", {
-        name: "Check / resume setup",
+        name: "Check setup",
       }) as HTMLButtonElement
     ).disabled,
   ).toBe(true);
   await userEvent.click(
-    slot.getByRole("button", { name: "Open ongoing conversation" }),
+    slot.getByRole("button", { name: "Open conversation" }),
   );
   expect(slot.inspection.navigateCalls).toContainEqual({
     method: "toThread",
@@ -288,14 +290,12 @@ test("partial setup prevents duplicate resume while pending and retains its stat
     expect(
       (
         slot.getByRole("button", {
-          name: "Check / resume setup",
+          name: "Check setup",
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(false),
   );
-  await userEvent.click(
-    slot.getByRole("button", { name: "Check / resume setup" }),
-  );
+  await userEvent.click(slot.getByRole("button", { name: "Check setup" }));
   const pending = await slot.findByRole("button", { name: "Checking setup…" });
   await userEvent.click(pending);
   expect(writes).toBe(1);
@@ -306,18 +306,16 @@ test("partial setup prevents duplicate resume while pending and retains its stat
   expect(
     slot.getByText("Restore the original machine before continuing."),
   ).toBeTruthy();
-  expect(
-    slot.queryByRole("button", { name: "Open ongoing conversation" }),
-  ).toBeNull();
+  expect(slot.queryByRole("button", { name: "Open conversation" })).toBeNull();
   slot.lifecycle.unmount();
 });
 
-test("refresh failure preserves loaded bots and malformed links do not crash the panel", async () => {
+test("refresh failure preserves loaded bots while reporting the failed read", async () => {
   const app = await loaded();
   let fail = false;
   const slot = renderSlot(
     app.navPanels[0]!,
-    { subPath: "%invalid" },
+    { subPath: "" },
     {
       rpc: {
         list: () => {
@@ -328,16 +326,13 @@ test("refresh failure preserves loaded bots and malformed links do not crash the
       sdk: { hosts: { list: async () => [machine] } },
     },
   );
-  await slot.findByRole("button", { name: "Bob" });
-  expect(
-    slot.getByText("This bot link is invalid. Select a bot from the list."),
-  ).toBeTruthy();
+  await slot.findByRole("button", { name: "Open Bob" });
   fail = true;
-  await userEvent.click(slot.getByRole("button", { name: "Refresh" }));
+  await slot.behavior.experimental_invalidateRpc(["bots"]);
   await slot.findByText(
     "Could not load bots. Check the connection and refresh.",
   );
-  expect(slot.getByRole("button", { name: "Bob" })).toBeTruthy();
+  expect(slot.getByRole("button", { name: "Open Bob" })).toBeTruthy();
   slot.lifecycle.unmount();
 });
 
@@ -357,9 +352,20 @@ test("a later authoritative setup error is not hidden by an earlier successful r
       sdk: { hosts: { list: async () => [machine] } },
     },
   );
-  const resume = await slot.findByRole("button", {
-    name: "Check / resume setup",
-  });
+  await waitFor(() =>
+    expect(
+      (
+        slot.getByRole("button", {
+          name: "Check setup",
+          hidden: true,
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false),
+  );
+  const recovery = slot.getByText("Setup status and recovery");
+  if (!(recovery.parentElement as HTMLDetailsElement).open)
+    await userEvent.click(recovery);
+  const resume = await slot.findByRole("button", { name: "Check setup" });
   await waitFor(() =>
     expect((resume as HTMLButtonElement).disabled).toBe(false),
   );

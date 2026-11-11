@@ -2,11 +2,15 @@
 import { afterEach, expect, test } from "vitest";
 import { cleanup, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { chooseMachine } from "./native-controls.ts";
 import { loadPluginApp, renderSlot } from "@get-bb/plugin-sdk/testing/app";
 import { makeHostResponse } from "@get-bb/plugin-sdk/testing";
 import { view } from "./fixture.ts";
 import { createSchema } from "../lib/setup/contracts.ts";
 import { provider, execution } from "./execution-fixture.ts";
+import { useState } from "react";
+import { ExecutionChoice } from "../components/execution-choice.tsx";
+import { experimental_PluginRpcCallError as RpcCallError } from "@get-bb/plugin-sdk/app";
 const loaded = () => loadPluginApp(() => import("../app.tsx"));
 const machine = makeHostResponse({
   id: "host_test",
@@ -16,6 +20,144 @@ const machine = makeHostResponse({
 afterEach(() => {
   cleanup();
   sessionStorage.clear();
+});
+
+test("custom creation forwards the native none reasoning value without inventing another level", async () => {
+  const app = await loaded();
+  const writes: ReturnType<typeof createSchema.parse>[] = [];
+  const noReasoning = {
+    ...execution,
+    models: execution.models.map((model) => ({
+      ...model,
+      defaultReasoningEffort: "none",
+      supportedReasoningEfforts: [],
+    })),
+  };
+  const slot = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "new" },
+    {
+      rpc: {
+        creation: () => null,
+        create: (input) => {
+          writes.push(createSchema.parse(input));
+          return view;
+        },
+      },
+      sdk: {
+        hosts: { list: async () => [machine] },
+        providers: {
+          list: async () => [provider],
+          models: async () => noReasoning,
+        },
+      },
+    },
+  );
+  await chooseMachine(slot);
+  await userEvent.click(
+    slot.getByRole("checkbox", { name: "Choose a model and permissions" }),
+  );
+  await slot.findByTestId("bb-provider-model-picker");
+  await userEvent.click(slot.getByRole("button", { name: "Create bot" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]?.reasoningLevel).toBe("none");
+});
+
+test("a known pre-intent refusal preserves visible custom execution choices when the form returns", async () => {
+  const app = await loaded();
+  const slot = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "new" },
+    {
+      rpc: {
+        creation: () => null,
+        create: () => {
+          throw new RpcCallError({
+            code: "invalid",
+            message:
+              "Home validation failed before saving creation intent: fixture refusal",
+          });
+        },
+      },
+      sdk: {
+        hosts: { list: async () => [machine] },
+        providers: {
+          list: async () => [provider],
+          models: async () => execution,
+        },
+      },
+    },
+  );
+  await chooseMachine(slot);
+  await userEvent.click(
+    slot.getByRole("checkbox", { name: "Choose a model and permissions" }),
+  );
+  await slot.findByTestId("bb-provider-model-picker");
+  await userEvent.selectOptions(slot.getByLabelText("Service tier"), "fast");
+  await userEvent.click(
+    slot.getByRole("button", { name: "Apply execution selection" }),
+  );
+  await userEvent.click(slot.getByRole("button", { name: "Create bot" }));
+  await slot.findByText(
+    "Home validation failed before saving creation intent: fixture refusal",
+  );
+  expect(
+    slot
+      .getByRole("checkbox", { name: "Choose a model and permissions" })
+      .getAttribute("aria-checked"),
+  ).toBe("true");
+  await slot.findByTestId("bb-provider-model-picker");
+  expect((slot.getByLabelText("Service tier") as HTMLSelectElement).value).toBe(
+    "fast",
+  );
+});
+
+test("rereading an existing native choice after a parent rerender emits no setting change", async () => {
+  let changes = 0;
+  function Display() {
+    const [version, setVersion] = useState(0);
+    return (
+      <>
+        <button onClick={() => setVersion(version + 1)}>Reread display</button>
+        <ExecutionChoice
+          hostId="host_test"
+          initial={{
+            providerId: "codex",
+            model: "gpt-6.1-sol",
+            permissionMode: "accept-edits",
+          }}
+          onChoosing={() => {}}
+          onChange={() => {
+            changes++;
+          }}
+        />
+      </>
+    );
+  }
+  const slot = renderSlot(
+    { component: Display },
+    {},
+    {
+      sdk: {
+        providers: {
+          list: async () => [provider],
+          models: async () => execution,
+        },
+      },
+    },
+  );
+  await slot.findByTestId("bb-provider-model-picker");
+  expect(changes).toBe(0);
+  await userEvent.click(slot.getByRole("button", { name: "Reread display" }));
+  await waitFor(() =>
+    expect(
+      slot.inspection.sdkCalls.filter(
+        (call) => call.method === "providers.models",
+      ),
+    ).toHaveLength(2),
+  );
+  await slot.findByTestId("bb-provider-model-picker");
+  expect(changes).toBe(0);
 });
 
 test("native execution pickers route to the selected host and forward coherent model/reasoning/tier/permissions", async () => {
@@ -42,8 +184,7 @@ test("native execution pickers route to the selected host and forward coherent m
       },
     },
   );
-  await slot.findByRole("option", { name: "Fixture machine" });
-  await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
+  await chooseMachine(slot);
   await userEvent.click(slot.getByLabelText("Choose a model and permissions"));
   const picker = await slot.findByTestId("bb-provider-model-picker");
   expect(picker.getAttribute("data-routing-id")).toBe("host_test");
@@ -95,8 +236,7 @@ test.each(["empty", "failed"])(
         },
       },
     );
-    await slot.findByRole("option", { name: "Fixture machine" });
-    await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
+    await chooseMachine(slot);
     await userEvent.click(
       slot.getByLabelText("Choose a model and permissions"),
     );

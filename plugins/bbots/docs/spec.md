@@ -108,6 +108,8 @@ Validate bot/ownership/destination at each boundary; bound output; use expected 
 
 ## Additive UI
 
+Matt reopened the early create/open UI acceptance for BB convention alignment and a missing settings surface. The correction uses host title/header/settings slots, distinct collection/create/overview/settings routes and matching registry controls. Settings expose implemented per-bot name, SOUL and future execution defaults through existing revision contracts. Current-thread execution remains native, applied SOUL remains unknown, and unsupported automation remains disabled. Earlier functional smoke results do not close this design defect; the corrected surface needs its own visual/runtime acceptance.
+
 Follow the repository's [UI/UX guidance](../../../docs/dev/ui-ux.md). Reuse native chat/composer, model pickers, registered panels, routing, and registry controls. Preserve host stop controls, queue/steer behavior, draft/attachment state, thread menus, theme, focus, and compact layouts.
 
 | Surface               | Purpose                                                                                                 |

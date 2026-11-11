@@ -3,6 +3,8 @@ import {
   experimental_useRpcKeyedQuery as useRpcKeyedQuery,
 } from "@get-bb/plugin-sdk/app";
 import { BotsPanel } from "./components/bots-panel.tsx";
+import { BotsHeader, useBotsTitle } from "./components/bots-header.tsx";
+import { BotsSettings } from "./components/bot-settings.tsx";
 import { uiContract, type Ownership } from "./lib/ui/contracts.ts";
 
 export default definePluginApp((app) => {
@@ -12,7 +14,10 @@ export default definePluginApp((app) => {
     title: "Bots",
     icon: "Bot",
     component: BotsPanel,
+    headerContent: BotsHeader,
+    experimental_usePageTitle: useBotsTitle,
   });
+  app.slots.settingsSection({ id: "bots", component: BotsSettings });
   app.slots.experimental_threadAction<Ownership | undefined>({
     id: "identity",
     title: "Bot identity",

@@ -14,3 +14,12 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 HTMLElement.prototype.scrollIntoView = vi.fn();
+// Radix needs browser layout/pointer APIs to mount in jsdom. These stubs
+// establish no evidence about actual dimensions, positioning or touch behavior.
+globalThis.ResizeObserver = class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+HTMLElement.prototype.hasPointerCapture = vi.fn(() => false);
+HTMLElement.prototype.releasePointerCapture = vi.fn();
