@@ -14,6 +14,8 @@ export function discoveryPage(
 ) {
   const actorId = context.authorId;
   const sessionId = context.sessionId ?? actorId;
+  // Recipient rows include broadcast snapshots. Recover direct intent from
+  // immutable source IDs/resolved tokens, without re-resolving renamed handles.
   const rows = db
     .prepare<unknown[], DiscoveryItem>(
       `SELECT t.id, t.seq AS cursor, t.channel_id AS channelId,
@@ -22,6 +24,13 @@ export function discoveryPage(
     AND t.seq > ? AND t.created_at >= ? AND (
       EXISTS (SELECT 1 FROM transmission_recipients r JOIN participants p ON p.id = r.target_id
         WHERE r.tx_id = t.id AND p.id IN (?, ?)
+        AND (EXISTS (SELECT 1 FROM json_each(t.request_json, '$.recipientIds') direct WHERE direct.value = p.id)
+          OR EXISTS (SELECT 1 FROM json_each(t.tokens_json) token
+            WHERE json_extract(token.value, '$.kind') IN ('participant', 'human')
+            AND json_extract(token.value, '$.targetId') = p.id)
+          OR EXISTS (SELECT 1 FROM subscriptions s JOIN json_each(t.audiences_json) audience
+            ON s.channel_id = json_extract(audience.value, '$.channelId')
+            WHERE s.target_id = p.id AND s.muted = 0))
         AND NOT EXISTS (SELECT 1 FROM response_events e WHERE e.tx_id = t.id AND e.target_id = p.id AND e.kind = 'squelch'))
       OR (t.author_id != ? AND EXISTS (SELECT 1 FROM subscriptions s JOIN participants p ON p.id = s.target_id
         WHERE s.channel_id = t.channel_id AND s.muted = 0 AND p.id IN (?, ?)
