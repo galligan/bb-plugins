@@ -148,6 +148,40 @@ test("one configure callback selects only SQLite-owned threads and never claims 
   assert.equal(f.harness.inspection.sdk.calls.length, 0);
 });
 
+test("physical supply history does not prevent a future logical cutover or certify its successor", async (t) => {
+  const f = fixture(t),
+    botId = f.bot("thr_predecessor");
+  const ctx = makePluginAgentConfigurationContext();
+  ctx.thread.id = "thr_predecessor";
+  await f.harness.behavior.resolveAgentConfiguration(ctx);
+  // Database-only cutover simulation: this does not implement or authorize a live handoff.
+  f.db
+    .prepare("UPDATE conversations SET thread_id = ? WHERE thread_id = ?")
+    .run("thr_successor", "thr_predecessor");
+  const state = soulStateSchema.parse(
+    await f.harness.behavior.callRpc("soulShow", { botId }),
+  );
+  assert.equal(state.pending, "not-supplied");
+  assert.equal(state.lastSuppliedRevision, null);
+  assert.equal(state.appliedRevision, null);
+  assert.deepEqual(
+    (await f.harness.behavior.resolveAgentConfiguration(ctx)).skills,
+    [],
+  );
+  ctx.thread.id = "thr_successor";
+  await f.harness.behavior.resolveAgentConfiguration(ctx);
+  assert.deepEqual(
+    f.db.prepare("SELECT COUNT(*) AS n FROM soul_supplied").get(),
+    { n: 2 },
+  );
+  assert.equal(
+    soulStateSchema.parse(
+      await f.harness.behavior.callRpc("soulShow", { botId }),
+    ).appliedRevision,
+    null,
+  );
+});
+
 test("execution defaults inherit safely, reject fallback permission changes, and never mutate existing main", async (t) => {
   const f = fixture(t),
     botId = f.bot("thr_main"),

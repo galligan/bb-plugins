@@ -47,9 +47,9 @@ export function openSoul(storage: PluginStorage, store: SetupStore) {
     const view = store.view(botId);
     const row = db
       .prepare(
-        "SELECT revision, supplied_at AS suppliedAt FROM soul_supplied WHERE thread_id = ?",
+        "SELECT revision, supplied_at AS suppliedAt FROM soul_supplied WHERE thread_id = ? AND conversation_id = ?",
       )
-      .get(view.main.threadId);
+      .get(view.main.threadId, view.main.id);
     const supplied = row ? suppliedSchema.parse(row) : null;
     const current = store.documents.get(botId, "SOUL.md");
     return soulStateSchema.parse({
@@ -101,10 +101,10 @@ export function openSoul(storage: PluginStorage, store: SetupStore) {
             "Your soul is unavailable. Ask the user to repair SOUL.md before executing assignments.",
         };
       db.prepare(
-        `INSERT INTO soul_supplied (thread_id,revision,supplied_at) VALUES (?,?,?)
-        ON CONFLICT(thread_id) DO UPDATE SET revision=excluded.revision,supplied_at=excluded.supplied_at
-        WHERE soul_supplied.revision <> excluded.revision`,
-      ).run(threadId, doc.revision, new Date().toISOString());
+        `INSERT INTO soul_supplied (thread_id,conversation_id,revision,supplied_at) VALUES (?,?,?,?)
+        ON CONFLICT(thread_id) DO UPDATE SET conversation_id=excluded.conversation_id,revision=excluded.revision,supplied_at=excluded.supplied_at
+        WHERE soul_supplied.revision <> excluded.revision OR soul_supplied.conversation_id <> excluded.conversation_id`,
+      ).run(threadId, owner.id, doc.revision, new Date().toISOString());
       return {
         tools: [],
         skills: ["bbots", "bbots-soul"],
