@@ -399,3 +399,34 @@ test("CLI missing context, invalid flags/JSON and oversized bodies fail without 
     await f.harness.lifecycle.dispose();
   }
 });
+
+test("an explicit CLI thread derives its own project while an explicit mismatch still fails", async () => {
+  const f = surfaceFixture();
+  try {
+    f.harness.inspection.sdk.stub("threads.get", async () =>
+      makeThreadResponse({ id: "thr_elsewhere", projectId: "proj_elsewhere" }),
+    );
+    const selected = await f.cli(["whoami", "--thread", "thr_elsewhere"]);
+    const data = success(selected.result) as {
+      sessionId: string;
+      project: { id: string };
+    };
+    assert.equal(data.sessionId, "thr_elsewhere");
+    assert.equal(data.project.id, "proj_elsewhere");
+    const mismatch = await f.cli([
+      "whoami",
+      "--thread",
+      "thr_elsewhere",
+      "--project",
+      "proj_local",
+    ]);
+    assert.equal(mismatch.result.ok, false);
+    if (!mismatch.result.ok)
+      assert.equal(mismatch.result.error.code, "invalid_input");
+    const help = await f.harness.behavior.runCli(["whoami", "--help"]);
+    assert.ok(help.stdout.includes("--operator-credential-stdin"));
+    assert.equal(help.stdout.includes("--operator-credential <"), false);
+  } finally {
+    await f.harness.lifecycle.dispose();
+  }
+});

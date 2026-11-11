@@ -15,11 +15,12 @@ export const contextOptions = {
   "as-user": {
     type: "boolean",
     description:
-      "Explicit human mode; requires --project and separate operator credential.",
+      "Explicit human mode; requires --project and --operator-credential-stdin. Never put the secret in argv.",
   },
   "operator-credential": {
     type: "string",
     stdin: true,
+    hidden: true,
     description:
       "Human operator credential (16–1024 characters); prefer --operator-credential-stdin. Never needed for ordinary thread calls.",
   },
@@ -52,7 +53,8 @@ export function cliContext(
   }
   return {
     threadId: options.thread ?? invocation.threadId,
-    projectId: options.project ?? invocation.projectId,
+    projectId:
+      options.project ?? (options.thread ? undefined : invocation.projectId),
     operatorCredential: options["operator-credential"],
   };
 }
