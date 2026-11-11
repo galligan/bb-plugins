@@ -9,6 +9,11 @@ const skill = readFileSync(
   new URL("../skills/rex-thread-terminal/SKILL.md", import.meta.url),
   "utf8",
 );
+// Noninteractive bash reads BASH_ENV even with --noprofile and --norc.
+// ENV can likewise select startup code in shells invoked by the example.
+const shellEnv = { ...process.env };
+delete shellEnv.BASH_ENV;
+delete shellEnv.ENV;
 
 for (const [shell, flags] of [
   ["bash", ["--noprofile", "--norc"]],
@@ -17,6 +22,7 @@ for (const [shell, flags] of [
 ] as const) {
   test(`the terminal skill's quoted loop executes in ${shell}`, (t) => {
     const probe = spawnSync(shell, [...flags, "-c", "exit 0"], {
+      env: shellEnv,
       encoding: "utf8",
       timeout: 5_000,
     });
@@ -30,6 +36,7 @@ for (const [shell, flags] of [
     const example = skill.match(/<<'EOF'\n\s*(sh -c [^\n]+)\n\s*EOF/);
     assert.ok(example, "the skill must contain its quoted heredoc example");
     const result = spawnSync(shell, [...flags, "-c", example[1]!], {
+      env: shellEnv,
       encoding: "utf8",
       timeout: 5_000,
     });
@@ -47,7 +54,7 @@ for (const [shell, flags] of [
         "-c",
         "export REX_SKILL_TEST=exported\nsh -c 'printenv REX_SKILL_TEST'",
       ],
-      { encoding: "utf8", timeout: 5_000 },
+      { env: shellEnv, encoding: "utf8", timeout: 5_000 },
     );
     if (
       result.error &&
