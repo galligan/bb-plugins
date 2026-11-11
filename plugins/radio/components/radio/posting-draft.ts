@@ -99,7 +99,12 @@ export function makePostingRequest(scope: PostingScope, fields: PostingFields) {
 }
 /** Only content and canonical routing are saved; authority and credentials never enter this record. */
 export function readDraft(scope: PostingScope): PostingDraft {
-  const saved = sessionStorage.getItem(draftKey(scope));
+  return decodeDraft(scope, sessionStorage.getItem(draftKey(scope)));
+}
+export function decodeDraft(
+  scope: PostingScope,
+  saved: string | null,
+): PostingDraft {
   if (!saved)
     return { version: 1, fields: blankFields(), request: null, sentId: null };
   if (saved.length > 100000) throw new Error("Saved draft exceeds its bound.");
