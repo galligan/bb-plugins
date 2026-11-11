@@ -17,7 +17,9 @@ function fixture(t: TestContext) {
     offline = false,
     spawnFailure = false,
     lostAfterAdmission = false,
-    lostProjectReceipt = false;
+    lostProjectReceipt = false,
+    missingThread = false,
+    movedThread = false;
   let thread = makeThreadResponse({
     id: "thr_main",
     projectId: "proj_home",
@@ -127,7 +129,13 @@ function fixture(t: TestContext) {
             throw new Error("Lost receipt after ownership");
           return thread;
         },
-        get: async (args) => threads.get(args.threadId)!,
+        get: async (args) => {
+          if (missingThread) throw new Error("Not found");
+          const value = threads.get(args.threadId)!;
+          return movedThread
+            ? { ...value, projectId: "foreign_project" }
+            : value;
+        },
         update: async (args) => {
           thread = {
             ...threads.get(args.threadId)!,
@@ -159,6 +167,25 @@ function fixture(t: TestContext) {
     },
     setOffline: (x: boolean) => {
       offline = x;
+    },
+    setMissingThread: () => {
+      missingThread = true;
+    },
+    setMovedThread: () => {
+      movedThread = true;
+    },
+    preExistingProject: (botId: string) => {
+      projects.push({
+        ...project,
+        id: "foreign_project",
+        sources: [
+          {
+            ...project.sources[0]!,
+            projectId: "foreign_project",
+            path: `/safe/homes/${botId}`,
+          },
+        ],
+      });
     },
     setLostAfterAdmission: () => {
       lostAfterAdmission = true;
@@ -327,7 +354,7 @@ test("lost spawn receipt after admission recovers the existing main and preserve
   assert.equal(f.harness.inspection.sdk.callsTo("threads.pin").length, 0);
 });
 
-test("project receipt loss reconciles its exact home source without creating another project", async (t) => {
+test("uncertain project receipt never adopts an unrecorded project or creates a duplicate", async (t) => {
   const f = fixture(t);
   f.setProjectReceiptLoss();
   const pending = viewSchema.parse(
@@ -338,8 +365,10 @@ test("project receipt loss reconciles its exact home source without creating ano
   const recovered = viewSchema.parse(
     await f.harness.behavior.callRpc("resume", { botId: pending.bot.id }),
   );
-  assert.equal(recovered.setup.phase, "ready");
+  assert.equal(recovered.setup.phase, "project-creating");
+  assert.match(recovered.setup.error ?? "", /uncertain/);
   assert.equal(f.harness.inspection.sdk.callsTo("projects.create").length, 0);
+  assert.equal(f.harness.inspection.sdk.callsTo("threads.spawn").length, 0);
 });
 
 test("owned dispatch refuses a missing home and idle/failed events never restart work", async (t) => {
@@ -403,4 +432,44 @@ test("two bots keep distinct homes, mains and souls; association scope never sel
     f.store.view(second.bot.id).setup.request.associations.mode,
     "selected",
   );
+});
+
+test("ready resume reports a missing or moved main without replacement", async (t) => {
+  const f = fixture(t);
+  const ready = viewSchema.parse(
+    await f.harness.behavior.callRpc("create", f.input),
+  );
+  f.setMissingThread();
+  const missing = viewSchema.parse(
+    await f.harness.behavior.callRpc("resume", { botId: ready.bot.id }),
+  );
+  assert.match(missing.setup.error ?? "", /unavailable/);
+  assert.equal(missing.main.threadId, ready.main.threadId);
+  assert.equal(f.harness.inspection.sdk.callsTo("threads.spawn").length, 1);
+});
+
+test("ready resume rejects main project drift and pre-existing home sources are not adopted", async (t) => {
+  const f = fixture(t);
+  const ready = viewSchema.parse(
+    await f.harness.behavior.callRpc("create", f.input),
+  );
+  f.setMovedThread();
+  const moved = viewSchema.parse(
+    await f.harness.behavior.callRpc("resume", { botId: ready.bot.id }),
+  );
+  assert.match(moved.setup.error ?? "", /removed or moved/);
+  const other = createSchema.parse({
+    ...f.input,
+    requestId: randomUUID(),
+    name: "Other",
+  });
+  const planned = f.store.plan(other);
+  f.preExistingProject(planned.botId);
+  const conflict = viewSchema.parse(
+    await f.harness.behavior.callRpc("create", other),
+  );
+  assert.match(conflict.setup.error ?? "", /pre-existing/);
+  assert.equal(conflict.setup.projectId, null);
+  assert.equal(f.harness.inspection.sdk.callsTo("threads.spawn").length, 1);
+  assert.equal(f.harness.inspection.sdk.callsTo("projects.create").length, 1);
 });

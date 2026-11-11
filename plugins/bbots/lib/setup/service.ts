@@ -77,36 +77,38 @@ export function createSetupService(
         store.setHome(botId, home.path);
         setup = store.get(botId);
       }
-      if (setup.phase === "home-ready" || setup.phase === "project-creating") {
-        const projects = await bb.sdk.projects.list();
-        const matches = projects.filter((p) =>
-          p.sources.some(
-            (s) =>
-              s.hostId === setup.request.hostId && s.path === setup.homePath,
-          ),
+      if (setup.phase === "project-creating")
+        throw new Error(
+          "Project creation outcome is uncertain. No unrecorded project will be adopted or duplicated. Inspect the original native project request before further recovery.",
         );
-        if (matches.length > 1)
+      if (setup.phase === "home-ready") {
+        const projects = await bb.sdk.projects.list({
+          signal: operationSignal,
+        });
+        if (
+          projects.some((p) =>
+            p.sources.some(
+              (source) =>
+                source.hostId === setup.request.hostId &&
+                source.path === setup.homePath,
+            ),
+          )
+        )
           throw new Error(
-            "Multiple BB projects point at this bot home. Resolve the duplicate sources before resuming.",
+            "A pre-existing BB project points at this bot home. Bots will not adopt an unrelated project. Resolve that source conflict before resuming.",
           );
-        if (matches.length === 1) store.setProject(botId, matches[0]!.id);
-        else {
-          if (setup.phase === "project-creating")
-            throw new Error(
-              "Project creation outcome is uncertain. No second project was created; inspect the original request before retrying.",
-            );
-          store.phase(botId, "home-ready", "project-creating");
-          const project = await bb.sdk.projects.create({
-            name: `Bots: ${store.profiles.get(botId).name}`,
-            source: {
-              type: "local_path",
-              hostId: setup.request.hostId,
-              path: setup.homePath!,
-            },
-          });
-          operationSignal.throwIfAborted();
-          store.setProject(botId, project.id);
-        }
+        operationSignal.throwIfAborted();
+        store.phase(botId, "home-ready", "project-creating");
+        const project = await bb.sdk.projects.create({
+          name: `Bots: ${store.profiles.get(botId).name}`,
+          source: {
+            type: "local_path",
+            hostId: setup.request.hostId,
+            path: setup.homePath!,
+          },
+        });
+        operationSignal.throwIfAborted();
+        store.setProject(botId, project.id);
         setup = store.get(botId);
       }
       if (setup.phase === "project-ready") {
@@ -145,22 +147,26 @@ export function createSetupService(
         throw new Error(
           "Main creation outcome is uncertain. No duplicate was spawned. Reconcile the original request before retrying.",
         );
-      if (setup.phase === "owned") {
+      if (setup.phase === "owned" || setup.phase === "ready") {
         const view = store.view(botId);
-        const thread = await bb.sdk.threads.get({
-          threadId: view.main.threadId!,
-        });
-        if (thread.projectId !== setup.projectId)
+        let thread;
+        try {
+          thread = await bb.sdk.threads.get({ threadId: view.main.threadId! });
+        } catch {
           throw new Error(
-            "Main conversation no longer belongs to the recorded home project.",
+            "Recorded main conversation is unavailable. Preserve its home and reconcile the original native thread; Bots will not spawn a replacement.",
           );
-        // The initial pin and title were part of native creation. Never repin on resume.
-        if (thread.title === `@${view.bot.name}`)
+        }
+        operationSignal.throwIfAborted();
+        if (thread.deletedAt !== null || thread.projectId !== setup.projectId)
+          throw new Error(
+            "Recorded main was removed or moved from its home project. Restore the original conversation through supported recovery; Bots will not spawn a replacement.",
+          );
+        if (setup.phase === "owned" && thread.title === `@${view.bot.name}`)
           store.titleApplied(botId, view.bot.revision);
         await finishTitle(botId, operationSignal);
-        store.phase(botId, "owned", "ready");
-      } else if (setup.phase === "ready")
-        await finishTitle(botId, operationSignal);
+        if (setup.phase === "owned") store.phase(botId, "owned", "ready");
+      }
       store.fail(botId, null);
       return store.view(botId);
     } catch (error) {
