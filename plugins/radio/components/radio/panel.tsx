@@ -1,3 +1,4 @@
+import { ActingProvider } from "./acting-provider.tsx";
 import { useState } from "react";
 import { useBbContext, type PluginNavPanelProps } from "@get-bb/plugin-sdk/app";
 import { z } from "zod";
@@ -31,7 +32,9 @@ export function RadioPanel({ subPath }: PluginNavPanelProps) {
           receipt or accept work.
         </p>
       ) : (
-        <ProjectReader key={projectId} route={route ?? { projectId }} />
+        <ActingProvider key={projectId} projectId={projectId}>
+          <ProjectReader route={route ?? { projectId }} />
+        </ActingProvider>
       )}
     </div>
   );
