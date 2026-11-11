@@ -12,14 +12,14 @@ import {
 import { parseProtocol } from "./protocol-contracts.ts";
 import { RadioError } from "./errors.ts";
 
-const mutationSchema = z
+export const subscriptionMutationSchema = z
   .object({
     channelId: idSchema,
     targetId: idSchema.optional(),
     kind: z.enum(["listen", "mute", "unlisten"]),
   })
   .strict();
-const listingSchema = z
+export const subscriptionListingSchema = z
   .object({
     targetId: idSchema.optional(),
     after: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0),
@@ -44,7 +44,7 @@ export class Subscriptions {
   }
 
   set(context: TransmissionContext, input: unknown) {
-    const request = parseProtocol(mutationSchema, input);
+    const request = parseProtocol(subscriptionMutationSchema, input);
     requireAuthor(this.store.identities, context);
     const targetId = request.targetId ?? context.sessionId ?? context.authorId;
     requireOwnTarget(this.store.identities, context, targetId);
@@ -103,7 +103,7 @@ export class Subscriptions {
       targetId: requested,
       after,
       limit,
-    } = parseProtocol(listingSchema, input);
+    } = parseProtocol(subscriptionListingSchema, input);
     requireAuthor(this.store.identities, context);
     const targetId = requested ?? context.sessionId ?? context.authorId;
     requireOwnTarget(this.store.identities, context, targetId);
