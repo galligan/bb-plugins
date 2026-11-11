@@ -200,6 +200,45 @@ describe("Radio additive reader", () => {
     expect(slot.inspection.rpcCalls).toEqual([]);
     slot.lifecycle.unmount();
   });
+  it("keeps destinations distinct when literal names match generated labels", async () => {
+    const slot = await mount("", undefined, true, [
+      { ...project, name: "Alpha" },
+      { ...project, id: "proj_two", name: "Alpha" },
+      { ...project, id: "proj_three", name: "Alpha · proj_one" },
+      { ...project, id: "proj_four", name: "Alpha · proj_one · proj_three" },
+    ]);
+    const user = userEvent.setup();
+    await waitFor(() =>
+      expect(
+        slot
+          .getByRole("button", { name: "Refresh projects" })
+          .hasAttribute("disabled"),
+      ).toBe(false),
+    );
+    slot.getByRole("combobox", { name: "Project" }).focus();
+    await user.keyboard("{Enter}");
+    expect(
+      await slot.findByRole("option", {
+        name: "Alpha · proj_one",
+      }),
+    ).toBeTruthy();
+    const target = slot.getByRole("option", {
+      name: "Alpha · proj_one · proj_three",
+    });
+    expect(
+      slot.getByRole("option", {
+        name: "Alpha · proj_one · proj_three · proj_four",
+      }),
+    ).toBeTruthy();
+    target.focus();
+    await user.keyboard("{Enter}");
+    expect(slot.inspection.navigateCalls).toContainEqual({
+      method: "toPluginPanel",
+      path: "radio",
+      options: { subPath: "proj_three" },
+    });
+    slot.lifecycle.unmount();
+  });
   it("shows receipt unknown independently of ack and of a separately addressed session", async () => {
     const slot = await mount("proj_one/transmission/tx_one");
     expect(
