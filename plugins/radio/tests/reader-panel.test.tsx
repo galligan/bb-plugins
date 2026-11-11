@@ -57,6 +57,22 @@ function data(request: z.infer<typeof browseInputSchema>["request"]) {
       return tx;
     case "dispatch-read":
       return doc;
+    case "commitment":
+      return {
+        id: "commit_one",
+        cursor: 1,
+        txId: tx.id,
+        targetId: "actor_two",
+        ownerActorId: "actor_two",
+        openingSessionId: null,
+        generation: 0,
+        status: "open",
+        openedAt: tx.createdAt,
+        closedAt: null,
+        result: null,
+        reason: null,
+      };
+    case "commitment-events":
     case "responses":
       return { items: [], nextCursor: 0, hasMore: false };
     case "response-summary":
@@ -257,6 +273,33 @@ describe("Radio additive reader", () => {
         .getAttribute("href"),
     ).toBe("/plugins/radio/radio/proj_one/dispatch/dispatch_one/2");
     expect(slot.getByText(/Standby recorded \(no commitment\)/)).toBeTruthy();
+    slot.lifecycle.unmount();
+  });
+  it("opens a canonical commitment without acting authority even if channel browsing fails", async () => {
+    const slot = await mount("proj_one/commitment/commit_one", ({ request }) =>
+      request.op === "channels"
+        ? {
+            ok: false,
+            error: {
+              code: "not_found",
+              message: "Directory unavailable",
+              choices: [],
+            },
+          }
+        : { ok: true, project, data: data(request) },
+    );
+    expect(await slot.findByText("Status: open · Generation 0")).toBeTruthy();
+    expect(slot.getByText("No session recorded")).toBeTruthy();
+    expect(
+      slot
+        .getByRole("link", { name: "Committed request and work history" })
+        .getAttribute("href"),
+    ).toBe("/plugins/radio/radio/proj_one/transmission/tx_one");
+    expect(slot.queryByRole("button", { name: "Mark done" })).toBeNull();
+    expect(
+      slot.inspection.rpcCalls.every((call) => call.method === "browse"),
+    ).toBe(true);
+    expect(readRoute("proj_one/commitment/commit_one/1")).toBeNull();
     slot.lifecycle.unmount();
   });
   it("delegates dispatch Markdown to the host and keeps latest separate from the pinned revision", async () => {

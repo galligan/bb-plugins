@@ -1,3 +1,4 @@
+import { CommitmentReader } from "./commitment-reader.tsx";
 import { ActingProvider } from "./acting-provider.tsx";
 import { useState } from "react";
 import { useBbContext, type PluginNavPanelProps } from "@get-bb/plugin-sdk/app";
@@ -90,7 +91,13 @@ function ProjectReader({ route }: { route: RadioRoute }) {
           ) : null}
         </>
       ) : null}
-      {route.kind === "transmission" ? (
+      {route.kind === "commitment" ? (
+        <CommitmentReader
+          key={route.id}
+          projectId={route.projectId}
+          id={route.id!}
+        />
+      ) : route.kind === "transmission" ? (
         <TransmissionReader
           key={route.id}
           projectId={route.projectId}

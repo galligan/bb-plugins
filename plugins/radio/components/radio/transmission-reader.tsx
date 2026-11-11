@@ -1,3 +1,4 @@
+import { TransmissionWork } from "./transmission-work.tsx";
 import { RecipientResponseControls } from "./recipient-responses.tsx";
 import { ResponseHistory } from "./response-history.tsx";
 import { PostingComposer } from "./posting-composer.tsx";
@@ -102,6 +103,7 @@ export function TransmissionReader({
           ) : null}
           <RecipientResponses projectId={projectId} txId={id} />
           <ResponseHistory projectId={projectId} txId={id} />
+          <TransmissionWork projectId={projectId} tx={query.data} />
           <RecipientResponseControls
             txId={id}
             recipientIds={query.data.recipientIds}

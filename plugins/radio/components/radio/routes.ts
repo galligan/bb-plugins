@@ -1,6 +1,6 @@
 export interface RadioRoute {
   projectId: string;
-  kind?: "channel" | "transmission" | "dispatch";
+  kind?: "channel" | "transmission" | "dispatch" | "commitment";
   id?: string;
   revision?: number;
 }
@@ -17,7 +17,7 @@ export function readRoute(subPath: string): RadioRoute | null {
     if (
       !id ||
       id.length > 256 ||
-      !["channel", "transmission", "dispatch"].includes(kind!)
+      !["channel", "transmission", "dispatch", "commitment"].includes(kind!)
     )
       return null;
     if (

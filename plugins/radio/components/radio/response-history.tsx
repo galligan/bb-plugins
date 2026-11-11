@@ -52,7 +52,7 @@ export function ResponseHistory({
                     <time dateTime={event.createdAt}>
                       {new Date(event.createdAt).toLocaleString()}
                     </time>{" "}
-                    · Acting session: {event.sessionId ?? "Human endpoint"}
+                    · Acting session: {event.sessionId ?? "No session recorded"}
                   </p>
                   {event.kind === "received" ? (
                     <p className="text-xs">
