@@ -16,7 +16,7 @@
 - `lib/project-settings.ts` — versioned settings schema and pure branch-setting precedence.
 - `lib/read-setup-plan.ts` — host-only setup-plan reader shared by lifecycle and detection.
 - `lib/detection.ts` / `lib/detection-schema.ts` — read-only, bounded setup display; shared file names only, never ignored config contents.
-- `tests/` — SDK harness tests for launch and settings wiring, separate from SDK-free library tests.
+- `tests/` — SDK harness tests for launch and settings wiring, separate from SDK-free library tests. The `*.browser.js` files are live browser scripts, not part of `bun run test`.
 - `lib/base-input.ts` — reads and writes that control's value.
 - `host.ts` — the host entry. Thin wiring from the RPC contract to `lib/worktree.ts`.
 - `lib/worktree.ts` — resolve, create and remove. Takes its root, data directory and reporter as arguments, so tests run it against a temporary repository.
@@ -59,9 +59,10 @@
 - Write the per-path-key record before mutating the repository. `create` must be resumable and `remove` must work from the path key alone.
 - Use core's `policy.retireGraceMs` for automatic retirement. Do not schedule a second removal loop or delete environments to implement the policy.
 - Keep `lib/` free of `@get-bb/plugin-sdk` runtime imports other than the contract helpers, so `node --test` runs without a daemon.
+- Test panel, settings, and "Branch from:" behavior with `@get-bb/plugin-sdk/testing/app`, not in a running bb. No frontend harness suite exists yet; add it with the first UI behavior change. Use `tests/*.browser.js` only for layout and host integration, against an isolated instance.
 
 ## Read first
 
 - The `bb-plugin-authoring` skill, `references/backend-events.md`, "Environment providers: core-owned lifecycle".
 - [Lifecycle and data preservation](../../docs/dev/lifecycle.md) for the rationale and regression-test references behind destructive-operation guards.
-- [Verification](../../docs/dev/verification.md) for repository checks and isolated live testing.
+- [Verification](../../docs/dev/verification.md) for repository checks, the harness-first test boundary, and isolated live testing.
