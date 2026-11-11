@@ -1,5 +1,7 @@
 # Native continuity admission gate
 
+**Historical investigation; current disposition:** Matt directed plugin implementation without maintainer changes. BOTS-18 is deferred/non-blocking; no further upstream pings or waiting for releases. Preserve the prototype/evidence/draft without merging/deploying it. Old statements below that BOTS-4 waits for BOTS-3/upstream alignment are superseded by [the implementation plan](plan.md) and [support boundary](support-boundary.md).
+
 Status: Matt explicitly authorized a separately scoped BB core/SDK investigation and minimal fix on 2026-11-10 in `thr_898bvuxcfi`. BOTS-18 owns that work, which unblocks BOTS-3. This does not authorize sibling-plugin or Radio changes or production installation of an unreleased BB build.
 
 ## Problem

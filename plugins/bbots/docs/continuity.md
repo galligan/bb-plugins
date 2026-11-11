@@ -4,7 +4,7 @@
 
 Bob's stable identity and logical conversations outlive physical provider sessions and BB threads. Main and working conversations both preserve soul, relevant memories, active obligations, task source, assignment/reporting contract, pending decisions and history references. Matt should not manually prepare or reconnect routine handoffs.
 
-This is a release requirement, not a claim that every provider already supports it. First verify whether the public SDK can compact or replace a provider session inside a visible thread, and when a successor BB thread is required. Publish a supported-provider matrix and visible degraded states. Never silently reduce the requirement to “the operating skill should remember.”
+This remains the continuity goal, with feature-specific support gates rather than a hold on all plugin development. Unsupported automatic paths remain disabled and visibly recoverable through supported user-driven actions; do not advertise seamless recovery on those paths. First verify whether the public SDK can compact or replace a provider session inside a visible thread, and when a successor BB thread is required. Publish a supported-provider matrix and visible degraded states. Never silently reduce the requirement to “the operating skill should remember.”
 
 ## Prefer the least disruptive supported transition
 
@@ -38,7 +38,7 @@ Typing/attachments must survive navigation and longer transitions. Messages subm
 
 ## Activation rule and coexistence
 
-Idle/failed status alone never authorizes a model turn. Non-turn maintenance (bounded storage updates or eligible native context operations) can run at a verified safe boundary without executing work. Model-backed pickup, re-brief, summary and dream turns require the relevant automation policy and no unresolved manual stop; otherwise defer them to the next user-authorized dispatch. BOTS-3 must verify manual-stop evidence and dispatch-hold semantics. Do not equate ordinary successful settlement with a manual interruption, and do not guess when causal evidence is absent.
+Idle/failed status alone never authorizes a model turn. Non-turn maintenance (bounded storage updates or eligible native context operations) can run at a verified safe boundary without executing work. Model-backed pickup, re-brief, summary and dream turns require the relevant automation policy and no unresolved manual stop; otherwise defer them to the next user-authorized dispatch. Verify manual-stop evidence and dispatch-hold semantics for Bots-owned actions. The current runtime cannot provide a universal guard over another plugin’s native context operations; this is a visible coexistence limitation, not a prerequisite for identity, storage or UI. Do not equate ordinary successful settlement with a manual interruption, and do not guess when causal evidence is absent.
 
 Other installed plugins may compact, retry, hand off or schedule the same physical threads. Observe native compaction/context events and recent fresh usage before initiating another compaction; avoid assuming Bots is the only writer. BOTS-3 verifies coexistence with auto-compact, provider-retry, handoff, automations and side-chat. BOTS-12 defines one retry/fallback owner and ordering, including supported provider-retry consent APIs if present; never let both independently repeat failed work. Do not disable or reconfigure the user's plugins as a shortcut. Unsupported coexistence is a visible support limitation and test gate.
 

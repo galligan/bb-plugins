@@ -41,7 +41,7 @@ The Auto Compact references are registered in the existing modified `repos.json`
 
 The separate Radio exploration (`thr_7wf8unnws2`) inspected BB 0.49.0 / public SDK 0.6.132 and reported that idle lacks causal stop/completion intent, live provider sessions can retain construction-time instructions, and dispatch hooks cannot append a completion-time inbox check. Its artifact is `/Users/mg/.bb/thread-storage/thr_7wf8unnws2/message-board-research.md`. Treat these as dated evidence requiring revalidation; Radio is not an implementation dependency. Do not use idle → send as a workaround for missing lifecycle support.
 
-## Open questions that gate implementation
+## Feature-specific support questions
 
 1. First choose native compaction, in-thread clear/re-brief, or a necessary successor from current public evidence. Verify fresh usage, queue reconciliation, stale predecessor input, child notifications, native navigation and drafts, and months-long event-history scalability.
 2. Durable bot-home lifecycle with existing environment providers and which host/personal BB project contains the main thread (thread creation may require projectId even though the bot has no repository associations).
@@ -50,4 +50,4 @@ The separate Radio exploration (`thr_7wf8unnws2`) inspected BB 0.49.0 / public S
 5. Provider-specific fallback classification and safe preservation of permissions/context.
 6. CLI command collisions across plugins, exact header/context/Info/panel components, instruction/tool/skill binding boundaries, title regeneration, dispatch hold, SDK test fakes and coexistence with installed lifecycle plugins.
 
-The builder records answers with declaration/source references and focused runtime evidence. A missing capability narrows advertised support or produces a separately scoped SDK request; it does not authorize editing BB core or silently dropping a central requirement.
+The builder records answers with declaration/source references and focused runtime evidence. Matt subsequently directed implementation without maintainer changes: a missing capability narrows the affected advertised support, keeps unsafe automation disabled or uses a supported explicit path; it does not authorize editing BB core or silently dropping a central requirement.

@@ -1,14 +1,14 @@
 # Bots planning and implementation
 
-Read README.md and all linked design, review and handoff documents before changing behavior. Matt explicitly released the designated “bb Bots Builder” thread on 2026-11-10. Complete BOTS-3 capability verification before BOTS-4 scaffolding. Review and briefing alone were not implementation authorization.
+Read README.md and all linked design, review and handoff documents before changing behavior. Matt explicitly released the designated “bb Bots Builder” thread on 2026-11-10. Matt subsequently directed plugin implementation to proceed without waiting for maintainer changes. BOTS-3 tracks feature-specific limits; BOTS-18 is deferred and is not a predecessor for scaffolding or independent plugin work. Review and briefing alone were not the initial release.
 
 The agreed names are Bots (display), bbots (plugin ID), and bb-plugin-bbots (package). Keep Radio, external bot messaging, Slack/webhooks, and a replacement sidebar out of the initial implementation.
 
-Use the bb-plugin-authoring skill and current public SDK declarations. Treat the feasibility items in docs/plan.md as gates; do not fill missing SDK support with BB internal imports or assumptions. Keep BB core's lifecycle, permissions, queue, and environment ownership intact.
+Use the bb-plugin-authoring skill and current public SDK declarations. Treat the feasibility items in docs/plan.md as gates for the affected feature, not a global development hold; do not fill missing SDK support with BB internal imports or assumptions. Keep BB core's lifecycle, permissions, queue, and environment ownership intact.
 
 Keep storage, memory, continuity, thread routing, tasks integration, and UI in focused modules. Preserve stable bot and logical-conversation IDs separately from physical BB thread IDs. Never infer ownership from titles or writable thread pluginMetadata; SQLite is authoritative. Respect manual Stop and the maintenance setting as specified; do not invent a bot-wide pause or treat idle as authorization.
 
-Update the BOTS task and corresponding specification when implementation diverges. Do not change sibling plugins, BB core, or Radio without separate authorization. Follow root verification and draft-PR rules when implementation is released.
+Update the BOTS task and corresponding specification when implementation diverges. Preserve the separate BOTS-18 core prototype and draft as reference; do not pursue maintainer changes, merge/deploy the fork, or change core, sibling plugins or Radio under the current plugin implementation scope. Follow root verification and draft-PR rules when implementation is released.
 
 ## PR review and merge workflow
 

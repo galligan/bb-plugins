@@ -1,6 +1,6 @@
 # Bots product specification
 
-Status: implementation contract, assembled from the design discussion on 2026-11-10. Matt explicitly released the builder on 2026-11-10; BOTS-3 capability verification precedes scaffolding. Read [decisions](decisions.md) for provenance and [plan](plan.md) for capability gates.
+Status: implementation contract, assembled from the design discussion on 2026-11-10. Matt explicitly released the builder on 2026-11-10; plugin development proceeds independently of deferred core work; BOTS-3 gates only affected support claims. Read [decisions](decisions.md) for provenance and [plan](plan.md) for capability gates.
 
 ## Outcome
 
@@ -68,13 +68,13 @@ Commitments identify what is owed, owner logical conversation, authoritative tas
 
 ## Supported runtime
 
-Matt chose explicit minimum supported BB/runtime and runtime-SDK versions instead of full backward/downgrade compatibility. Use the existing `engines.bb` and `engines.bbPluginSdk` manifest checks, with the build-time SDK dependency pin recorded separately. Select numeric floors only after verifying releases containing the accepted admission contract; proposed SDK 0.6.139 is not a released floor. Development version exceptions require a separate reviewed source pin. Plugin engine fields do not protect older core readers from persisted compact-first rows. Post-upgrade data stays on the supported runtime; rollback requires preserving it separately and restoring a consistent pre-upgrade snapshot with matching binaries/plugins. See [support boundary](support-boundary.md) for enforcement evidence, upgrade/rollback consequences and remaining release gates. No production installation or continuity requirement is waived.
+The development skeleton uses existing released BB 0.49.0 / public SDK 0.6.132 contracts, with manifest `engines.bb >=0.49.0`, `engines.bbPluginSdk >=0.6.132`, and exact build dependency 0.6.132. These are package compatibility minima, not certification of every planned capability. Matt chose minimum-version support rather than arbitrary downgrade compatibility, then explicitly removed maintainer changes as a development prerequisite. Proposed SDK 0.6.139 is not required or claimed released. See [support boundary](support-boundary.md) for feature gates and the distinct, deferred core-prototype data caveat. No production installation is authorized.
 
 ## Stop and background activity
 
 Confirmed by Matt: v1 uses native per-thread Stop plus a persistent per-bot background-maintenance toggle, with no new bot-wide Pause command. The separate implementation release is recorded in the handoff.
 
-Native Stop interrupts that thread's current work; Bots must not automatically retry that stopped assignment, run pickup/re-brief on its behalf, or start maintenance because it became idle. Preserve this restriction until a new user-authorized dispatch. Turning background maintenance off prevents new idle summary/dream runs and cancels an in-flight maintenance run at a safe supported boundary without partial writes. It does not stop ordinary user-directed conversations or cancel independent workers. Default automatic maintenance off until capability and cost policy are verified.
+Native Stop interrupts that thread's current work; Bots must not automatically retry that stopped assignment, run pickup/re-brief on its behalf, or start maintenance because it became idle. Preserve this restriction until a new user-authorized dispatch. Turning background maintenance off prevents new idle summary/dream runs and cancels an in-flight maintenance run at a safe supported boundary without partial writes. It does not stop ordinary user-directed conversations or cancel independent workers. Default automatic maintenance off until capability and cost policy are verified. Bots controls only its own scheduled work and recovery; native Stop is not a universal veto over other plugins. Never disable another plugin to make a support claim. If safe automation is unavailable, show the limitation and offer a supported explicit action.
 
 An agent-authored `msg`, `report` or `reply` is a new explicit communication, not a passive inbox entry: queue-if-active may start a new recipient turn when idle, including after a native Stop. Receiving a report must not resume the previously canceled assignment. This is an operating-skill and report-framing requirement, verified by a bounded smoke test, not a guarantee plugin code can enforce against arbitrary model behavior. State this behavior in command/UI help. If Matt chooses a durable bot-wide hold instead, define its message retention, worker cancellation and resume semantics as a separate design revision before implementing it.
 

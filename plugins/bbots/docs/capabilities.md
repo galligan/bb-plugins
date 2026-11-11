@@ -1,14 +1,12 @@
 # Public capability verification
 
-Date: 2026-11-10. Task: BOTS-3. Matt explicitly released the builder with “Ok go.” in `thr_898bvuxcfi`. This report records declaration checks and bounded runtime probes before BOTS-4 scaffolding. There is no Bots package or production bot yet.
+Date: 2026-11-10. Task: BOTS-3. Matt explicitly released the builder with “Ok go.” in `thr_898bvuxcfi`. This report records declaration checks and bounded runtime probes before BOTS-4 scaffolding. The first headless package now implements read-only development status; there is no production bot.
 
 ## Decision and remaining gate
 
 For Codex, use native compaction first and verified in-thread clear/re-brief when necessary. A successor thread is not required for the tested same-provider path. This does not establish cross-provider support or complete continuity: checkpoints, commitments, worker routing, concurrent inputs, drafts, and restart recovery remain implementation acceptance tests.
 
-**The automatic-continuity coexistence gate remains open.** In the isolated host, a direct public `threads.compact` call returned `{ ok: true }` without reaching a registered `message.dispatch` hook that was set to record and reject every dispatch. An earlier initial spawn demonstrably waited on that hook. The installed Auto Compact plugin calls `threads.compact` from idle and failed handlers without checking manual-stop evidence. Bots therefore cannot assume its dispatch guard governs those compaction turns. Do not claim coexistence with that behavior or enable an automatic path on that assumption. See [the focused SDK request](sdk-continuity-gates.md).
-
-The capability investigation is not complete while that critical path is unresolved. BOTS-4 remains behind BOTS-3. The initial installed-runtime probes changed no core or sibling code, production conversation, or installed user-plugin setting. The separately authorized core prototype is tracked below.
+**Plugin development proceeds.** Matt explicitly removed maintainer changes as a prerequisite. Native per-thread Stop governs each thread; Bots cannot veto another plugin’s compaction/retry operations. The installed-runtime probe below demonstrates that limitation, not a global development blocker. BOTS-18 is deferred, with prototype/evidence retained. BOTS-3 keeps affected support claims open while identity/storage/soul/tasks/UI proceed. Automatic Bots continuity, maintenance and fallback remain disabled until implemented and verified; unsupported paths require visible limits or supported explicit recovery.
 
 ## Versions and evidence boundary
 
@@ -63,7 +61,7 @@ Durable evidence in the same thread-storage directory includes the probe source 
 
 ## Work still required before closing BOTS-3
 
-1. Resolve or obtain an explicit review disposition for the native compaction/dispatch coexistence gate; preserve the requirement that stopped work is not automatically restarted.
+1. Apply the current disposition: Bots does not claim universal admission over other plugins. Verify its own Stop/maintenance behavior as code lands; preserve the requirement that canceled work is not automatically restarted.
 2. Verify native-context policy/within-turn behavior and stop/clear races with current public contracts, without paid exhaustion or production sessions.
 3. Extend the verified single-host home/archive/restart and native board route to the remaining host/provider and missing-Tasks cases; see [follow-up evidence](capability-followup.md).
 4. Record supported-provider and coexistence boundaries without presenting untested worker recovery, drafts, automations, fallback or dreaming as supported.
@@ -72,7 +70,7 @@ Full product acceptance remains in [spec](spec.md), [memory](memory.md), and [co
 
 ## Separately authorized core follow-up
 
-Matt authorized BOTS-18 to investigate and minimally fix BB core/SDK admission and caller attribution. The [prototype and verification](sdk-continuity-gates.md#authorized-core-prototype) now include a real source-runtime rejection smoke and a public fork commit. This adds evidence for a proposed core contract; installed BB 0.49.0 has not been replaced. Maintainer alignment, compatibility review and the remaining continuity/Stop/coexistence checks still gate supported Bots behavior.
+Matt authorized BOTS-18 to investigate and minimally fix BB core/SDK admission and caller attribution. The [prototype and verification](sdk-continuity-gates.md#authorized-core-prototype) now include a real source-runtime rejection smoke and a public fork commit. This adds evidence for a proposed core contract; installed BB 0.49.0 has not been replaced. That proposed contract is not a plugin dependency. Feature-specific continuity/Stop checks gate only affected behaviors.
 
 The [additional capability verification](capability-followup.md) records five more queue tests, the corrected Stop race and Send-now acceptance report, verified native board navigation, and unmanaged home archive/restart retention. These close specific evidence gaps without completing the continuity gate.
 
