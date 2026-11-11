@@ -44,6 +44,8 @@ export async function serveFakeRex(rex: FakeRex): Promise<FakeRexSocket> {
       socket.close(1008, "only the control endpoint is faked");
       return;
     }
+    // Attachment belongs to the connection, so each socket starts with none.
+    const connection = rex.connection();
     socket.once("message", () => {
       socket.send(
         JSON.stringify({ type: "welcome", protocol: "rex.control.v1" }),
@@ -52,7 +54,7 @@ export async function serveFakeRex(rex: FakeRex): Promise<FakeRexSocket> {
         const message = requestSchema.safeParse(JSON.parse(String(data)));
         if (!message.success) return;
         const { id, method, payload } = message.data;
-        rex.call(method, payload, z.unknown()).then(
+        connection.call(method, payload, z.unknown()).then(
           (result) =>
             socket.send(
               JSON.stringify({ type: "response", id, payload: result }),
@@ -83,13 +85,19 @@ export async function serveFakeRex(rex: FakeRex): Promise<FakeRexSocket> {
   report(
     `printf '%s' '${JSON.stringify({ endpoint: `unix://${socketPath.split("/").map(encodeURIComponent).join("/")}` })}'`,
   );
-  const path = process.env.PATH;
-  process.env.PATH = [directory, path].filter(Boolean).join(delimiter);
+  process.env.PATH = [directory, process.env.PATH]
+    .filter(Boolean)
+    .join(delimiter);
 
   return {
     stopReporting: () => report("echo 'no server is running' >&2\nexit 1"),
     close: async () => {
-      process.env.PATH = path;
+      // Take out only this fixture's entry. Restoring a snapshot would put
+      // back the directory of a fixture that was open then and closed since.
+      process.env.PATH = (process.env.PATH ?? "")
+        .split(delimiter)
+        .filter((entry) => entry !== directory)
+        .join(delimiter);
       for (const client of server.clients) client.terminate();
       await new Promise((resolve) => server.close(resolve));
       await new Promise((resolve) => http.close(resolve));

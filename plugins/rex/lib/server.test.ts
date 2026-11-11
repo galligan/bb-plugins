@@ -316,6 +316,16 @@ test("archiving or deleting a thread closes its own window and forgets it; other
   }
 });
 
+test("each fixture removes only its own entry from PATH", async () => {
+  const before = process.env.PATH;
+  const first = await serveFakeRex(new FakeRex());
+  const second = await serveFakeRex(new FakeRex());
+  // Closed in the order they were opened, as test hooks run.
+  await first.close();
+  await second.close();
+  assert.equal(process.env.PATH, before);
+});
+
 test("when Rex cannot be found, routes answer 503 and a close is logged and kept for later", async (t) => {
   const { bb, harness, socket, failure, target } = await setup(t);
   await target();
