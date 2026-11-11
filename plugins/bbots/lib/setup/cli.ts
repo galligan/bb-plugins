@@ -10,6 +10,8 @@ import type { createSetupService } from "./service.ts";
 import { developmentStatus, formatStatus } from "../status.ts";
 import { soulCommands } from "../soul/cli.ts";
 import type { SoulStore } from "../soul/store.ts";
+import type { workCommands } from "../work/cli.ts";
+import type { WorkStore } from "../work/storage.ts";
 import { taskCommands } from "../tasks/cli.ts";
 import type { TaskSource } from "../tasks/source.ts";
 
@@ -37,13 +39,16 @@ export function botCli(
   store: SetupStore,
   service: ReturnType<typeof createSetupService>,
   soul: SoulStore,
+  workers: ReturnType<typeof workCommands>,
+  work: WorkStore,
   tasks: TaskSource,
 ) {
   return defineCli({
     name: "bot",
     summary: "Create and inspect persistent Bots",
     commands: {
-      ...soulCommands(soul, store, tasks),
+      ...soulCommands(soul, store, work, tasks),
+      ...workers,
       ...taskCommands(tasks, store),
       status: cliCommand({
         summary: "Show development status and support limits",

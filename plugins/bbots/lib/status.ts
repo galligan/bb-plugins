@@ -7,7 +7,7 @@ export function developmentStatus(): DevelopmentStatus {
     automaticMaintenance: "disabled",
     automaticContinuity: "disabled",
     limitations: [
-      "Minimal create/open UI and CLI/RPC configuration are a development preview; visual host acceptance remains pending.",
+      "Create/open and explicit owned-worker CLI are a development preview; worker runtime acceptance remains pending.",
       "Applied soul revision is unknown: configure resolution is not a provider-session receipt; live sessions may retain old guidance.",
       "Native Stop applies per thread; Bots cannot veto other plugins' actions.",
       "Automatic maintenance, fallback and conversation transitions are disabled.",

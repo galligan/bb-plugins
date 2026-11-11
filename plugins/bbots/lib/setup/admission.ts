@@ -1,6 +1,7 @@
 import type {
   BbPluginApi,
   MessageDispatchHookContext,
+  MessageDispatchHookDecision,
 } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import type { Setup } from "./contracts.ts";
@@ -13,18 +14,26 @@ export function registerAdmission(
   store: SetupStore,
   inspect: (botId: string) => Promise<Setup>,
   soul: SoulStore,
+  workerAdmission: (
+    ctx: MessageDispatchHookContext,
+    raw: unknown,
+  ) => Promise<MessageDispatchHookDecision | null>,
 ) {
   bb.experimental_hooks.on(
     "message.dispatch",
     async (ctx: MessageDispatchHookContext) => {
       let owner = store.conversations.ownerOfThread(ctx.thread.id);
-      if (!owner && ctx.originPluginId === bb.pluginId) {
-        const raw =
-          ctx.experimental_submission?.pluginId === bb.pluginId
+      const raw =
+        owner || ctx.thread.originPluginId !== bb.pluginId
+          ? null
+          : ctx.experimental_submission?.pluginId === bb.pluginId
             ? ctx.experimental_submission.data
             : await bb.sdk.threads.getPluginMetadata({
                 threadId: ctx.thread.id,
               });
+      const workerDecision = await workerAdmission(ctx, raw);
+      if (workerDecision) return workerDecision;
+      if (!owner && ctx.thread.originPluginId === bb.pluginId) {
         const lookup = lookupSchema.safeParse(raw);
         if (!lookup.success)
           return {

@@ -2,6 +2,7 @@ import { cliCommand, PluginCliError } from "@get-bb/plugin-sdk";
 import type { SoulStore } from "./store.ts";
 import type { SetupStore } from "../setup/storage.ts";
 import { defaultsSchema } from "./contracts.ts";
+import type { WorkStore } from "../work/storage.ts";
 import type { TaskSource } from "../tasks/source.ts";
 
 const bot = [
@@ -34,6 +35,7 @@ function result(value: unknown) {
 export function soulCommands(
   soul: SoulStore,
   store: SetupStore,
+  work: WorkStore,
   tasks: TaskSource,
 ) {
   return {
@@ -44,18 +46,25 @@ export function soulCommands(
       options: { json },
       run: async ({ positionals }, ctx) => {
         const view = store.view(positionals.botId);
+        const owner = ctx.threadId
+          ? store.conversations.ownerOfThread(ctx.threadId)
+          : null;
         const { current, ...state } = soul.show(view.bot.id);
         const taskSource = await tasks.show(view.bot.id, ctx.signal);
         return result({
           ...view,
           soul: { ...state, currentRevision: current?.revision ?? null },
           execution: soul.defaults(view.bot.id),
+          conversation: owner?.botId === view.bot.id ? owner : null,
+          contract:
+            owner?.botId === view.bot.id && owner.role === "worker"
+              ? work.agreement(owner.id)
+              : null,
           taskSource,
           unavailable: [
             ...(taskSource.availability === "available" ? [] : ["tasks"]),
             "memory",
             "commitments",
-            "worker contracts",
           ],
         });
       },

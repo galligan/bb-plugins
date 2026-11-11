@@ -1,11 +1,11 @@
 ---
 name: bbots
-description: Create and inspect persistent Bots, recover partial setup, pull current briefs, and inspect standing guidance and execution defaults.
+description: Create persistent Bots and owned workers, inspect current briefs and reporting contracts, and send explicit native reports or replies.
 ---
 
 # Bots
 
-Use `bb bot status` for supported features and `bb bot list` / `show <bot-id>` for identity, home, main and setup errors. Pull `bb bot brief <bot-id> --json` during ordinary turns when current state matters. It reports current revisions, future execution defaults, the recorded task source with live availability and remaining unavailable memory/contract features; those are not guaranteed-fresh injected instructions. If another plugin owns the alias, use `bb plugin run bbots ...`.
+Use `bb bot status` for supported features and `bb bot list` / `show <bot-id>` for identity, home, main and setup errors. Pull `bb bot brief <bot-id> --json` during ordinary turns when current state matters. It includes the calling worker's current contract, current revisions, future execution defaults and recorded task source with live availability; memory and commitments remain unavailable. Volatile state is not guaranteed-fresh injected guidance. If another plugin owns the alias, use `bb plugin run bbots ...`.
 
 `create --machine <host-id>` creates Bob; `--name` selects another name. It creates a persistent home outside repositories and starts one short setup acknowledgement. Retain an explicit `--request-id <uuid>` before scripted submission and reuse it only with identical options after uncertain delivery. `--association-mode none|all|selected` is responsibility scope; repeat `--project <id>` for selected projects. It does not move the main home or grant new permissions.
 
@@ -15,10 +15,26 @@ Use `rename <bot-id> --name <name> --revision <current>` for an explicit revisio
 
 Use `models show <bot-id>` for future conversation defaults. `models update` saves a complete revision-checked JSON document with `main`, `worker` and `fallback` choices. A null worker inherits main; an explicit worker object defines independent native choices, with omitted values inheriting BB policy. A fallback cannot set permissions and automatic fallback remains disabled. Saving starts no turn and does not mutate an existing main. Use BB's native controls for that conversation's execution choices; provider/model/reasoning availability is validated by BB when a new conversation is created. Main creation also accepts `--provider`, `--model`, `--reasoning` and `--permissions`; omission preserves BB defaults.
 
+## Owned work and communication
+
+When the user authorizes a distinct assignment, use `bb bot work '<assignment>' --title '<short task>' --project <project-id> --environment <ready-environment-id> --author <truthful-identity> --reason '<instruction>'`. An owned caller supplies its bot automatically; an unowned caller must select `--bot <bot-id>`. Retain `--request-id <uuid>` before scripted submission. This starts the assignment in one normal native thread; it is not a dormant draft.
+
+Parentage and reporting are separate. `--parent <thread-id>` is optional and must belong to the working project. Native parent notifications default off. `--parent-notifications auto` can duplicate explicit reports. Set `--report-thread <ordinary-thread-id>` or `--report-conversation <logical-id>` for a non-main destination. Omission records this bot's main as the initial target. Use `--report-when`, `--stop-when`, `--context` and repeated `--source` for the selected agreement; evaluate its triggers yourself. The plugin does not watch task completion.
+
+Use `work list <bot-id>` to find recorded workers and request IDs, and `work show <conversation-id>` to inspect uncertain setup. Reusing a request never automatically respawns an attempted worker. Inspect native thread history and queue before deciding on a new action after an uncertain receipt.
+
+Pull `contract show <conversation-id> --json` before reporting or continuing changed work. For a deliberate reassignment, `contract update <conversation-id> --revision <current> --agreement '<complete-json>' --author <identity> --reason '<instruction>'` appends a revision. Saving does not start a turn, reparent a thread or resume a stopped assignment.
+
+Use `report '<message>'` from the owned worker for its contract destination. Use `msg '<message>'` for the current main; an unowned caller must select `--bot`. Use `reply '<message>' --seq <native-message-sequence>` for the native agent sender of that incoming message. Do not infer a reply destination from prose or substitute the main when a contract is missing. A title or writable metadata does not establish ownership.
+
+These are explicit new communications. Native queue-if-active delivery can start a recipient turn when idle, including after Stop. A report does not authorize resuming a previously canceled assignment. Treat it as a new communication under current instructions. Return native acceptance/queue evidence; do not claim it proves reading, completion or a response. If delivery is uncertain, inspect native history and queue; do not blindly resend.
+
+## Task source
+
 Use `tasks show <bot-id>` to read task authority before choosing or changing work. `tasks select` and `tasks create` require an explicit source instruction, expected revision, author and reason. A configured tracker remains authoritative during an outage; do not create a replacement or switch to Markdown. If creation is uncertain, inspect the recorded intent and native Tasks board before explicit `tasks recover` with its confirmed stable ID. Prefix matching does not prove original identity after deletion/reuse; confirm the intended board independently.
 
 When Tasks is absent at the initial task-source choice, use `tasks markdown-init` with the expected source revision, author and reason. Inventory must confirm absence; disabled Tasks and RPC errors are not absence. Use `tasks markdown-resume` only to reconcile the same interrupted initialization. Do not overwrite an occupied file or choose another home.
 
 In Markdown mode, use `tasks read` and `tasks write --hash <current-hash> --markdown '<complete-file>'`. These operations route to the original home host, including from remote workers. Preserve the complete file; arbitrary Markdown has no inferred task counter. Read again after a stale write or uncertain receipt. Coordinate external editors; only Bots writers share its lock. A retained lock requires inspecting stopped owned work and the original host before manual recovery. Never remove a lock merely because the caller timed out.
 
-Automatic maintenance, continuity, workers and fallback are disabled. Do not invent commands for memory, commitments or reporting before those features ship. Create no background work during the setup acknowledgement.
+Automatic maintenance, continuity and fallback remain disabled. Create no workers or other background work during the initial setup acknowledgement. Do not invent commands for memory or commitments before those features ship.
