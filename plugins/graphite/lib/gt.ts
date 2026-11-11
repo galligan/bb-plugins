@@ -8,7 +8,7 @@
 //     what the flag looks like, and fails outright in a non-interactive session.
 //
 // No BB SDK here: the guard that decides whether a verb may run lives with the
-// caller, which is the only place that can read `environments.status`.
+// caller, which reads validated `workspaceStatus` from the Git plugin.
 
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
