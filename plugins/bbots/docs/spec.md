@@ -18,6 +18,8 @@ The defining acceptance scenario is: create Bob, discuss a project, delegate an 
 
 ## Configuration and soul
 
+The BOTS-6 creation slice includes the minimal revisioned starter SOUL and construction callback, moved forward from BOTS-7 to ensure the first native session is owned and instructed. Full soul editing, model/permission controls and applied-revision presentation remain BOTS-7.
+
 Each bot has a stable identity, name/appearance, soul document, execution defaults, default machine/home, project associations, task-source association, and conversation references. Use native provider/model controls, including supported reasoning settings.
 
 Execution choices include a main model, a fallback model, and a working-thread model that initially inherits the main model. Main and worker permission modes use the native permission picker and initially inherit BB defaults; fallback never broadens permissions. Do not assume fallback is merely swapping a string: same-provider and cross-provider behavior must be verified and recorded in the continuity support matrix. Failure-trigger rules belong in [continuity](continuity.md).

@@ -1,3 +1,5 @@
+import { setupMigrations } from "../setup/migrations.ts";
+
 // Append only: the public host hashes every indexed statement.
 export const migrations = [
   `CREATE TABLE bots (
@@ -40,4 +42,5 @@ export const migrations = [
     created_at TEXT NOT NULL,
     PRIMARY KEY (document_id, revision)
   )`,
+  ...setupMigrations,
 ];
