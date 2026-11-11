@@ -6,10 +6,19 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx",
     "types": ["node"],
     "noEmit": true,
-    "skipLibCheck": false
+    "skipLibCheck": true
   },
-  "include": ["server.ts", "lib", "host.ts"]
+  "include": [
+    "server.ts",
+    "lib",
+    "host.ts",
+    "app.tsx",
+    "components",
+    "tests",
+    "vitest.config.ts"
+  ]
 }

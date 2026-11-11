@@ -7,6 +7,7 @@ export const executionSchema = z.strictObject({
   model: z.string().trim().min(1).max(256).optional(),
   reasoningLevel: z.string().trim().min(1).max(128).optional(),
   permissionMode: z.enum(["accept-edits", "auto", "full"]).optional(),
+  serviceTier: z.string().min(1).max(128).optional(),
 });
 export const defaultsSchema = z.strictObject({
   main: executionSchema,
@@ -45,8 +46,12 @@ export const defaultsStateSchema = z.strictObject({
   automaticFallback: z.literal("disabled"),
 });
 export const soulContract = defineRpcContract({
-  soulShow: { input: target, output: soulStateSchema },
+  soulShow: { input: target, output: soulStateSchema, tags: () => ["bots"] },
   soulUpdate: { input: soulWriteSchema, output: soulStateSchema },
-  defaultsShow: { input: target, output: defaultsStateSchema },
+  defaultsShow: {
+    input: target,
+    output: defaultsStateSchema,
+    tags: () => ["bots"],
+  },
   defaultsUpdate: { input: defaultsWriteSchema, output: defaultsStateSchema },
 });

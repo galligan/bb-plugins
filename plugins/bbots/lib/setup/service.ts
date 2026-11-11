@@ -8,6 +8,7 @@ export function createSetupService(
   store: SetupStore,
   signal: AbortSignal,
   execution: SoulStore["defaults"],
+  changed: () => void,
 ) {
   const host = bb.hosts.experimental_client({ contract: homeContract });
   const active = new Set<string>();
@@ -179,6 +180,7 @@ export function createSetupService(
       return store.view(botId);
     } finally {
       active.delete(botId);
+      changed();
     }
   }
   return {

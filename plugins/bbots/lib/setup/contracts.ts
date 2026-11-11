@@ -32,6 +32,7 @@ export const createSchema = z.strictObject({
   model: z.string().min(1).max(256).optional(),
   reasoningLevel: z.string().trim().min(1).max(128).optional(),
   permissionMode: z.enum(["accept-edits", "auto", "full"]).optional(),
+  serviceTier: z.string().min(1).max(128).optional(),
 });
 export type CreateBotInput = z.infer<typeof createSchema>;
 export const setupSchema = z.strictObject({
@@ -61,8 +62,13 @@ export const viewSchema = z.strictObject({
 export const managementContract = defineRpcContract({
   create: { input: createSchema, output: viewSchema },
   resume: { input: z.strictObject({ botId: idSchema }), output: viewSchema },
-  show: { input: z.strictObject({ botId: idSchema }), output: viewSchema },
+  show: {
+    input: z.strictObject({ botId: idSchema }),
+    output: viewSchema,
+    tags: () => ["bots"],
+  },
   list: {
+    tags: () => ["bots"],
     input: z.strictObject({}),
     output: z.strictObject({
       bots: z.array(botSchema).max(100),

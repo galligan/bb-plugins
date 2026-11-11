@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   createFakePluginHost,
@@ -53,9 +54,23 @@ test("reload retains one registration set and disposal invalidates the old facto
 });
 
 test("package uses only public SDK and package-local imports", () => {
+  const manifest = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  const declared = Object.keys({
+    ...manifest.dependencies,
+    ...manifest.devDependencies,
+  }).filter((name) => name !== "@get-bb/plugin-sdk");
   const scan = experimental_scanPublicSdkOnly(
     fileURLToPath(new URL("..", import.meta.url)),
-    { allow: [/^better-sqlite3$/] },
+    {
+      allow: declared.map(
+        (name) =>
+          new RegExp(
+            `^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:/.*)?$`,
+          ),
+      ),
+    },
   );
   assert.deepEqual(scan.violations, []);
   assert.deepEqual(scan.privateDependencies, []);

@@ -257,6 +257,7 @@ test("new main uses native explicit reasoning/permission choices and revised def
         model: "chosen-model",
         reasoningLevel: "high",
         permissionMode: "accept-edits",
+        serviceTier: "fast",
       },
       worker: null,
       fallback: null,
@@ -275,6 +276,7 @@ test("new main uses native explicit reasoning/permission choices and revised def
   assert.equal(args.model, "chosen-model");
   assert.equal(args.reasoningLevel, "high");
   assert.equal(args.permissionMode, "accept-edits");
+  assert.equal(args.serviceTier, "fast");
   assert.equal(f.harness.inspection.sdk.callsTo("threads.send").length, 0);
 });
 
