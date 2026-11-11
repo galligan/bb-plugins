@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-11",
+  "scope": "Accepted spike closeout with explicit unverified compatibility/platform paths; not full provider E2E",
+  "mergedImplementation": "9ee0afc5429670814b12b8dbc191ba8aa670e771",
+  "providerModel": "jev-1.13.0",
+  "manualProviderRequests": 6,
+  "manualInputTokens": 1875,
+  "automaticProviderRequests": 0,
+  "caseReport": {
+    "id": "f9971fa3-e019-4bd8-8163-9fd508de5248",
+    "complete": true,
+    "counts": {
+      "correct": 2,
+      "incorrect": 0,
+      "unavailable": 0
+    }
+  },
+  "manualDispatches": [
+    {
+      "runId": "28281369-a425-4e34-8ed3-2f697c567260",
+      "providerModel": "jev-1.13.0",
+      "inputTokens": 313,
+      "latencyMs": 222.8691670000553
+    },
+    {
+      "runId": "be0d8e88-0a09-447e-a1ca-ce2116c86f42",
+      "providerModel": "jev-1.13.0",
+      "inputTokens": 310,
+      "latencyMs": 95.50204201042652
+    },
+    {
+      "runId": "aacb8921-fd34-4fa8-abe1-463e7e0476c6",
+      "providerModel": "jev-1.13.0",
+      "inputTokens": 313,
+      "latencyMs": 135.27887500822544
+    },
+    {
+      "runId": "00967f18-1132-42d7-ad08-6babc11e4423",
+      "providerModel": "jev-1.13.0",
+      "inputTokens": 313,
+      "latencyMs": 147.59329199790955
+    },
+    {
+      "runId": "023158e6-0d47-4ff5-9a4e-59bc2cc7106b",
+      "providerModel": "jev-1.13.0",
+      "inputTokens": 314,
+      "latencyMs": 91.32912500202656
+    },
+    {
+      "runId": "1510845e-cd11-4918-8df5-6a264d343c7d",
+      "providerModel": "jev-1.13.0",
+      "inputTokens": 312,
+      "latencyMs": 45.896791994571686
+    }
+  ],
+  "idle": {
+    "runId": "418bd481-f27f-4303-8c41-15467c93ef88",
+    "complete": true,
+    "calibrated": true,
+    "outcomes": {
+      "recognized": true
+    },
+    "cacheHit": true,
+    "inputTokens": 0,
+    "latencyMs": 4.0047919899225235
+  },
+  "observer": {
+    "firstCurrentInfoAt": "2026-11-11T02:08:01.775Z",
+    "actualSidebarBadgeCaptured": false,
+    "samples": 41,
+    "rowRenderer": "bb-sidebar",
+    "renderedMetadataChildren": 0
+  },
+  "watchdog": {
+    "armed": true,
+    "activationRequested": true,
+    "disableAfterSeconds": 7.0,
+    "fallbackUsed": false,
+    "enabled": true,
+    "bindingDisabled": true,
+    "elapsedMs": 7342.439
+  },
+  "sidebarCompatibility": {
+    "installedSource": "github.com/yusuf8834/bb-sidebar@e7ab8a399f440479e15f87d695c020754560da16",
+    "matchingRenderer": "src/ChildThreadList.tsx:475",
+    "cause": "The active replacement child-row renderer does not mount experimental_ThreadRowMetadata; built-in row preferences do not add that missing mount.",
+    "appSha256": "f5c678b5a18b86b0d50b6672c9d18ff2ede2c41c3763c7de210cbc17ca375870"
+  },
+  "nativeDiagnostic": {
+    "threadId": "thr_js5tjqnqkj",
+    "environmentId": "env_wi6q7gqdgn",
+    "freshResumeConfirmedByParent": "2026-11-11T02:17Z",
+    "observedAt": "2026-11-11T02:17:31Z",
+    "judgeSkillExposed": true,
+    "judgeCallableTools": [],
+    "nativeInvocations": 0,
+    "providerRequests": 0,
+    "noRpcSubstitute": true,
+    "result": "No callable judge_ask tool in declarations/ALL_TOOLS on refreshed enabled session",
+    "offRestoreCommandSucceeded": true,
+    "enabledBeforeRestartVerified": true,
+    "enabledEvidence": "Fresh authenticated GUI checked true before parent-confirmed runtime stop; fallback remained armed/unexpired at02:17:31 exposure inspection; Judge skill present in new session catalog. Prior Judge settings tab disappeared, so no second ON GUI read after resume before immediate OFF restoration.",
+    "offFreshGuiVerified": true,
+    "fallbackCancelledOnlyAfterOffVerification": true
+  },
+  "cleanup": {
+    "modelsDefaultsExactlyRestored": true,
+    "bindingAndFixtureRemoved": true,
+    "rowMetadataPreferenceRestoredFalse": true,
+    "agentToolRestoredFalseAndGuiVerified": true,
+    "credentialRead": false,
+    "originalJevAllowPrivate": false,
+    "defaults": {
+      "defaultId": null,
+      "privateId": null
+    }
+  },
+  "acceptedDeferrals": [
+    "Cloudflare actual endpoints deferred by user",
+    "Actual custom endpoint unavailable",
+    "Destructive secret rotation/uninstall not required for closeout"
+  ],
+  "unverified": [
+    "Native judge_ask invocation: registered and selected before same-owner restart; skill exposed, callable tool absent; zero invocations",
+    "Positive badge in built-in sidebar not exercised; active bb-sidebar replacement does not mount metadata",
+    "Actual turn.failed native event and separate enrolled remote/sleeping host not exercised"
+  ],
+  "historicalTotals": {
+    "bbp23ManualProviderRequests": 14,
+    "bbp23ManualInputTokens": 4373,
+    "bbp23AutomaticProviderRequests": 0,
+    "bbp12EarlierSmokeRequests": 1,
+    "loopbackHttpRequests": 3
+  }
+}

@@ -2,7 +2,7 @@
 
 Tracker: BB Tasks project `BBP` (bb-plugins), label `judge`. Parent: **BBP-5**. Created 2026-11-10. The board owns execution status; this file maps the build scope. One implementation owner subsequently delivered the sequence with independent reviews; the tracker holds current status and artifacts.
 
-Tasks have explicit dependency keys in their descriptions; the current Tasks CLI does not expose native dependency edges. The dependency map below is the original build order, not a current status list. BBP-6 through BBP-19 merged; BBP-20 through BBP-22 have reviewed code with later live/human gates remaining. BBP-23 records partial live evidence and explicit unavailable scenarios; BBP-24 distribution remains gated.
+Tasks have explicit dependency keys in their descriptions; the current Tasks CLI does not expose native dependency edges. The dependency map below is the original build order, not a current status list. BBP-6 through BBP-22 implementation PRs have merged. BBP-23 scoped evidence and BBP-24 private package preparation also merged; the tracker distinguishes accepted spike delivery from unverified native/client/host scenarios. Cloudflare is user-deferred, no custom endpoint is available, and publication/collection expansion remain outside the current availability scope.
 
 ## Task dependency map
 
