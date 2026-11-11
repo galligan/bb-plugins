@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { exit, preflight, sdkPin } from "./preflight.mjs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { discoverPackages, exit, preflight, sdkPin } from "./preflight.mjs";
 
 const stable = {
   currentVersion: "0.49.0",
@@ -243,4 +246,24 @@ test("reads the SDK pin from either dependency section", () => {
   assert.equal(sdkPin(pinned("1.0.0")), "1.0.0");
   assert.equal(sdkPin(pinned("1.0.0", "dependencies")), "1.0.0");
   assert.equal(sdkPin({}), undefined);
+});
+
+test("discovers packages by manifest and skips a leftover directory without one", (t) => {
+  const base = mkdtempSync(path.join(tmpdir(), "preflight-"));
+  t.after(() => rmSync(base, { recursive: true, force: true }));
+  const put = (file, contents) => {
+    mkdirSync(path.dirname(path.join(base, file)), { recursive: true });
+    writeFileSync(path.join(base, file), contents);
+  };
+  put("plugins/a/package.json", JSON.stringify(pinned("0.6.138")));
+  put("plugins/b/package.json", JSON.stringify(pinned("0.6.138")));
+  // What a removed plugin leaves in a checkout: ignored output, no manifest.
+  put("plugins/removed/node_modules/dep/index.js", "");
+  put("plugins/removed/dist/server.js", "");
+  put("plugins/README.md", "not a directory");
+  put("scaffolds/nav-panel/package.json", JSON.stringify(pinned("0.6.138")));
+  assert.deepEqual(
+    discoverPackages(base).map(({ directory }) => directory),
+    ["plugins/a", "plugins/b", "scaffolds/nav-panel"],
+  );
 });

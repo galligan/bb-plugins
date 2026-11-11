@@ -151,10 +151,15 @@ export async function buildReport(root) {
     if (!entry.isDirectory()) continue;
     const directory = `plugins/${entry.name}`;
     const file = path.join(root, directory, "package.json");
-    if (!existsSync(file))
+    if (!existsSync(file)) {
+      // A removed plugin can leave ignored `node_modules` or `dist` behind in a
+      // checkout. That is not a package. Source without a manifest still is an
+      // error.
+      if (sourceFiles(path.join(root, directory)).length === 0) continue;
       throw new Error(
         `${directory}: missing package.json; cannot report plugin compatibility.`,
       );
+    }
     const selection = { selected: 0, ignored: 0 };
     const tests = [];
     const files = [];
