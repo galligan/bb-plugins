@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idSchema } from "./contracts.ts";
+import { idSchema, displayNameSchema } from "./contracts.ts";
 import { sendSchema, scanSchema } from "./transmission-contracts.ts";
 import { attentionSchema } from "./attention-contracts.ts";
 import { responseSchema, eventPageSchema } from "./protocol-contracts.ts";
@@ -38,6 +38,11 @@ function operation<const K extends string, S extends z.ZodType>(
 // The operation input never includes caller/author/operator credential fields.
 export const operationSchema = z.discriminatedUnion("op", [
   operation("whoami", empty),
+  operation("human-profile", empty),
+  operation(
+    "human-profile-set",
+    z.object({ displayName: displayNameSchema }).strict(),
+  ),
   operation("tx", sendSchema),
   operation(
     "reply",
@@ -76,6 +81,7 @@ export type RadioOperation = z.infer<typeof operationSchema>;
 export function operationIsRead(op: RadioOperation["op"]): boolean {
   return [
     "whoami",
+    "human-profile",
     "read",
     "scan",
     "check",

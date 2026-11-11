@@ -45,6 +45,23 @@ export class RadioOperations {
       return store.projects.get(selectedProjectId);
     };
     switch (request.op) {
+      case "human-profile":
+      case "human-profile-set": {
+        if (context.caller.kind !== "human" || context.sessionId)
+          throw new RadioError(
+            "forbidden",
+            "Human profile settings require explicit operator authority.",
+          );
+        const human =
+          request.op === "human-profile-set"
+            ? store.identities.setHumanDisplayName(request.input.displayName)
+            : store.identities.human();
+        return {
+          stationId: human.stationId,
+          actorId: human.id,
+          displayName: human.metadata.name ?? "User",
+        };
+      }
       case "whoami": {
         const project = selectedProjectId ? currentProject() : null;
         return {
