@@ -4,7 +4,7 @@ Matt directed Bots to handle what it can inside the plugin, without asking maint
 
 ## Package compatibility
 
-The initial headless skeleton uses the already published public SDK **0.6.132**, matching the repository and installed-runtime capability probes. Its manifest declares **BB >=0.49.0** and **runtime SDK >=0.6.132**. The exact build dependency is the repository pin, 0.6.138. These minima support the implemented CLI/RPC skeleton, not every planned provider/continuity feature. Proposed SDK 0.6.139 is neither required nor asserted released. No custom BB build or production installation is the default solution.
+The initial headless skeleton uses the already published public SDK **0.6.132**, matching the repository and installed-runtime capability probes. Its manifest declares **BB >=0.49.0** and **runtime SDK >=0.6.132**. The exact build dependency is the repository pin. These minima support the implemented CLI/RPC skeleton, not every planned provider/continuity feature. Proposed SDK 0.6.139 is neither required nor asserted released. No custom BB build or production installation is the default solution.
 
 | Boundary              | Enforcement or consequence                                                                                                                          |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |

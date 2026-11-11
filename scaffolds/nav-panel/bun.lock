@@ -12,7 +12,7 @@
         "zod": "4.6.7",
       },
       "devDependencies": {
-        "@get-bb/plugin-sdk": "0.6.138",
+        "@get-bb/plugin-sdk": "0.6.140",
         "@testing-library/react": "16.3.3",
         "@testing-library/user-event": "14.6.9",
         "@types/node": "^24.0.0",
@@ -87,7 +87,7 @@
 
     "@exodus/bytes": ["@exodus/bytes@1.16.0", "", { "peerDependencies": { "@noble/hashes": "^1.8.0 || ^2.0.0" }, "optionalPeers": ["@noble/hashes"] }, "sha512-IcpW84uEn3N7ETtNZMlxKhfl6Pec8rUNGOTBtWbK1FKhJxIFAptZyVrvVRVBimAJxJCgc3PxepxkdWWG4DVzfA=="],
 
-    "@get-bb/plugin-sdk": ["@get-bb/plugin-sdk@0.6.138", "", { "dependencies": { "@tanstack/react-query": "^5.106.1", "cross-spawn": "^7.0.6", "zod": "^4.6.7" }, "peerDependencies": { "@testing-library/react": "^16.3.2", "@types/better-sqlite3": "^7.6.12", "@types/react": "^19.0.0", "better-sqlite3": ">=12", "cron-parser": "^5.5.0", "hono": "^4.11.9", "react": "^19.0.0", "react-dom": "^19.0.0" }, "optionalPeers": ["@testing-library/react", "@types/better-sqlite3", "@types/react", "better-sqlite3", "cron-parser", "hono", "react", "react-dom"] }, "sha512-9sm20bsi/Vk0VS8PPcd91T2taqK9cXia613JSwKVEpzFz9hFHaEdAbsbXRtsrYWuHsJDhYYUSmO63pSznnQsQg=="],
+    "@get-bb/plugin-sdk": ["@get-bb/plugin-sdk@0.6.140", "", { "dependencies": { "@tanstack/react-query": "^5.106.1", "cross-spawn": "^7.0.6", "zod": "^4.6.7" }, "peerDependencies": { "@testing-library/react": "^16.3.2", "@types/better-sqlite3": "^7.6.12", "@types/react": "^19.0.0", "better-sqlite3": ">=12", "cron-parser": "^5.5.0", "hono": "^4.11.9", "react": "^19.0.0", "react-dom": "^19.0.0" }, "optionalPeers": ["@testing-library/react", "@types/better-sqlite3", "@types/react", "better-sqlite3", "cron-parser", "hono", "react", "react-dom"] }, "sha512-JoVwOPJ4+Xw6Cc1wMbgyhbxpj4sGWEIjle0AJ8o33ZUlbCajO3r3NtGjXyLBTIXEEgrLt5KHY5pf1WazxAMD4Q=="],
 
     "@jridgewell/resolve-uri": ["@jridgewell/resolve-uri@3.1.2", "", {}, "sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw=="],
 

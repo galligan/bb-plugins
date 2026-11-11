@@ -2,7 +2,7 @@
 
 **Current disposition:** BOTS-3 remains a feature-specific support investigation; BOTS-18 is deferred/non-blocking and BOTS-4 implements the plugin skeleton now. Matt explicitly directed plugin development without maintainer changes or waiting for upstream agreement/releases. Native Stop plus Bots' maintenance toggle govern Bots-owned work, not a universal veto over other plugins. Automatic paths stay disabled until their own tests pass; unsupported paths show visible limits or supported explicit recovery. See [support boundary](support-boundary.md).
 
-The package baseline is BB >=0.49.0 / runtime SDK >=0.6.132 with exact build SDK 0.6.138, for the implemented headless status CLI/RPC. This is not certification of planned continuity. Full in-place downgrade support is not required; the separate prototype's old-reader caveat below is historical evidence, not a new runtime dependency.
+The package baseline is BB >=0.49.0 / runtime SDK >=0.6.132 with the repository's exact build SDK pin, for the implemented headless status CLI/RPC. This is not certification of planned continuity. Full in-place downgrade support is not required; the separate prototype's old-reader caveat below is historical evidence, not a new runtime dependency.
 
 Installed-runtime evidence used BB 0.49.0 / SDK 0.6.132. Prototype evidence is pinned to core `05f2aa9b9c1e0a7eeb18c3f033860c8ae1b917cd`, with proposed SDK 0.6.139. That version is unpublished. The baseline `9816b9420d76b47c3cbff99fcc620c38527f0388` already used SDK 0.6.138 and does not contain the fix. See [capabilities](capabilities.md), [readiness correction](capability-followup.md#runtime-readiness-correction), and [the contract gate](sdk-continuity-gates.md).
 

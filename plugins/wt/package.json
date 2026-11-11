@@ -28,7 +28,7 @@
     "test": "node --test \"lib/**/*.test.ts\" \"tests/**/*.test.ts\" && vitest run"
   },
   "dependencies": {
-    "@get-bb/plugin-sdk": "0.6.138",
+    "@get-bb/plugin-sdk": "0.6.140",
     "@radix-ui/react-collapsible": "^1.2.1",
     "@radix-ui/react-radio-group": "^1.5.1",
     "@radix-ui/react-slot": "^1.5.0",
