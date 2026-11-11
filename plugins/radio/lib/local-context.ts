@@ -1,19 +1,11 @@
 import type { BbPluginApi, PluginAgentToolContext } from "@get-bb/plugin-sdk";
-import { z } from "zod";
-import { idSchema, type Database } from "./contracts.ts";
+import { type Database } from "./contracts.ts";
 import type { RadioStore } from "./storage.ts";
 import type { TransmissionContext } from "./transmission-contracts.ts";
 import { RadioError } from "./errors.ts";
+import { localContextSchema } from "./local-context-contract.ts";
+export { localContextSchema } from "./local-context-contract.ts";
 import { requireOperator } from "./operator-credential.ts";
-
-export const localContextSchema = z
-  .object({
-    threadId: idSchema.optional(),
-    projectId: idSchema.optional(),
-    asUser: z.boolean().default(false),
-    operatorCredential: z.string().min(1).max(1024).optional(),
-  })
-  .strict();
 
 /** BB clients share account authority; an explicit thread is attribution, never human authority. */
 export class LocalContexts {

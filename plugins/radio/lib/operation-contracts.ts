@@ -16,7 +16,7 @@ import {
 import {
   subscriptionMutationSchema,
   subscriptionListingSchema,
-} from "./subscriptions.ts";
+} from "./subscription-contracts.ts";
 
 const empty = z.object({}).strict();
 const name = z.string().min(1).max(256);
@@ -72,3 +72,22 @@ export const operationSchema = z.discriminatedUnion("op", [
   operation("alias-remove", z.object({ name }).strict()),
 ]);
 export type RadioOperation = z.infer<typeof operationSchema>;
+
+export function operationIsRead(op: RadioOperation["op"]): boolean {
+  return [
+    "whoami",
+    "read",
+    "scan",
+    "check",
+    "responses",
+    "response-summary",
+    "commitments",
+    "commitment",
+    "commitment-events",
+    "listening",
+    "dispatch-read",
+    "dispatch-list",
+    "channels",
+    "handles",
+  ].includes(op);
+}

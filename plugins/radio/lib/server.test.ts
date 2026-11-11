@@ -13,7 +13,7 @@ test("local surfaces register without factory SDK calls, network or execution se
     radio(bb);
     assert.deepEqual(harness.inspection.sdk.calls, []);
     assert.equal(harness.inspection.registrations.httpRoutes.length, 2);
-    assert.equal(harness.inspection.registrations.rpcMethods.length, 1);
+    assert.equal(harness.inspection.registrations.rpcMethods.length, 2);
     assert.equal(harness.inspection.registrations.agentTools.length, 1);
     assert.equal(harness.inspection.registrations.services.length, 0);
     assert.equal(harness.inspection.registrations.schedules.length, 0);
