@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { gates, verify } from "./verify.mjs";
 
 function fixture({
-  bunVersion = "1.3.14",
+  bunVersion = "1.4.4",
   node = { version: "24.1.0", path: "/node/bin/node", bun: false },
   failure,
   failedGate = "lint",
@@ -12,7 +12,7 @@ function fixture({
   const calls = [];
   const lines = [];
   const code = verify({
-    packageManager: "bun@1.3.14",
+    packageManager: "bun@1.4.4",
     nodePolicy: "24",
     bun: { version: bunVersion, path: "/bun/bin/bun" },
     env: { PATH: "/other/bin" },
@@ -38,13 +38,13 @@ test("runs existing gates in order using the preflight runtimes", () => {
     assert.equal(call.command, "/bun/bin/bun");
     assert.equal(call.options.env.PATH, "/node/bin:/bun/bin:/other/bin");
   }
-  assert.match(f.output, /Bun: 1.3.14 \(\/bun\/bin\/bun\)/);
+  assert.match(f.output, /Bun: 1.4.4 \(\/bun\/bin\/bun\)/);
   assert.match(f.output, /Node: 24.1.0 \(\/node\/bin\/node\)/);
   assert.match(f.output, /build: passed/);
 });
 
 for (const [name, options] of Object.entries({
-  "Bun mismatch": { bunVersion: "1.4.4" },
+  "Bun mismatch": { bunVersion: "1.3.14" },
   "Node mismatch": { node: { version: "26.0.0", path: "/node", bun: false } },
   "Bun posing as Node": {
     node: { version: "24.0.0", path: "/bun", bun: true },
@@ -58,7 +58,7 @@ for (const [name, options] of Object.entries({
     const f = fixture(options);
     assert.equal(f.code, 1);
     assert.equal(f.calls.length, 1);
-    assert.match(f.output, /Select Bun 1.3.14 and real Node 24.x/);
+    assert.match(f.output, /Select Bun 1.4.4 and real Node 24.x/);
     for (const gate of gates) assert.ok(f.output.includes(`${gate}: not-run`));
   });
 }

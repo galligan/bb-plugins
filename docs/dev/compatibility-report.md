@@ -29,7 +29,7 @@ An import counts only when it resolves, relative to the test file, to the exact 
 
 This is a static text signal read from sources. It runs nothing and does not judge assertions, so `covered` means a selected harness test loads the entry, not that the behavior is tested well. Fixtures and non-test files do not count. See [choose the test boundary](verification.md#choose-the-test-boundary) for what each harness can and cannot verify.
 
-The top-level `toolingDrift` list names shared test tooling (`better-sqlite3`, React, React DOM, Testing Library, jsdom, and Vitest) pinned to more than one version, across packages or across one package's two dependency sections. SDK pins are checked by [`bun run preflight`](verification.md#bb-and-sdk-versions), not here. Both fields are additive to schema version 1.
+The top-level `toolingDrift` list names shared tooling (TypeScript, `better-sqlite3`, React, React DOM, Testing Library, jsdom, and Vitest) pinned to more than one version, across packages or across one package's two dependency sections. SDK pins are checked by [`bun run preflight`](verification.md#bb-and-sdk-versions), not here. Both fields are additive to schema version 1.
 
 ## Meaning of coverage
 

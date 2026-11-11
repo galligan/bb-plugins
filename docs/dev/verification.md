@@ -2,7 +2,9 @@
 
 ## Repository checks
 
-Use Bun **1.3.14**, pinned by `packageManager` in the root [`package.json`](../../package.json), and real Node **24.x**, declared in [`.node-version`](../../.node-version). Node's major version is the supported policy; patch updates within 24 are allowed. [CI](../../.github/workflows/ci.yml) reads those same files. Node is required because plugin suites exercise `node:sqlite` and run TypeScript through Node's test runner.
+Use Bun **1.4.4**, pinned by `packageManager` in the root [`package.json`](../../package.json), and real Node **24.x**, declared in [`.node-version`](../../.node-version). Node's major version is the supported policy; patch updates within 24 are allowed. [CI](../../.github/workflows/ci.yml) reads those same files. Node is required because plugin suites exercise `node:sqlite` and run TypeScript through Node's test runner.
+
+Every package and the scaffold pin the same exact TypeScript, **7.0.2**, and `oxlint` and `prettier` are pinned exactly at the root. When a newer stable release of Bun or one of these tools is adopted, change every pin in one pull request and regenerate `bun.lock` with that Bun; the [compatibility report](compatibility-report.md#harness-coverage-and-tooling-drift) names a package whose TypeScript pin differs.
 
 Install the pinned actionlint as described below. Install dependencies once with `bun install --frozen-lockfile --ignore-scripts`, then run the same entry point locally and in CI:
 
@@ -13,8 +15,8 @@ bun run verify
 The preflight prints the actual Bun and Node executable paths and versions. It rejects a mismatched Bun version, a Node major other than 24, missing Node, or Bun masquerading as Node before any gate runs. Select the required runtimes with your preferred runtime manager and put them on `PATH`; for example, if using mise:
 
 ```sh
-mise install bun@1.3.14 node@24
-env PATH="$(mise where bun@1.3.14)/bin:$(mise where node@24)/bin:$PATH" bun run verify
+mise install bun@1.4.4 node@24
+env PATH="$(mise where bun@1.4.4)/bin:$(mise where node@24)/bin:$PATH" bun run verify
 ```
 
 Verification never installs or upgrades runtimes. It invokes the existing `format:check`, `lint`, `lint:workflows`, `check`, `test`, and `build` scripts in order, stops at the first failure, preserves its exit code, and summarizes passed, failed, and not-run gates. Nested package scripts inherit the validated runtime paths. Do not use `bun --bun` to substitute Bun for Node.

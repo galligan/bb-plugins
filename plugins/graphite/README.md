@@ -89,7 +89,7 @@ MIT
 
 The legacy `scripts/bb-test-instance.sh` launcher is retired and exits without running a command. For live checks, use an existing isolated instance through the repository's `bun run bb-target`; see [verification](../../docs/dev/verification.md#live-testing). The September 2026 setup notes remain historical.
 
-Run `bun run test` in this package (Node 24), or the repository's root test gate. Nothing here invokes `gt`, connects to a daemon, starts BB, or needs credentials. Bun `1.3.14` orchestrates the run; Node executes the `node --test` suites because Bun cannot import `node:sqlite`.
+Run `bun run test` in this package (Node 24), or the repository's root test gate. Nothing here invokes `gt`, connects to a daemon, starts BB, or needs credentials. Bun orchestrates the run; Node executes the `node --test` suites because Bun cannot import `node:sqlite`.
 
 | Suite                                              | Runner            | Covers                                                                                                                                                                                                                                                                                                                                                                   |
 | -------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
