@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { z } from "zod";
 import {
   createFakePluginHost,
   makeThreadResponse,
   makePluginAgentConfigurationContext,
 } from "@get-bb/plugin-sdk/testing";
-import type { Transmission } from "./transmission-contracts.ts";
 
 import radio from "../server.ts";
 import { openRadioStorage } from "./storage.ts";
@@ -75,6 +75,22 @@ function surfaceFixture() {
   };
   return { ...host, store, invocation, rpc, native, cli };
 }
+// Result data is JSON on the wire. These parse the fields the tests read and
+// keep the rest, so a missing field fails here instead of being assumed.
+const transmissionSchema = z.looseObject({
+  id: z.string(),
+  channelId: z.string(),
+});
+const transmissionOnlySchema = z.object({ transmission: transmissionSchema });
+const sentSchema = z.object({
+  transmission: transmissionSchema,
+  replayed: z.boolean(),
+});
+const selectedSchema = z.looseObject({
+  sessionId: z.string(),
+  project: z.looseObject({ id: z.string() }),
+});
+
 function success(result: SurfaceResult) {
   assert.equal(result.ok, true, JSON.stringify(result));
   return result.data;
@@ -102,27 +118,27 @@ test("CLI/RPC/native tools share identity, validated send/replay and bounded rea
       recipientIds: ["thr_beta"],
       requireAck: true,
     };
-    const first = success(
-      (
-        await f.cli([
-          "tx",
-          input.body,
-          "--ch",
-          input.ch,
-          "--key",
-          input.idempotencyKey,
-          "--to",
-          "thr_beta",
-          "--require-ack",
-        ])
-      ).result,
-    ) as unknown as { transmission: Transmission; replayed: boolean };
-    const replay = success(
-      await f.rpc({ op: "tx", input }),
-    ) as unknown as typeof first;
-    const toolReplay = success(
-      await f.native({ op: "tx", input }),
-    ) as unknown as typeof first;
+    const first = sentSchema.parse(
+      success(
+        (
+          await f.cli([
+            "tx",
+            input.body,
+            "--ch",
+            input.ch,
+            "--key",
+            input.idempotencyKey,
+            "--to",
+            "thr_beta",
+            "--require-ack",
+          ])
+        ).result,
+      ),
+    );
+    const replay = sentSchema.parse(success(await f.rpc({ op: "tx", input })));
+    const toolReplay = sentSchema.parse(
+      success(await f.native({ op: "tx", input })),
+    );
     assert.equal(first.replayed, false);
     assert.equal(replay.replayed, true);
     assert.equal(toolReplay.replayed, true);
@@ -264,30 +280,32 @@ test("CLI help and native configuration expose only implemented operations with 
 test("CLI reply requires one exact mixed actor/session target and never double-covers response obligations", async () => {
   const f = surfaceFixture();
   try {
-    const who = success(await f.native({ op: "whoami", input: {} })) as {
-      actorId: string;
-    };
+    const who = z
+      .looseObject({ actorId: z.string() })
+      .parse(success(await f.native({ op: "whoami", input: {} })));
     await f.native({ op: "handle-assign", input: { name: "alpha-session" } });
     await f.native({
       op: "handle-assign",
       input: { targetId: who.actorId, name: "alpha-actor" },
     });
-    const parent = success(
-      await f.native(
-        {
-          op: "tx",
-          input: {
-            ch: "local-project",
-            body: "Verify both targets",
-            idempotencyKey: "mixed",
-            recipientIds: [who.actorId, "thr_alpha"],
-            requireAck: true,
-            expectReply: true,
+    const parent = transmissionOnlySchema.parse(
+      success(
+        await f.native(
+          {
+            op: "tx",
+            input: {
+              ch: "local-project",
+              body: "Verify both targets",
+              idempotencyKey: "mixed",
+              recipientIds: [who.actorId, "thr_alpha"],
+              requireAck: true,
+              expectReply: true,
+            },
           },
-        },
-        "thr_beta",
+          "thr_beta",
+        ),
       ),
-    ) as unknown as { transmission: Transmission };
+    );
     const input = {
       ch: "local-project",
       body: "Session verified",
@@ -318,11 +336,19 @@ test("CLI reply requires one exact mixed actor/session target and never double-c
     }
     const answer = await f.cli([...args, "--reply-for", "thr_alpha"]);
     success(answer.result);
-    const required = success(await f.native({ op: "check", input: {} })) as {
-      required: {
-        items: { targetId: string; needAck: boolean; needReply: boolean }[];
-      };
-    };
+    const required = z
+      .looseObject({
+        required: z.looseObject({
+          items: z.array(
+            z.looseObject({
+              targetId: z.string(),
+              needAck: z.boolean(),
+              needReply: z.boolean(),
+            }),
+          ),
+        }),
+      })
+      .parse(success(await f.native({ op: "check", input: {} })));
     assert.equal(
       required.required.items.find(({ targetId }) => targetId === "thr_alpha")!
         .needReply,
@@ -407,10 +433,7 @@ test("an explicit CLI thread derives its own project while an explicit mismatch 
       makeThreadResponse({ id: "thr_elsewhere", projectId: "proj_elsewhere" }),
     );
     const selected = await f.cli(["whoami", "--thread", "thr_elsewhere"]);
-    const data = success(selected.result) as {
-      sessionId: string;
-      project: { id: string };
-    };
+    const data = selectedSchema.parse(success(selected.result));
     assert.equal(data.sessionId, "thr_elsewhere");
     assert.equal(data.project.id, "proj_elsewhere");
     const mismatch = await f.cli([
