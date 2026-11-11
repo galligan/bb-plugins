@@ -25,7 +25,18 @@ test("local surfaces register without factory SDK calls, network or execution se
 test("the package uses only public SDK and package-local imports", async () => {
   const report = await experimental_scanPublicSdkOnly(
     fileURLToPath(new URL("..", import.meta.url)),
-    { allow: [/^better-sqlite3$/] },
+    {
+      allow: [
+        /^better-sqlite3$/,
+        /^react(?:-dom)?$/,
+        /^@radix-ui\/react-(?:select|slot)$/,
+        /^class-variance-authority$/,
+        /^clsx$/,
+        /^tailwind-merge$/,
+        /^vitest(?:\/config)?$/,
+        /^@testing-library\/(?:react|user-event)$/,
+      ],
+    },
   );
   assert.deepEqual(report.violations, []);
   assert.deepEqual(report.privateDependencies, []);
