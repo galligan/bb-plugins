@@ -42,32 +42,30 @@ export async function mount(
         threads: {
           list: async (args) =>
             Array.from({ length: options.threadCount ?? 1 }, (_, index) => ({
-              ...{
-                ...makeThreadResponse({
-                  id: "thr_pick",
-                  projectId: project.id,
-                  title: "Picked thread",
-                }),
-                activity: {
-                  activeBackgroundAgentCount: 0,
-                  activeBackgroundCommandCount: 0,
-                  activePlanModeCount: 0,
-                  activeWorkflowCount: 0,
-                },
-                environmentBranchName: null,
-                environmentHostId: null,
-                environmentIsWorktree: null,
-                environmentName: null,
-                environmentPath: null,
-                environmentProviderId: null,
-                environmentWorkspaceDisplayKind: "other" as const,
-                queuedWork: "none" as const,
-                runtime: { displayStatus: "idle" as const },
-                latestAttentionAt: 0,
-                titleFallback: null,
-                hasPendingInteraction: false,
-                pinSortKey: null,
+              ...makeThreadResponse({
+                id: "thr_pick",
+                projectId: project.id,
+                title: "Picked thread",
+              }),
+              activity: {
+                activeBackgroundAgentCount: 0,
+                activeBackgroundCommandCount: 0,
+                activePlanModeCount: 0,
+                activeWorkflowCount: 0,
               },
+              environmentBranchName: null,
+              environmentHostId: null,
+              environmentIsWorktree: null,
+              environmentName: null,
+              environmentPath: null,
+              environmentProviderId: null,
+              environmentWorkspaceDisplayKind: "other" as const,
+              queuedWork: "none" as const,
+              runtime: { displayStatus: "idle" as const },
+              latestAttentionAt: 0,
+              titleFallback: null,
+              hasPendingInteraction: false,
+              pinSortKey: null,
               id:
                 index === 0
                   ? "thr_pick"
