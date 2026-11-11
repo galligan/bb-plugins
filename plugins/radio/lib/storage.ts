@@ -8,6 +8,7 @@ import { Dispatches } from "./dispatches.ts";
 import { ResponseEvents } from "./response-events.ts";
 import { Commitments } from "./commitments.ts";
 import { Subscriptions } from "./subscriptions.ts";
+import { Attention } from "./attention.ts";
 import { MIGRATIONS } from "./migrations.ts";
 export { MIGRATIONS } from "./migrations.ts";
 
@@ -23,6 +24,7 @@ export interface RadioStore {
   readonly responses: ResponseEvents;
   readonly commitments: Commitments;
   readonly subscriptions: Subscriptions;
+  readonly attention: Attention;
 }
 
 export function openRadioStorage(storage: Storage): RadioStore {
@@ -58,10 +60,14 @@ export function openRadioStorage(storage: Storage): RadioStore {
       ...domain,
       transmissions: new Transmissions(db, domain),
     };
-    return Object.freeze({
+    const protocol = {
       ...communications,
       responses: new ResponseEvents(db, communications),
       commitments: new Commitments(db, communications),
+    };
+    return Object.freeze({
+      ...protocol,
+      attention: new Attention(db, protocol),
     });
   })();
 }

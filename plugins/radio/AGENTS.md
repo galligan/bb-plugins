@@ -1,6 +1,6 @@
 # Radio
 
-This package currently implements identity, handle and channel storage, address parsing/resolution and immutable transmission/reply storage and versioned Markdown dispatches and explicit receipt/response facts, commitments, exclusive claims and exact-channel subscriptions/broadcast snapshots without communication adapters. Read [README.md](README.md) and [the decision ledger](docs/decisions.md) before changing the design or implementing later behavior.
+This package currently implements identity, handle and channel storage, address parsing/resolution and immutable transmission/reply storage and versioned Markdown dispatches and explicit receipt/response facts, commitments, exclusive claims and exact-channel subscriptions/broadcast snapshots and a bounded attention digest without communication adapters. Read [README.md](README.md) and [the decision ledger](docs/decisions.md) before changing the design or implementing later behavior.
 
 - Preserve the distinction between agreed product decisions, proposed defaults, verified SDK capabilities, and untested delivery compositions.
 - Use the terminology and canonical-ID rules in [identity](docs/identity.md) and [protocol](docs/protocol.md). Historical Radio terminology is reference material, not the current contract.

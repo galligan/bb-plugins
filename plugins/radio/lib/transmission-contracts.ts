@@ -40,6 +40,7 @@ export const sendSchema = z
     requestMode: z.enum(["discussion", "exclusive"]).default("discussion"),
     requireAck: z.boolean().default(false),
     expectReply: z.boolean().default(false),
+    replyForId: idSchema.optional(),
   })
   .strict();
 
@@ -63,6 +64,7 @@ export interface Transmission {
   body: string;
   createdAt: string;
   replyToId: string | null;
+  replyForId: string | null;
   refs: TransmissionRef[];
   tags: string[];
   tokens: (BodyToken & { targetId?: string; stationId?: string })[];

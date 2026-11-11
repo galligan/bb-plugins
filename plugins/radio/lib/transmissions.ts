@@ -6,7 +6,11 @@ import type { AddressScope } from "./address-resolution.ts";
 import { resolveAddress } from "./address-resolution.ts";
 import { parseBody } from "./body-parser.ts";
 import { RadioError } from "./errors.ts";
-import { requireAuthor, requireChannel } from "./transmission-access.ts";
+import {
+  requireAuthor,
+  requireChannel,
+  requireOwnTarget,
+} from "./transmission-access.ts";
 import { readTransmission } from "./transmission-rows.ts";
 import {
   parseSend,
@@ -81,6 +85,7 @@ export class Transmissions {
             transmission: this.get(prior.id, context.scope),
           };
         }
+        let replyForId: string | null = null;
         if (request.replyToId) {
           const parent = this.get(request.replyToId, context.scope);
           if (parent.channelId !== channel.id)
@@ -88,6 +93,33 @@ export class Transmissions {
               "invalid_input",
               "Replies must stay in the parent's channel; no audience is inherited.",
             );
+          const eligible = parent.recipientIds.filter(
+            (id) => id === context.authorId || id === context.sessionId,
+          );
+          if (request.replyForId) {
+            requireOwnTarget(
+              this.store.identities,
+              context,
+              request.replyForId,
+            );
+            if (!eligible.includes(request.replyForId))
+              throw new RadioError(
+                "invalid_input",
+                "Reply coverage must select an original recipient owned by this caller.",
+              );
+            replyForId = request.replyForId;
+          } else if (eligible.length > 1) {
+            throw new RadioError(
+              "ambiguous",
+              "Choose the exact actor or session recipient this reply answers; the other obligation stays open.",
+              eligible,
+            );
+          } else replyForId = eligible[0] ?? null;
+        } else if (request.replyForId) {
+          throw new RadioError(
+            "invalid_input",
+            "Reply recipient coverage requires a reply parent.",
+          );
         }
         const recipients = new Set(request.recipientIds);
         const audiences = new Map<string, number>();
@@ -144,8 +176,8 @@ export class Transmissions {
           .prepare(
             `INSERT INTO transmissions
         (id, author_id, session_id, channel_id, body, created_at, reply_to_id, refs_json, tags_json,
-         tokens_json, caller_key, idempotency_key, request_json, request_mode, require_ack, expect_reply, audiences_json)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         tokens_json, caller_key, idempotency_key, request_json, request_mode, require_ack, expect_reply, audiences_json, reply_for_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .run(
             id,
@@ -178,6 +210,7 @@ export class Transmissions {
                 eligibleCount,
               })),
             ),
+            replyForId,
           );
         if (requestMode === "exclusive")
           this.db
