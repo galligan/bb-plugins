@@ -1,3 +1,4 @@
+import { IdentitySettings } from "./identity-settings.tsx";
 import { useLocalRead } from "./use-local-read.ts";
 import { AttentionPanel } from "./attention-panel.tsx";
 import {
@@ -178,6 +179,7 @@ export function ActingProvider({
           ) : null
         }
       />
+      <IdentitySettings />
       <AttentionPanel />
       {children}
     </ActingContext.Provider>

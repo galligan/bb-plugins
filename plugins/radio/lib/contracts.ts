@@ -3,6 +3,7 @@ import { z } from "zod";
 
 export type Database = ReturnType<BbPluginApi["storage"]["database"]>;
 export const idSchema = z.string().min(1).max(256);
+export const displayNameSchema = z.string().max(256).trim().min(1);
 export const metadataSchema = z
   .object({
     name: z.string().max(256).optional(),

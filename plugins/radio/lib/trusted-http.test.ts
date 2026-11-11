@@ -82,6 +82,17 @@ test("a no-credential outside client registers, replays, polls a BB reply and ex
       f.store.identities.get(first.session.actorId!).metadata,
       {},
     );
+    for (const request of [
+      { op: "human-profile", input: {} },
+      { op: "human-profile-set", input: { displayName: "Claimed human" } },
+    ]) {
+      const refused = await f.call(first.session.id, request.op, request.input);
+      assert.equal(refused.response.status, 403);
+      assert.equal(refused.result.ok, false);
+      if (!refused.result.ok)
+        assert.equal(refused.result.error.code, "forbidden");
+    }
+    assert.equal(f.store.identities.human().metadata.name, "User");
     const sessionId = first.session.id;
     data(
       (await f.call(sessionId, "handle-assign", { name: "Outside__Agent" }))

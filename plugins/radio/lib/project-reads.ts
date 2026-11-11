@@ -82,6 +82,10 @@ export class RadioReads {
         return store.dispatches.list(scope, request.input);
       case "channels":
         return this.channels(currentProjectId(), request.input);
+      case "handle-read":
+        return {
+          handle: store.handles.lookup(currentProjectId(), request.input.name),
+        };
       case "handles":
         return this.handles(currentProjectId(), request.input);
 

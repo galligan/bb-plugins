@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  displayNameSchema,
   externalReportSchema,
   idSchema,
   metadataSchema,
@@ -47,6 +48,19 @@ export class IdentityRegistry {
           )
           .get();
         return row ? this.get(row.id) : this.insert("human", { name: "User" });
+      })
+      .immediate();
+  }
+
+  setHumanDisplayName(requested: string): Participant {
+    const name = displayNameSchema.parse(requested);
+    return this.db
+      .transaction(() => {
+        const human = this.human();
+        this.db
+          .prepare("UPDATE participants SET metadata_json = ? WHERE id = ?")
+          .run(JSON.stringify({ ...human.metadata, name }), human.id);
+        return this.get(human.id);
       })
       .immediate();
   }

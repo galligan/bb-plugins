@@ -307,6 +307,60 @@ describe("Subscription UI with actual backend", () => {
     ]);
     slot.lifecycle.unmount();
   });
+  it("checks the affected channel exactly when an unrelated subscription page follows an accepted lost change", async () => {
+    const f = await fixture();
+    for (let index = 0; index < 21; index++) {
+      const made = await f.rpc({
+        op: "channel-create",
+        input: { name: `before-${index}` },
+      });
+      if (!made.ok) throw new Error("Channel failed");
+      const { channel } = made.data as { channel: { id: string } };
+      await f.rpc({
+        op: "subscribe",
+        input: { channelId: channel.id, kind: "listen" },
+      });
+    }
+    const slot = await f.mount();
+    f.behavior.loseNext = true;
+    fireEvent.click(slot.getByRole("button", { name: "Listen (unmute)" }));
+    expect(await slot.findByRole("alert")).toBeTruthy();
+    await f.rpc({
+      op: "subscribe",
+      input: { channelId: f.channelId, kind: "mute" },
+    });
+    fireEvent.click(
+      slot.getByRole("button", { name: "Inspect subscriptions" }),
+    );
+    expect(
+      await slot.findByText("This channel: Muted at last exact check."),
+    ).toBeTruthy();
+    expect(slot.getAllByRole("listitem")).toHaveLength(20);
+    expect(slot.queryByRole("link", { name: "This channel" })).toBeNull();
+    expect(f.behavior.attempts.at(-1)).toEqual({
+      op: "listening",
+      input: {
+        targetId: f.who.sessionId,
+        channelId: f.channelId,
+        after: 0,
+        limit: 1,
+      },
+    });
+    fireEvent.click(slot.getByRole("checkbox"));
+    fireEvent.click(slot.getByRole("button", { name: "Allow a new change" }));
+    const exact = await f.rpc({
+      op: "listening",
+      input: { channelId: f.channelId, limit: 1 },
+    });
+    expect(exact.ok && exact.data).toMatchObject({
+      items: [expect.objectContaining({ muted: true })],
+      hasMore: false,
+    });
+    expect(
+      f.behavior.attempts.filter((r) => r.op === "subscribe"),
+    ).toHaveLength(1);
+    slot.lifecycle.unmount();
+  });
   it("keeps operator reads explicit and credentials out of watched inputs/storage, and blocks hidden operations", async () => {
     const f = await fixture(true);
     let slot = await f.mount(false);

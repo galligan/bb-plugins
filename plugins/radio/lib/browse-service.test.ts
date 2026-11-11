@@ -257,3 +257,49 @@ test("browse honors SDK cancellation and rejects a mismatched project without cr
     }
   }
 });
+
+test("exact handle reads normalize within one authorized project, distinguish absence and create no actor", async () => {
+  const f = fixture();
+  try {
+    const before = f.bb.storage
+      .database()
+      .prepare("SELECT count(*) AS n FROM participants")
+      .get();
+    f.store.handles.assign(
+      f.project.id,
+      f.session.id,
+      "bounded-name",
+      f.context.caller,
+    );
+    const found = await f.browse({
+      op: "handle-read",
+      input: { name: "Bounded__Name" },
+    });
+    assert.equal(found.ok, true);
+    assert.deepEqual(found.data, {
+      handle: f.store.handles.lookup(f.project.id, "bounded-name"),
+    });
+    const missing = await f.browse({
+      op: "handle-read",
+      input: { name: "never-allocated" },
+    });
+    assert.equal(missing.ok, true);
+    assert.deepEqual(missing.data, { handle: null });
+    const outside = await f.harness.behavior.callRpc("browse", {
+      projectId: f.other.id,
+      request: { op: "handle-read", input: { name: "bounded-name" } },
+    });
+    const other = browseResultSchema.parse(outside);
+    assert.equal(other.ok, true);
+    assert.deepEqual(other.data, { handle: null });
+    assert.deepEqual(
+      f.bb.storage
+        .database()
+        .prepare("SELECT count(*) AS n FROM participants")
+        .get(),
+      before,
+    );
+  } finally {
+    await f.harness.lifecycle.dispose();
+  }
+});

@@ -15,6 +15,7 @@ const kinds = [
   "dispatch-list",
   "channels",
   "handles",
+  "handle-read",
 ] as const;
 type BrowseKind = (typeof kinds)[number];
 export function isBrowseOperation(op: RadioOperation["op"]): op is BrowseKind {
