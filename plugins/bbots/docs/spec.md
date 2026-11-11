@@ -74,7 +74,7 @@ Commitments identify what is owed, owner logical conversation, authoritative tas
 
 ## Supported runtime
 
-The development skeleton uses existing released BB 0.49.0 / public SDK 0.6.132 contracts, with manifest `engines.bb >=0.49.0`, `engines.bbPluginSdk >=0.6.132`, and exact build dependency 0.6.138, the repository pin. These are package compatibility minima, not certification of every planned capability. Matt chose minimum-version support rather than arbitrary downgrade compatibility, then explicitly removed maintainer changes as a development prerequisite. Proposed SDK 0.6.139 is not required or claimed released. See [support boundary](support-boundary.md) for feature gates and the distinct, deferred core-prototype data caveat. No production installation is authorized.
+The development skeleton uses existing released BB 0.49.0 / public SDK 0.6.132 contracts, with manifest `engines.bb >=0.49.0`, `engines.bbPluginSdk >=0.6.132`, and the repository's exact build dependency pin. These are package compatibility minima, not certification of every planned capability. Matt chose minimum-version support rather than arbitrary downgrade compatibility, then explicitly removed maintainer changes as a development prerequisite. Proposed SDK 0.6.139 is not required or claimed released. See [support boundary](support-boundary.md) for feature gates and the distinct, deferred core-prototype data caveat. No production installation is authorized.
 
 ## Stop and background activity
 
