@@ -387,13 +387,17 @@ test("a thread archived while the plugin was unloaded has its window closed on t
     reloaded = next;
     await plugin(next);
   });
+  // The plugin forgets the record only after Rex answers the close, so the
+  // window can be gone from Rex while the record is still there. Wait for the
+  // record, which is the last step.
+  const key = THREAD_WINDOW_KEY_PREFIX + "thr_archived";
   const deadline = Date.now() + 5_000;
-  while (rex.sessions[0]!.windows.length > 0 && Date.now() < deadline) {
+  while (
+    (await reloaded.storage.kv.get(key)) !== undefined &&
+    Date.now() < deadline
+  ) {
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
+  assert.equal(await reloaded.storage.kv.get(key), undefined);
   assert.equal(rex.sessions[0]!.windows.length, 0);
-  assert.equal(
-    await reloaded.storage.kv.get(THREAD_WINDOW_KEY_PREFIX + "thr_archived"),
-    undefined,
-  );
 });

@@ -3,7 +3,7 @@
 // live checks; see docs/dev/verification.md.
 import { expect, test } from "vitest";
 import userEvent from "@testing-library/user-event";
-import { waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { loadPluginApp, renderSlot } from "@get-bb/plugin-sdk/testing/app";
 import {
   experimental_makePanelController,
@@ -237,6 +237,56 @@ test("an unavailable read is an error, not an empty stack", async () => {
   }));
   await slot.findByText("Unable to load the Graphite stack.");
   expect(slot.queryByText("No Graphite stack for this thread.")).toBeNull();
+});
+
+test("refresh failures retain lineage and recovery clears the warning before confirmed absence clears the stack", async () => {
+  let next: CurrentStack = stacked();
+  const { slot } = await tab(() => next);
+  await slot.findByText("2/3");
+  next = { outcome: "unavailable", reason: "metadata unreadable" };
+  await act(async () => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await slot.findByText(
+    "Unable to refresh the stack. Showing the last result.",
+  );
+  expect(slot.getByText("feat/api")).toBeTruthy();
+  next = stacked();
+  await act(async () => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await waitFor(() =>
+    expect(
+      slot.queryByText("Unable to refresh the stack. Showing the last result."),
+    ).toBeNull(),
+  );
+  next = { outcome: "none", reason: "not tracked" };
+  await act(async () => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await slot.findByText("No Graphite stack for this thread.");
+  expect(slot.queryByText("feat/api")).toBeNull();
+});
+
+test("a failed refresh after an empty result is visible and recovers", async () => {
+  let fail = false;
+  const { slot } = await tab(() => {
+    if (fail) throw new Error("host offline");
+    return { outcome: "none", reason: "not tracked" };
+  });
+  await slot.findByText("No Graphite stack for this thread.");
+  fail = true;
+  await act(async () => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await slot.findByText("Unable to load the Graphite stack.");
+  expect(slot.queryByText("No Graphite stack for this thread.")).toBeNull();
+  fail = false;
+  await act(async () => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await slot.findByText("No Graphite stack for this thread.");
+  expect(slot.queryByText("Unable to load the Graphite stack.")).toBeNull();
 });
 
 test("the tab does not read while it is closed or not the selected tab", async () => {

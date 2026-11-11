@@ -1,5 +1,7 @@
 # Testing setup
 
+> Historical notes for BB 0.43.1 (September 2026), not a current procedure. The launcher below is retired and exits without running a command. Use an existing isolated instance through `bun run bb-target`; see [current verification guidance](../../../../../docs/dev/verification.md).
+
 Test against a separate BB instance. Do not install a plugin under development into
 the live instance.
 
