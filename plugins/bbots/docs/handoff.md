@@ -6,14 +6,16 @@
 
 - Builder `thr_898bvuxcfi`, parent `thr_cc23h4keqr`, Codex gpt-6.1-sol/high.
 - Environment `env_i9zexe2j36`; existing exploration worktree preserved at `/Users/mg/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_cc23h4keqr-1/bb-plugins`.
-- Implementation branch `feat/bbots/revisioned-storage`; original exploration and documentation branches retained. Never clean/reset this worktree.
+- Implementation branch `feat/bbots/main-home`; original exploration and documentation branches retained. Never clean/reset this worktree.
 - Dedicated tracker **BOTS**, stable ID `01M73NSQMGEYPWZ30WSR2CEYBP`; never BBP. Matt's “Ok go” and subsequent correction authorize routine implementation/review/merge without another go.
 
-## First code slice
+## Delivered and current slices
 
-BOTS-4 provides a headless independently buildable `bb-plugin-bbots` package, display Bots, ID bbots. `bb bot status` / `--json` and validated `status` RPC show the development boundary. Use explicit `bb plugin run bbots status` if the command alias collides. BB >=0.49.0, runtime SDK >=0.6.132, exact build SDK 0.6.132. No public bot creation or UI is claimed yet. The next storage slice initializes SQLite, with profile plus unbound main identity created atomically, expected-base writes and exclusive initial thread binding; it makes no SDK thread calls. No event handlers, schedules, agents, automatic maintenance, retry or continuity are registered. Automatic paths are visibly disabled.
+BOTS-4 merged in [PR #112](https://github.com/galligan/bb-plugins/pull/112), and BOTS-5 in [PR #113](https://github.com/galligan/bb-plugins/pull/113), after fresh Devin No Issues, green CI and exact-head merge checks. They establish public status and revisioned SQLite storage.
 
-BOTS-4 merged in [PR #112](https://github.com/galligan/bb-plugins/pull/112) after fresh Devin No Issues, green CI, ready and exact-head merge checks. BOTS-5 now adds real SQLite profile/document revisions and stable logical mappings. Next is BOTS-6 home/main creation, then BOTS-7 session-bound soul/model guidance. Keep ownership authoritative before first provider construction; metadata is only a checked mirror. Add UI in BOTS-17 after these real capabilities, without replacing the sidebar.
+BOTS-6 adds CLI/RPC home/main creation with persisted intent, pre-construction ownership admission, safe partial recovery, project responsibility scope and native initial title/pin. A minimal revisioned starter SOUL/configure binding is pulled forward to cover the first session; BOTS-7 retains editing/model controls, applied-revision presentation and fuller skills. Resume never resends the setup prompt or repins an existing main. Uncertain pre-admission outcomes remain visible and are not blindly retried. No home is deleted by lifecycle handlers.
+
+The actual server and host entries pass offline public SDK harness tests. Shared Dev acceptance must be scheduled separately with `thr_my8t4atsyy`; no install/reload/settings change is allowed outside that slot. BOTS-7 and BOTS-17 can be prepared independently while a live slot is queued; no new release from Matt is needed between routine milestones. Preserve native controls and use additive UI only.
 
 ## Controls and support
 
@@ -28,3 +30,7 @@ Evidence PRs #82/#93/#95/#98/#101 are merged. Source-runtime proof and failed se
 ## Delivery
 
 Follow root Bun 1.3.14 / Node 24 verification and draft → fresh Devin → scoped fixes/review → green CI → ready → exact-head requirements → normal merge. No package publication or production installation. Keep Tasks/spec current as real capability decisions land; no standalone evidence-only PRs to imply implementation progress.
+
+## Resumed integration
+
+Sole writer in the same environment/worktree. Owned branch safely fast-forwarded from `a18602f` through `0c962d6` to `c55e163e3d75effcffdc2e4c3368286a54d58509`, without reset/rewrite. Actual root preflight passes on that repaired baseline: stable BB 0.49.0, bundled SDK 0.6.132, repo pin 0.6.138. The earlier ignored-Linear discovery failure and tracked-manifest diagnostic are retained separately in builder artifacts. Harness owner owns shared scripts/dependency/lock changes; none are made by this slice. All shared Dev mutations must be scheduled by `thr_my8t4atsyy`; preserve theme and unrelated conversations.

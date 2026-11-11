@@ -42,9 +42,13 @@ test("reload retains one registration set and disposal invalidates the old facto
   const { bb, harness } = createFakePluginHost({ pluginId: "bbots" });
   t.after(() => harness.lifecycle.dispose());
   plugin(bb);
-  await harness.lifecycle.reload(plugin);
+  const replacement = await harness.lifecycle.reload(plugin);
+  t.after(() => replacement.harness.lifecycle.dispose());
   assert.throws(() => plugin(bb), /stale|disposed/i);
-  assert.equal((await harness.behavior.runCli(["status"])).exitCode, 0);
+  assert.equal(
+    (await replacement.harness.behavior.runCli(["status"])).exitCode,
+    0,
+  );
   assert.equal(harness.inspection.sdk.calls.length, 0);
 });
 

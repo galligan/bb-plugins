@@ -14,14 +14,15 @@
   },
   "bb": {
     "name": "Bots",
-    "description": "Persistent collaborators for BB. Development skeleton; bot creation is not available yet.",
+    "description": "Persistent collaborators with revisioned identity, persistent homes and native main conversations. Development preview.",
     "branding": {
       "icon": "Bot"
     },
     "server": "./server.ts",
     "skills": [
       "skills"
-    ]
+    ],
+    "host": "./host.ts"
   },
   "scripts": {
     "check": "tsc --noEmit",

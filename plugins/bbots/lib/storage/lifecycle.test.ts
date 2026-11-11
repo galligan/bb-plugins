@@ -28,9 +28,10 @@ test("migrations, identity, ownership and Markdown survive SDK reload and closed
   store.conversations.bindInitialThread(mainConversationId, "thread-main");
   openStore(bb.storage);
   let reloaded = store;
-  await harness.lifecycle.reload((next) => {
+  const replacement = await harness.lifecycle.reload((next) => {
     reloaded = openStore(next.storage);
   });
+  t.after(() => replacement.harness.lifecycle.dispose());
   assert.throws(() => store.profiles.get(bot.id));
   assert.deepEqual(reloaded.profiles.get(bot.id), bot);
   assert.deepEqual(reloaded.documents.get(bot.id, "SOUL.md"), soul);
