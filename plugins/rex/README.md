@@ -188,3 +188,5 @@ The menu is bb's dropdown menu and button, vendored from bb's component registry
 Two things are not covered by tests and need a running bb: an open stream end to end (Rex's data connection is not faked), and the terminal's drawing, scrolling and input.
 
 For those, install the plugin from this directory into an isolated bb and run `bb plugin dev`; see [choose the test boundary](../../docs/dev/verification.md#choose-the-test-boundary).
+
+The [revised-skill and real-stream acceptance plan](docs/dev-acceptance.md) separates offline shell-example checks from a bounded live run in a dedicated test session. `lib/terminal-skill.test.ts` runs the shipped loop example and standalone exports in installed bash, zsh, and fish without reading user startup files; missing shells are reported as skips. It does not prove interactive submission or fresh-agent adoption.
