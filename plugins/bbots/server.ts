@@ -47,6 +47,22 @@ export default function plugin(bb: BbPluginApi) {
       soulUpdate: (input) => soul.update(input),
       defaultsShow: ({ botId }) => soul.defaults(botId),
       defaultsUpdate: (input) => soul.updateDefaults(input),
+      taskSource: async ({ botId }, ctx) => {
+        const state = await tasks.show(botId, ctx.experimental_signal);
+        const source = state.source;
+        return uiContract.taskSource.output.parse({
+          kind: source?.kind ?? "unconfigured",
+          availability: state.availability,
+          boardId:
+            source?.kind === "tasks" && source.phase === "ready"
+              ? source.boardId
+              : null,
+          file:
+            source?.kind === "markdown" && source.phase === "ready"
+              ? { hostId: source.hostId, path: source.path }
+              : null,
+        });
+      },
       ownership: ({ keys }) =>
         Object.fromEntries(
           keys.map((threadId) => {

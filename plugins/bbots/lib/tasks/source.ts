@@ -1,27 +1,9 @@
-import { z } from "zod";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import type { SetupStore } from "../setup/storage.ts";
-import { changeSchema, idSchema } from "../storage/schema.ts";
+import { idSchema } from "../storage/schema.ts";
 import { prefixSchema, tasksClient, type Board } from "./client.ts";
-
-const sourceSchema = z.discriminatedUnion("phase", [
-  z.strictObject({
-    kind: z.literal("tasks"),
-    phase: z.literal("creating"),
-    name: z.string().min(1).max(512),
-    prefix: prefixSchema,
-  }),
-  z.strictObject({
-    kind: z.literal("tasks"),
-    phase: z.literal("ready"),
-    boardId: idSchema,
-  }),
-]);
-const editSchema = changeSchema.extend({
-  botId: idSchema,
-  expectedRevision: z.number().int().nonnegative(),
-});
-type Edit = z.infer<typeof editSchema>;
+import { createSourceStore, type SourceEdit as Edit } from "./source-store.ts";
+import { createMarkdownSource } from "./markdown-source.ts";
 
 export function createTaskSource(
   bb: BbPluginApi,
@@ -30,35 +12,9 @@ export function createTaskSource(
   changed: () => void,
 ) {
   const client = tasksClient(bb, lifecycle);
-  function read(botId: string) {
-    store.get(botId);
-    const doc = store.documents.get(botId, "TASKS.json");
-    return {
-      revision: doc?.revision ?? 0,
-      source: doc ? sourceSchema.parse(JSON.parse(doc.markdown)) : null,
-    };
-  }
-  function write(edit: Edit, source: z.infer<typeof sourceSchema>) {
-    store.documents.write({
-      ...edit,
-      name: "TASKS.json",
-      markdown: JSON.stringify(sourceSchema.parse(source)),
-    });
-    changed();
-    return read(edit.botId);
-  }
-  function fresh(input: Edit) {
-    const edit = editSchema.parse({
-      botId: input.botId,
-      expectedRevision: input.expectedRevision,
-      author: input.author,
-      reason: input.reason,
-    });
-    const current = read(edit.botId);
-    if (current.revision !== edit.expectedRevision)
-      throw new Error("Task source changed. Read tasks show before editing.");
-    return { edit, ...current };
-  }
+  const journal = createSourceStore(store, changed);
+  const { read, write, fresh } = journal;
+  const markdown = createMarkdownSource(bb, store, journal, lifecycle);
   function checkSignal(signal?: AbortSignal) {
     lifecycle.throwIfAborted();
     signal?.throwIfAborted();
@@ -71,6 +27,10 @@ export function createTaskSource(
   }
   return {
     read,
+    markdownInitialize: markdown.initialize,
+    markdownResume: markdown.resume,
+    markdownRead: markdown.read,
+    markdownWrite: markdown.write,
     async show(botId: string, signal?: AbortSignal) {
       const current = read(botId);
       if (!current.source)
@@ -78,8 +38,10 @@ export function createTaskSource(
           ...current,
           availability: "unconfigured",
           limitation:
-            "Choose a stable Tasks board explicitly. Initial absent-Tasks Markdown setup is not implemented in this slice; no source is assumed.",
+            "Choose a stable Tasks board explicitly, or initialize tasks.md only when Tasks is absent at this initial source choice. No source is assumed.",
         };
+      if (current.source.kind === "markdown")
+        return markdown.show(botId, current, signal);
       if (current.source.phase === "creating")
         return {
           ...current,

@@ -8,6 +8,7 @@ import { managementContract } from "../lib/setup/contracts.ts";
 import { soulContract } from "../lib/soul/contracts.ts";
 import { Button } from "./ui/button.tsx";
 import type { Machine } from "./bots-panel.tsx";
+import { TaskSource } from "./task-source.tsx";
 
 export function BotDetail({
   botId,
@@ -125,6 +126,7 @@ export function BotDetail({
           <p className="text-sm">
             Home: {view.setup.homePath ?? "Not provisioned yet"}
           </p>
+          <TaskSource botId={view.bot.id} />
           {soul.data && (
             <p className="text-sm text-muted-foreground">
               SOUL revision {soul.data.current?.revision ?? "unavailable"}; last
