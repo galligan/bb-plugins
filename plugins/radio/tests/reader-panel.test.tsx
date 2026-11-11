@@ -195,6 +195,37 @@ describe("Radio additive reader", () => {
     expect(slot.container.querySelector("script")).toBeNull();
     slot.lifecycle.unmount();
   });
+  it("opens canonical record/channel links independently of a failed channel directory", async () => {
+    for (const [route, text] of [
+      ["proj_one/transmission/tx_one", tx.body],
+      ["proj_one/dispatch/dispatch_one/2", doc.title],
+      ["proj_one/channel/channel_main", tx.body],
+    ]) {
+      const slot = await mount(route!, (input) => {
+        if (input.request.op === "channels")
+          return {
+            ok: false,
+            error: {
+              code: "internal_error",
+              message: "Channel directory temporarily unavailable.",
+              choices: [],
+            },
+          };
+        return { ok: true, project, data: data(input.request) };
+      });
+      expect(await slot.findByText(text!)).toBeTruthy();
+      expect(await slot.findByRole("alert")).toBeTruthy();
+      expect(
+        slot.inspection.rpcCalls.some(
+          (call) =>
+            call.method === "browse" &&
+            (call.input as { request: { op: string } }).request.op !==
+              "channels",
+        ),
+      ).toBe(true);
+      slot.lifecycle.unmount();
+    }
+  });
   it("retains loaded history after a domain refresh error and permits an explicit retry", async () => {
     let fail = false;
     const slot = await mount("proj_one/channel/channel_main", (input) => {

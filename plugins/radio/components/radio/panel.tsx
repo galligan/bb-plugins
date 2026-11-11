@@ -87,20 +87,20 @@ function ProjectReader({ route }: { route: RadioRoute }) {
           ) : null}
         </>
       ) : null}
-      {query.project && route.kind === "transmission" ? (
+      {route.kind === "transmission" ? (
         <TransmissionReader
           key={route.id}
           projectId={route.projectId}
           id={route.id!}
         />
-      ) : query.project && route.kind === "dispatch" ? (
+      ) : route.kind === "dispatch" ? (
         <DispatchReader
           key={`${route.id}:${route.revision ?? "latest"}`}
           projectId={route.projectId}
           id={route.id!}
           revision={route.revision}
         />
-      ) : query.project && channelId ? (
+      ) : channelId ? (
         <ChannelReader
           key={channelId}
           projectId={route.projectId}
