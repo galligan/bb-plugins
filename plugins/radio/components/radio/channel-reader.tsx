@@ -1,3 +1,4 @@
+import { SubscriptionPanel } from "./subscription-panel.tsx";
 import { PostingComposer } from "./posting-composer.tsx";
 import { useState } from "react";
 import { z } from "zod";
@@ -20,6 +21,7 @@ export function ChannelReader({
 }) {
   return (
     <div className="space-y-6">
+      <SubscriptionPanel channelId={channelId} />
       <PostingComposer projectId={projectId} channelId={channelId} />
       <History projectId={projectId} channelId={channelId} />
       <Documents projectId={projectId} channelId={channelId} />
