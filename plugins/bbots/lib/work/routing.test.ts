@@ -24,6 +24,12 @@ function fixture(t: TestContext) {
   const host = createFakePluginHost({
     pluginId: "bbots",
     sdk: {
+      plugins: {
+        callRpc: async ({ outputSchema }) =>
+          outputSchema.parse({
+            projects: [{ id: "tracker_work", name: "Work", prefix: "WORK" }],
+          }),
+      },
       threads: {
         get: async ({ threadId }) => {
           const thread = threads.get(threadId);
@@ -321,6 +327,35 @@ test("deliberate contract changes append a revision and current brief without se
   );
   assert.equal(workers.workers[0].conversation.id, f.worker.conversationId);
   assert.equal(workers.workers[0].requestId, f.worker.requestId);
+});
+
+test("an owned worker brief retains its contract alongside configured live task authority", async (t) => {
+  const f = fixture(t);
+  f.store.documents.write({
+    botId: f.setup.botId,
+    name: "TASKS.json",
+    expectedRevision: 0,
+    markdown: JSON.stringify({
+      kind: "tasks",
+      phase: "ready",
+      boardId: "tracker_work",
+    }),
+    author: "fixture-user",
+    reason: "Configured source",
+  });
+  const result = await f.harness.behavior.runCli(
+    ["brief", f.setup.botId, "--json"],
+    { threadId: "thr_worker" },
+  );
+  assert.equal(result.exitCode, 0, result.stderr);
+  const brief = JSON.parse(result.stdout);
+  assert.equal(brief.conversation.id, f.worker.conversationId);
+  assert.equal(brief.contract.agreement.assignment, "Investigate and report");
+  assert.equal(brief.taskSource.source.boardId, "tracker_work");
+  assert.equal(brief.taskSource.availability, "available");
+  assert.equal(brief.unavailable.includes("tasks"), false);
+  assert.equal(brief.unavailable.includes("worker contracts"), false);
+  assert.equal(f.harness.inspection.sdk.callsTo("threads.send").length, 0);
 });
 
 test("uncertain native delivery is sent once and reports uncertainty without a retry", async (t) => {

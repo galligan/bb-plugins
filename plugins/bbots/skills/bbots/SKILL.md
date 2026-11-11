@@ -5,7 +5,7 @@ description: Create persistent Bots and owned workers, inspect current briefs an
 
 # Bots
 
-Use `bb bot status` for supported features and `bb bot list` / `show <bot-id>` for identity, home, main and setup errors. Pull `bb bot brief <bot-id> --json` during ordinary turns when current state matters. It includes the calling worker's current contract and future execution defaults; tasks, memory and commitments remain unavailable. Volatile state is not guaranteed-fresh injected guidance. If another plugin owns the alias, use `bb plugin run bbots ...`.
+Use `bb bot status` for supported features and `bb bot list` / `show <bot-id>` for identity, home, main and setup errors. Pull `bb bot brief <bot-id> --json` during ordinary turns when current state matters. It includes the calling worker's current contract, current revisions, future execution defaults and recorded task source with live availability; memory and commitments remain unavailable. Volatile state is not guaranteed-fresh injected guidance. If another plugin owns the alias, use `bb plugin run bbots ...`.
 
 `create --machine <host-id>` creates Bob; `--name` selects another name. It creates a persistent home outside repositories and starts one short setup acknowledgement. Retain an explicit `--request-id <uuid>` before scripted submission and reuse it only with identical options after uncertain delivery. `--association-mode none|all|selected` is responsibility scope; repeat `--project <id>` for selected projects. It does not move the main home or grant new permissions.
 
@@ -30,3 +30,6 @@ Use `report '<message>'` from the owned worker for its contract destination. Use
 These are explicit new communications. Native queue-if-active delivery can start a recipient turn when idle, including after Stop. A report does not authorize resuming a previously canceled assignment. Treat it as a new communication under current instructions. Return native acceptance/queue evidence; do not claim it proves reading, completion or a response. If delivery is uncertain, inspect native history and queue; do not blindly resend.
 
 Automatic maintenance, continuity and fallback remain disabled. Create no workers or other background work during the initial setup acknowledgement. Do not invent memory or task commands before those features ship.
+Use `tasks show <bot-id>` to read task authority before choosing or changing work. `tasks select` and `tasks create` require an explicit source instruction, expected revision, author and reason. A configured tracker remains authoritative during an outage; do not create a replacement or switch to Markdown. If creation is uncertain, inspect the recorded intent and native Tasks board before explicit `tasks recover` with its confirmed stable ID. Prefix matching does not prove original identity after deletion/reuse; confirm the intended board independently.
+
+Automatic maintenance, continuity and fallback remain disabled. Create no workers or other background work during the initial setup acknowledgement. Do not invent memory, commitments or Markdown task commands before those features ship.

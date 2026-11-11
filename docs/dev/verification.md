@@ -104,7 +104,7 @@ Build before installing or releasing a plugin. Use an isolated BB instance and d
 Name the instance for every command sent to it, read-only ones included:
 
 ```sh
-bun run bb-target --url <server-url> --data-dir <path> [--daemon-port <port>] [--cli <bb-entry>] -- <bb arguments>
+bun run bb-target --url <server-url> --data-dir <path> [--daemon-port <port>] [--cli <bb-entry>] [--thread <thread-id>] -- <bb arguments>
 ```
 
 [`scripts/bb-target.mjs`](../../scripts/bb-target.mjs) first asks the server at that URL which data directory it serves, and forwards the command only if the answer is the directory named. Three things make that necessary:
@@ -113,7 +113,7 @@ bun run bb-target --url <server-url> --data-dir <path> [--daemon-port <port>] [-
 - A URL alone does not identify an instance: a port can be forwarded or reused. The data directory the server reports does.
 - The default instance must not be reachable by mistake. The command refuses port 38886, the default server port, on every host, and `~/.bb` in any spelling of the path. It refuses the port everywhere because a hostname can reach this machine in more spellings than can be listed, and an isolated instance has no reason to use it.
 
-It runs one command and returns its exit code. It does not start, stop, install, reload, or retry anything, and it never prints the forwarded arguments. Pass `--cli` when the instance needs its own CLI entry, such as a source build's `dist/bb.js`; pass `--daemon-port` when it has its own host daemon. How an isolated instance is created is outside this repository. Its cases are covered with injected process execution in [`scripts/bb-target.test.mjs`](../../scripts/bb-target.test.mjs).
+It runs one command and returns its exit code. It does not start, stop, install, reload, or retry anything, and it never prints the forwarded arguments. Pass `--cli` when the instance needs its own CLI entry, such as a source build's `dist/bb.js`; pass `--daemon-port` when it has its own host daemon. A command runs with no thread or project unless `--thread` names one: the bb CLI tells a plugin command who called it only from `BB_THREAD_ID` and `BB_PROJECT_ID`, which this command drops. With `--thread`, it first asks the instance for that thread, refuses if the instance does not have it, and then sets both variables from the thread's own record, so the plugin sees a real caller on that instance and never one inherited from the shell. How an isolated instance is created is outside this repository. Its cases are covered with injected process execution in [`scripts/bb-target.test.mjs`](../../scripts/bb-target.test.mjs).
 
 Say what kind of instance produced live evidence. One built from source is evidence for that commit; it does not establish compatibility with the released binary that reports the same version.
 

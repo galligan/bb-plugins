@@ -3,6 +3,7 @@ import type { SoulStore } from "./store.ts";
 import type { SetupStore } from "../setup/storage.ts";
 import { defaultsSchema } from "./contracts.ts";
 import type { WorkStore } from "../work/storage.ts";
+import type { TaskSource } from "../tasks/source.ts";
 
 const bot = [
   { name: "botId", description: "Stable bot ID", required: true },
@@ -35,6 +36,7 @@ export function soulCommands(
   soul: SoulStore,
   store: SetupStore,
   work: WorkStore,
+  tasks: TaskSource,
 ) {
   return {
     brief: cliCommand({
@@ -42,12 +44,13 @@ export function soulCommands(
         "Pull bounded current identity, revision/defaults and feature availability; starts no turn",
       positionals: bot,
       options: { json },
-      run: ({ positionals }, ctx) => {
+      run: async ({ positionals }, ctx) => {
         const view = store.view(positionals.botId);
         const owner = ctx.threadId
           ? store.conversations.ownerOfThread(ctx.threadId)
           : null;
         const { current, ...state } = soul.show(view.bot.id);
+        const taskSource = await tasks.show(view.bot.id, ctx.signal);
         return result({
           ...view,
           soul: { ...state, currentRevision: current?.revision ?? null },
@@ -57,7 +60,12 @@ export function soulCommands(
             owner?.botId === view.bot.id && owner.role === "worker"
               ? work.agreement(owner.id)
               : null,
-          unavailable: ["tasks", "memory", "commitments"],
+          taskSource,
+          unavailable: [
+            ...(taskSource.availability === "available" ? [] : ["tasks"]),
+            "memory",
+            "commitments",
+          ],
         });
       },
     }),

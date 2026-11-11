@@ -14,6 +14,7 @@ import { createRouting } from "./lib/work/routing.ts";
 import { createWorkService } from "./lib/work/service.ts";
 import { createWorkerAdmission } from "./lib/work/admission.ts";
 import { workCommands } from "./lib/work/cli.ts";
+import { createTaskSource } from "./lib/tasks/source.ts";
 
 export default function plugin(bb: BbPluginApi) {
   const store = openSetup(bb.storage);
@@ -34,6 +35,7 @@ export default function plugin(bb: BbPluginApi) {
     lifecycle.signal,
     changed,
   );
+  const tasks = createTaskSource(bb, store, lifecycle.signal, changed);
   const service = createSetupService(
     bb,
     store,
@@ -93,6 +95,7 @@ export default function plugin(bb: BbPluginApi) {
       soul,
       workCommands(store, work, workers, routing, changed),
       work,
+      tasks,
     ),
   );
 }

@@ -18,6 +18,8 @@ function fixture({
   status = { status: 0, stdout: JSON.stringify({ dataDir: DEV }) },
   forwarded = { status: 0 },
   links = {},
+  // What `thread show <id> --json` answers on the instance.
+  shown = { status: 1, stdout: "" },
 } = {}) {
   const calls = [];
   const lines = [];
@@ -30,7 +32,11 @@ function fixture({
     log: (line) => lines.push(line),
     run: (command, commandArgs, options) => {
       calls.push({ command, args: commandArgs, options });
-      return calls.length === 1 ? status : forwarded;
+      if (calls.length === 1) return status;
+      if (commandArgs[0] === "thread" && commandArgs[1] === "show") {
+        return shown;
+      }
+      return forwarded;
     },
   });
   return { code, calls, output: lines.join("\n") };
@@ -301,4 +307,97 @@ test("incomplete or malformed invocations print usage and run nothing", () => {
     assert.equal(f.code, exit.usage, JSON.stringify(argv));
     assert.deepEqual(f.calls, []);
   }
+});
+
+const asThread = (...forwarded) => [
+  "--url",
+  "http://127.0.0.1:26207",
+  "--data-dir",
+  DEV,
+  "--thread",
+  "thr_fixture1",
+  "--",
+  ...forwarded,
+];
+const thread = (fields) => ({
+  status: 0,
+  stdout: JSON.stringify({
+    thread: { id: "thr_fixture1", projectId: "proj_fixture1", ...fields },
+  }),
+});
+
+test("--thread runs the command as a thread the instance confirms it has", () => {
+  const f = fixture({
+    argv: asThread("bbots", "report", "--token", "s3cret"),
+    env: {
+      PATH: "/bin",
+      BB_THREAD_ID: "thr_inherited",
+      BB_PROJECT_ID: "proj_inherited",
+      BB_SERVER_URL: "http://127.0.0.1:38886",
+    },
+    shown: thread(),
+  });
+  assert.equal(f.code, 0, f.output);
+  assert.deepEqual(
+    f.calls.map((call) => call.args),
+    [
+      ["status", "--json"],
+      ["thread", "show", "thr_fixture1", "--json"],
+      ["bbots", "report", "--token", "s3cret"],
+    ],
+  );
+  // The lookup itself runs as nobody; only the forwarded command is the thread.
+  assert.equal(f.calls[1].options.env.BB_THREAD_ID, undefined);
+  const env = f.calls[2].options.env;
+  assert.equal(env.BB_THREAD_ID, "thr_fixture1");
+  // The project is the thread's own, as in a real thread's shell.
+  assert.equal(env.BB_PROJECT_ID, "proj_fixture1");
+  assert.equal(env.BB_SERVER_URL, "http://127.0.0.1:26207");
+  assert.match(f.output, /as thread thr_fixture1 in project proj_fixture1/);
+  assert.doesNotMatch(f.output, /s3cret|--token|thr_inherited/);
+});
+
+test("--thread is refused, and nothing forwarded, when the instance does not have that thread", () => {
+  for (const shown of [
+    { status: 1, stdout: JSON.stringify({ ok: false }) },
+    { error: new Error("spawn bb ENOENT") },
+    { status: 0, stdout: "not json" },
+    { status: 0, stdout: JSON.stringify({ thread: null }) },
+    // The lookup failed, whatever it printed.
+    { ...thread(), status: 1 },
+    // Another thread answered, or one with no project.
+    thread({ id: "thr_other" }),
+    thread({ projectId: null }),
+  ]) {
+    const f = fixture({ argv: asThread("bbots", "report"), shown });
+    assert.equal(f.code, exit.refused);
+    assert.equal(f.calls.length, 2);
+    assert.match(f.output, /has no thread thr_fixture1; nothing was forwarded/);
+  }
+});
+
+test("--thread takes only a thread id, and is not looked up on an instance that failed its check", () => {
+  for (const value of ["proj_fixture1", "thr_", "thr_a b", "../thr_x", ""]) {
+    const f = fixture({
+      argv: [
+        "--url",
+        "http://127.0.0.1:26207",
+        "--data-dir",
+        DEV,
+        "--thread",
+        value,
+        "--",
+        "status",
+      ],
+    });
+    assert.equal(f.code, exit.usage, value);
+    assert.deepEqual(f.calls, [], value);
+  }
+  const wrong = fixture({
+    argv: asThread("bbots", "report"),
+    status: { status: 0, stdout: JSON.stringify({ dataDir: "/elsewhere" }) },
+    shown: thread(),
+  });
+  assert.equal(wrong.code, exit.refused);
+  assert.equal(wrong.calls.length, 1);
 });
