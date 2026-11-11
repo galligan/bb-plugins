@@ -26,6 +26,8 @@ export function createWorkerAdmission(
     if (!owner && !lookup.success) return null;
     if (owner && owner.role !== "worker") return null;
     try {
+      let admittedEnvironment:
+        Awaited<ReturnType<WorkService["environment"]>> | undefined;
       const environmentId =
         ctx.thread.environmentId ??
         ctx.environment?.id ??
@@ -45,11 +47,11 @@ export function createWorkerAdmission(
           throw new Error(
             "Worker creation differs from its recorded intent or environment.",
           );
-        const env = await service.environment(
+        admittedEnvironment = await service.environment(
           worker.request.projectId,
           worker.request.environmentId,
         );
-        if (ctx.host?.id !== env.hostId)
+        if (ctx.host?.id !== admittedEnvironment.hostId)
           throw new Error(
             "Worker admission machine differs from its recorded environment.",
           );
@@ -66,10 +68,12 @@ export function createWorkerAdmission(
         throw new Error(
           "Owned worker moved from its recorded project or environment. Restore it before continuing.",
         );
-      const env = await service.environment(
-        worker.request.projectId,
-        worker.request.environmentId,
-      );
+      const env =
+        admittedEnvironment ??
+        (await service.environment(
+          worker.request.projectId,
+          worker.request.environmentId,
+        ));
       if (ctx.host?.id !== env.hostId)
         throw new Error(
           "Worker machine differs from its recorded environment.",

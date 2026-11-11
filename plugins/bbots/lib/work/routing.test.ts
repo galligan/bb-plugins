@@ -169,6 +169,37 @@ test("an unowned caller needs an explicit bot for msg but is never adopted", asy
   assert.equal(f.store.conversations.ownerOfThread("thr_foreign"), null);
 });
 
+test("owned main and worker callers cannot override their owner for msg", async (t) => {
+  const f = fixture(t);
+  const other = f.store.plan({
+    requestId: randomUUID(),
+    hostId: "host_home",
+    name: "Alice",
+    associations: { mode: "none" },
+  });
+  f.store.setHome(other.botId, "/home/alice");
+  f.store.setProject(other.botId, "project_other");
+  f.store.phase(other.botId, "project-ready", "spawning");
+  f.store.bind(other.botId, "thr_other");
+  f.store.phase(other.botId, "owned", "ready");
+  f.threads.set("thr_other", makeThreadResponse({ id: "thr_other" }));
+  for (const threadId of ["thr_main", "thr_worker"]) {
+    const refused = await f.harness.behavior.runCli(
+      ["msg", "Wrong owner", "--bot", other.botId],
+      { threadId },
+    );
+    assert.equal(refused.exitCode, 1);
+    assert.match(refused.stderr, /another bot/i);
+  }
+  assert.equal(f.harness.inspection.sdk.callsTo("threads.send").length, 0);
+  const accepted = await f.harness.behavior.runCli(
+    ["msg", "My own main", "--bot", f.setup.botId, "--json"],
+    { threadId: "thr_worker" },
+  );
+  assert.equal(accepted.exitCode, 0);
+  assert.equal(JSON.parse(accepted.stdout).threadId, "thr_main");
+});
+
 test("logical report destination resolves its current verified mapping and refuses an unbound target", async (t) => {
   const f = fixture(t);
   const current = f.work.agreement(f.worker.conversationId);

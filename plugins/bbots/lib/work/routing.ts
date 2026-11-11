@@ -103,6 +103,8 @@ export function createRouting(
       const owner = threadId
         ? store.conversations.ownerOfThread(threadId)
         : null;
+      if (owner && botId && botId !== owner.botId)
+        throw new Error("Owned caller cannot message another bot's main.");
       const bot = botId ?? owner?.botId;
       if (!bot)
         throw new Error(

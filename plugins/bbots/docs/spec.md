@@ -59,7 +59,7 @@ The first BOTS-8 slice selects an existing ready environment in an explicit proj
 
 Initial messaging uses native BB thread messaging only:
 
-- `bb bot msg "…"`: resolve calling thread → owning bot → current main conversation; explicit bot selection is required for an unowned caller.
+- `bb bot msg "…"`: resolve calling thread → owning bot → current main conversation; owned callers cannot override their owner, and explicit bot selection is required for an unowned caller.
 - `bb bot report "…"`: resolve the caller's reporting contract; never silently substitute the main conversation if a contract is missing or ambiguous.
 - Preserve source attribution and reply destination. Use the native queue-if-active send mode by default rather than steering an active task. An idle recipient may start a new turn; this is native messaging, not a passive inbox. Return acceptance/queue evidence without pretending it proves reading, completion, or a response. Do not wait synchronously for a reply.
 - Resolve stable logical destinations at dispatch, including after handoff. Preserve messages arriving during transitions as described in [continuity](continuity.md).
