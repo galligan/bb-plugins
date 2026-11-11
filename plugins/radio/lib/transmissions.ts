@@ -63,11 +63,10 @@ export class Transmissions {
     });
     return this.db
       .transaction(() => {
-        const channel = requireChannel(
-          this.store.projects,
-          request.channelId,
-          context.scope,
-        );
+        // Preserve canonical-ID access errors without resolving a mutable path
+        // before replay (its old name may now be missing or reused).
+        if (request.channelId)
+          requireChannel(this.store.projects, request.channelId, context.scope);
         const prior = this.db
           .prepare<[string, string], { id: string; request: string }>(
             "SELECT id, request_json AS request FROM transmissions WHERE caller_key = ? AND idempotency_key = ?",
@@ -85,6 +84,15 @@ export class Transmissions {
             transmission: this.get(prior.id, context.scope),
           };
         }
+        const channel = requireChannel(
+          this.store.projects,
+          request.channelId ??
+            this.store.projects.resolvePath(
+              request.ch!,
+              context.scope.projectIds,
+            ).id,
+          context.scope,
+        );
         let replyForId: string | null = null;
         if (request.replyToId) {
           const parent = this.get(request.replyToId, context.scope);

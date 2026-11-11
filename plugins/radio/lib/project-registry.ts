@@ -150,7 +150,7 @@ export class ProjectRegistry {
       .immediate();
   }
 
-  resolvePath(path: string): Channel {
+  resolvePath(path: string, projectIds?: readonly string[]): Channel {
     if (typeof path !== "string" || path.length > 513)
       throw new RadioError("invalid_input", "Invalid channel path.");
     const parts = path.split("/");
@@ -159,14 +159,31 @@ export class ProjectRegistry {
         "invalid_input",
         "Use project or project/subchannel.",
       );
-    const project = this.byName(parts[0]!);
+    const projectName = normalizeName(parts[0]!).name;
+    const subchannelName = parts[1] ? normalizeName(parts[1]).name : undefined;
+    let project: Project;
+    if (projectIds !== undefined) {
+      if (projectIds.length > 100)
+        throw new RadioError("forbidden", "Invalid authorized project scope.");
+      const row = projectIds.length
+        ? this.db
+            .prepare<unknown[], { id: string }>(
+              `SELECT id FROM projects WHERE name = ? AND id IN (${projectIds.map(() => "?").join(",")})`,
+            )
+            .get(projectName, ...projectIds)
+        : undefined;
+      if (!row)
+        throw new RadioError("not_found", "Unknown or inaccessible channel.");
+      project = this.get(row.id);
+    } else project = this.byName(projectName);
     if (parts.length === 1) return this.channel(project.channelId);
     const row = this.db
       .prepare<[string, string], { id: string }>(
         "SELECT id FROM channels WHERE project_id = ? AND name = ?",
       )
-      .get(project.id, normalizeName(parts[1]!).name);
-    if (!row) throw new RadioError("not_found", "Unknown subchannel.");
+      .get(project.id, subchannelName!);
+    if (!row)
+      throw new RadioError("not_found", "Unknown or inaccessible channel.");
     return this.channel(row.id);
   }
 

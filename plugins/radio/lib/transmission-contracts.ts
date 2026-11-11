@@ -31,7 +31,8 @@ const referenceSchema = z.discriminatedUnion("kind", [
 export type TransmissionRef = z.infer<typeof referenceSchema>;
 export const sendSchema = z
   .object({
-    channelId: idSchema,
+    channelId: idSchema.optional(),
+    ch: z.string().min(1).max(513).optional(),
     body: z.string().min(1).max(TX_RAW_MAX),
     refs: z.array(referenceSchema).max(TX_REFS_MAX).default([]),
     recipientIds: z.array(idSchema).max(TX_RECIPIENT_INPUT_MAX).default([]),
@@ -42,7 +43,10 @@ export const sendSchema = z
     expectReply: z.boolean().default(false),
     replyForId: idSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine((input) => Number(!!input.channelId) + Number(!!input.ch) === 1, {
+    message: "Choose exactly one canonical channelId or readable ch path.",
+  });
 
 /** All fields come from authenticated adapter context, never claimed body metadata. */
 export interface TransmissionContext {
