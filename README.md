@@ -52,7 +52,7 @@ bun run test
 bun run build
 ```
 
-These root checks cover Graphite, Worktree+, Rex, Judge, and the repository scripts where applicable. See [development guidance](docs/dev/README.md) for SDK/host patterns, lifecycle lessons, and verification boundaries.
+These root checks cover every package under `plugins/` and the repository scripts. See [development guidance](docs/dev/README.md) for SDK/host patterns, lifecycle lessons, and verification boundaries.
 
 For source development, clone this repository and install a package from its
 directory:

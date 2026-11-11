@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { semver } from "bun";
@@ -156,23 +156,39 @@ export function preflight({
   return exit.current;
 }
 
-if (import.meta.main) {
-  const base = fileURLToPath(new URL("../", import.meta.url));
+/**
+ * The packages whose SDK pins are checked: every `plugins/*` directory that has
+ * a `package.json`, and the scaffold. A directory without a manifest is not a
+ * package: a removed plugin leaves one behind when its ignored `node_modules`
+ * or `dist` outlive it in a checkout.
+ */
+export function discoverPackages(base) {
   const read = (directory) => ({
     directory,
     manifest: JSON.parse(
       readFileSync(path.join(base, directory, "package.json"), "utf8"),
     ),
   });
-  const packages = [
+  return [
     ...readdirSync(path.join(base, "plugins"), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
+      .filter(
+        (entry) =>
+          entry.isDirectory() &&
+          existsSync(path.join(base, "plugins", entry.name, "package.json")),
+      )
+      // Directory order is the filesystem's; findings are reported by name.
+      .sort((a, b) => a.name.localeCompare(b.name, "en"))
       .map((entry) => read(`plugins/${entry.name}`)),
     read("scaffolds/nav-panel"),
   ];
+}
+
+if (import.meta.main) {
+  const base = fileURLToPath(new URL("../", import.meta.url));
+  const packages = discoverPackages(base);
   const probed = packages.find(({ manifest }) => sdkPin(manifest));
   process.exitCode = preflight({
-    root: read(".").manifest,
+    root: JSON.parse(readFileSync(path.join(base, "package.json"), "utf8")),
     packages,
     probe: {
       path: path.join(base, probed.directory),
