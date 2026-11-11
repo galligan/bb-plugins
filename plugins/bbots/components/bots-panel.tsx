@@ -4,20 +4,20 @@ import {
   useBbNavigate,
   useRealtimeConnectionState,
   experimental_useRpcQuery as useRpcQuery,
-  experimental_useTabVisible as useTabVisible,
   type PluginNavPanelProps,
 } from "@get-bb/plugin-sdk/app";
 import { managementContract } from "../lib/setup/contracts.ts";
 import { Button } from "./ui/button.tsx";
 import { CreateBot } from "./create-bot.tsx";
 import { BotDetail } from "./bot-detail.tsx";
+import { usePageVisible } from "../lib/ui/use-page-visible.ts";
 
 export type Machine = { id: string; name: string; status: string };
 export function BotsPanel({ subPath }: PluginNavPanelProps) {
   const sdk = useSdk(),
     navigate = useBbNavigate(),
     connection = useRealtimeConnectionState();
-  const visible = useTabVisible();
+  const visible = usePageVisible();
   const list = useRpcQuery({
     contract: managementContract,
     method: "list",
@@ -70,7 +70,7 @@ export function BotsPanel({ subPath }: PluginNavPanelProps) {
           <Button
             type="button"
             variant="outline"
-            disabled={list.isFetching || loadingHosts}
+            disabled={!visible || list.isFetching || loadingHosts}
             onClick={() => {
               void list.refetch();
               setRefresh((n) => n + 1);
@@ -124,14 +124,14 @@ export function BotsPanel({ subPath }: PluginNavPanelProps) {
         {subPath === "new" ? (
           <CreateBot
             machines={machines}
-            unavailable={hostError || loadingHosts}
+            unavailable={!visible || hostError || loadingHosts}
           />
         ) : selected ? (
           <BotDetail
             key={selected}
             botId={selected}
             machines={machines}
-            hostsUnavailable={hostError || loadingHosts}
+            hostsUnavailable={!visible || hostError || loadingHosts}
           />
         ) : (
           <p>Select a bot to open its ongoing conversation.</p>
