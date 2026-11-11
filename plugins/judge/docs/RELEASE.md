@@ -1,6 +1,6 @@
 # Judge distribution preparation
 
-**Private spike preparation delivered; no public release.** Package `bb-plugin-judge`, plugin ID `judge`, version `0.1.0`, BB floor `>=0.49.0`, public SDK floor `>=0.6.132`. The development toolchain pins `bb-app@0.49.0` and `@get-bb/plugin-sdk@0.6.132`; repository validation uses Bun1.3.14 and Node24.22.2. `private:true` stays in place and Judge stays outside `.bb/plugins.json` under the current authorized availability scope. No npm/Git release, tag or marketplace publication has been performed.
+**Private spike preparation delivered; no public release.** Package `bb-plugin-judge`, plugin ID `judge`, version `0.1.0`, BB floor `>=0.49.0`, public SDK floor `>=0.6.132`. The development toolchain pins `bb-app@0.49.0` and `@get-bb/plugin-sdk@0.6.138`; repository validation uses Bun1.3.14 and Node24.22.2. `private:true` stays in place and Judge stays outside `.bb/plugins.json` under the current authorized availability scope. No npm/Git release, tag or marketplace publication has been performed.
 
 ## Independent source and production builds
 

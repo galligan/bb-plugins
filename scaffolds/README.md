@@ -4,7 +4,7 @@ This is one vendored composition for an independently built BB plugin: a host-ow
 
 ## Generate and verify
 
-Use Bun 1.3.14 and Node 24 (the repository CI runtimes). The template began with `bb plugin new collection-example` on BB 0.49.0; its public SDK pin is 0.6.132. Generation itself requires only Node and does not install dependencies or touch BB. From the repository root:
+Use Bun 1.3.14 and Node 24 (the repository CI runtimes). The template began with `bb plugin new collection-example` on BB 0.49.0; its public SDK pin is 0.6.138 as of scaffold revision 2. Generation itself requires only Node and does not install dependencies or touch BB. From the repository root:
 
 ```sh
 mkdir -p scaffolds/.generated
@@ -54,7 +54,7 @@ The candidate must be a new directory outside the adopted package. Updates never
 
 Review the diff and manually merge selected changes into the adopter's branch, keeping local behavior, identity and dependency choices. If accepting the complete new baseline, copy the candidate's `scaffold.json` after the merge; its hashes must remain the upstream candidate hashes, not hashes of customized merged files, so the next update can still detect customization. If deferring part of the update, keep the previous baseline and document the partial adoption in the PR. Re-run package checks and host validation before accepting. Customized `consumer.json` is also a review conflict; update the consumer record deliberately when changing the baseline configuration.
 
-The preservation test simulates a revision-2 upstream edit against a customized revision-1 consumer, checks conflict reporting, byte-for-byte local preservation and extra-file preservation, and rejects nested/aliased candidate directories. The output is a review proposal, not proof that local customizations remain compatible with new APIs.
+The preservation test simulates an upstream edit at the next revision against a consumer customized at the template's current revision, checks conflict reporting, byte-for-byte local preservation and extra-file preservation, and rejects nested/aliased candidate directories. The output is a review proposal, not proof that local customizations remain compatible with new APIs.
 
 ## Maintenance and evidence
 

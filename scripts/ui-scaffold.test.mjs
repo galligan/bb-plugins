@@ -47,7 +47,7 @@ test("updates preserve customized and extra files, report conflicts and provide 
     );
     await writeFile(
       join(upstream, "provenance.json"),
-      JSON.stringify({ ...provenance, revision: 2 }),
+      JSON.stringify({ ...provenance, revision: provenance.revision + 1 }),
     );
     await rm(join(upstream, "components/ui/motion.ts"));
     await rm(join(adopted, "server.ts"));
@@ -65,8 +65,8 @@ test("updates preserve customized and extra files, report conflicts and provide 
       report.files.find((file) => file.path === "server.ts").status,
       "customized",
     );
-    assert.equal(report.from, 1);
-    assert.equal(report.to, 2);
+    assert.equal(report.from, provenance.revision);
+    assert.equal(report.to, provenance.revision + 1);
     assert.equal(
       report.files.find((file) => file.path === "app.tsx").status,
       "conflict",
@@ -85,7 +85,7 @@ test("updates preserve customized and extra files, report conflicts and provide 
     );
     assert.equal(
       JSON.parse(await readFile(join(adopted, "scaffold.json"))).revision,
-      1,
+      provenance.revision,
     );
     const same = await proposeUpdate(adopted, join(root, "same"));
     assert.equal(
