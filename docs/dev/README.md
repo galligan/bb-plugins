@@ -11,6 +11,6 @@ This directory records development patterns and lessons shared by the plugins in
 | Downloaded plugin examples and worktree setup                         | [Reference plugins](../../README.md#reference-plugins)                      |
 | Release sources and automatic plugin labels                           | [Contribution guide](../../CONTRIBUTING.md)                                 |
 
-The initial guidance was checked against this repository and the installed `bb-plugin-authoring` references on 2026-11-10. Package SDK versions differ: an example demonstrates a pattern, not a guarantee that its API names work with every plugin's pin. Use the current public SDK declarations and [BB Plugin Guide](https://getbb.app/plugin-guide) when implementing an API change.
+The initial guidance was checked against this repository and the installed `bb-plugin-authoring` references on 2026-11-10. Every package pins the same SDK, tracked to npm latest; see [BB and SDK versions](verification.md#bb-and-sdk-versions). An example still demonstrates a pattern, not a guarantee that its API names are current. Use the current public SDK declarations and [BB Plugin Guide](https://getbb.app/plugin-guide) when implementing an API change.
 
 When adding a lesson, include its trigger, the behavior to preserve, and a source or regression test. Keep temporary investigation notes and unverified hypotheses out of the defaults. Mark historical verification as historical rather than turning an old test result into a current guarantee.
