@@ -11,9 +11,11 @@ import { developmentStatus, formatStatus } from "../status.ts";
 import { soulCommands } from "../soul/cli.ts";
 import type { SoulStore } from "../soul/store.ts";
 import type { workCommands } from "../work/cli.ts";
-import type { WorkStore } from "../work/storage.ts";
 import { taskCommands } from "../tasks/cli.ts";
 import type { TaskSource } from "../tasks/source.ts";
+import { commitmentCommands } from "../commitments/cli.ts";
+import type { Commitments } from "../commitments/service.ts";
+import type { Brief } from "../brief.ts";
 
 const json = {
   type: "boolean",
@@ -39,17 +41,41 @@ export function botCli(
   store: SetupStore,
   service: ReturnType<typeof createSetupService>,
   soul: SoulStore,
-  workers: ReturnType<typeof workCommands>,
-  work: WorkStore,
-  tasks: TaskSource,
+  {
+    workers,
+    tasks,
+    commitments,
+    brief,
+  }: {
+    workers: ReturnType<typeof workCommands>;
+    tasks: TaskSource;
+    commitments: Commitments;
+    brief: Brief;
+  },
 ) {
   return defineCli({
     name: "bot",
     summary: "Create and inspect persistent Bots",
     commands: {
-      ...soulCommands(soul, store, work, tasks),
+      ...soulCommands(soul),
       ...workers,
       ...taskCommands(tasks, store),
+      ...commitmentCommands(commitments, store),
+      brief: cliCommand({
+        summary:
+          "Read bounded current identity, contract, task authority and commitments; starts no turn",
+        positionals: bot,
+        options: { json },
+        run: async ({ positionals }, ctx) => ({
+          exitCode: 0,
+          stdout:
+            JSON.stringify(
+              await brief(positionals.botId, ctx.threadId, ctx.signal),
+              null,
+              2,
+            ) + "\n",
+        }),
+      }),
       status: cliCommand({
         summary: "Show development status and support limits",
         options: { json },

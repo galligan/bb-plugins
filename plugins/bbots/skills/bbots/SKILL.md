@@ -1,11 +1,11 @@
 ---
 name: bbots
-description: Create persistent Bots and owned workers, inspect current briefs and reporting contracts, and send explicit native reports or replies.
+description: Create persistent Bots and owned workers, inspect current briefs and reporting contracts, send explicit native reports or replies, and record attributable commitments.
 ---
 
 # Bots
 
-Use `bb bot status` for supported features and `bb bot list` / `show <bot-id>` for identity, home, main and setup errors. Pull `bb bot brief <bot-id> --json` during ordinary turns when current state matters. It includes the calling worker's current contract, current revisions, future execution defaults and recorded task source with live availability; memory and commitments remain unavailable. Volatile state is not guaranteed-fresh injected guidance. If another plugin owns the alias, use `bb plugin run bbots ...`.
+Use `bb bot status` for supported features and `bb bot list` / `show <bot-id>` for identity, home, main and setup errors. Pull `bb bot brief <bot-id> --json` during ordinary turns when current state matters. It includes the calling worker's current contract, current revisions, future execution defaults and recorded task source and up to ten commitments with point-in-time status availability. Follow the continuation cursor when more obligations matter; memory remains unavailable. Volatile state is not guaranteed-fresh injected guidance. If another plugin owns the alias, use `bb plugin run bbots ...`.
 
 `create --machine <host-id>` creates Bob; `--name` selects another name. It creates a persistent home outside repositories and starts one short setup acknowledgement. Retain an explicit `--request-id <uuid>` before scripted submission and reuse it only with identical options after uncertain delivery. `--association-mode none|all|selected` is responsibility scope; repeat `--project <id>` for selected projects. It does not move the main home or grant new permissions.
 
@@ -37,4 +37,12 @@ When Tasks is absent at the initial task-source choice, use `tasks markdown-init
 
 In Markdown mode, use `tasks read` and `tasks write --hash <current-hash> --markdown '<complete-file>'`. These operations route to the original home host, including from remote workers. Preserve the complete file; arbitrary Markdown has no inferred task counter. Read again after a stale write or uncertain receipt. Coordinate external editors; only Bots writers share its lock. A retained lock requires inspecting stopped owned work and the original host before manual recovery. Never remove a lock merely because the caller timed out.
 
-Automatic maintenance, continuity and fallback remain disabled. Create no workers or other background work during the initial setup acknowledgement. Do not invent commands for memory or commitments before those features ship.
+## Commitments
+
+When the user or current assignment creates an obligation, record it with `commitment add <bot-id> --what '<what is owed>' --author <identity> --reason '<instruction>'`. Add supporting references with repeated `--evidence`. The logical owner defaults to the calling owned conversation; use `--owner <logical-id>` only for a deliberate same-bot assignment. Retain `--request-id <uuid>` before scripted submission. After uncertain delivery, inspect that record; reuse the UUID only with identical content and attribution.
+
+Use `--task <stable-task-id>` for a linked Tasks obligation, or `--markdown-reference '<literal-reference>'` in Markdown mode. Linked status belongs to that source. An unavailable, missing, wrong-board, changed-source or stale response is unknown status, not completion. Read Markdown status from the original host with `tasks read`; a stored literal reference does not verify a checkbox. Reconcile references with `commitment relink` using the current revision, author and reason after confirming the mapping. Do not close a linked shadow record or silently create a replacement task.
+
+Use `commitment show` / `list` to inspect obligations; `list --after <nextCursor>` continues a page. Close an unlinked independent obligation with `commitment close <bot-id> <commitment-id> --revision <current> --author <identity> --reason '<completion evidence>'`. Read again after a revision conflict. These commands start no provider work and never update the external task source.
+
+Automatic maintenance, continuity and fallback remain disabled. Create no workers or other background work during the initial setup acknowledgement. Do not invent memory commands before that feature ships.
