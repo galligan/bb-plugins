@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { z } from "zod";
 import {
   createFakePluginHost,
   makeThreadResponse,
@@ -7,8 +8,6 @@ import {
 import radio from "../server.ts";
 import { openRadioStorage } from "./storage.ts";
 import { resultSchema, type SurfaceResult } from "./surface-contract.ts";
-import type { Participant, Project } from "./contracts.ts";
-import type { Transmission } from "./transmission-contracts.ts";
 
 function fixture(enabled = true) {
   const host = createFakePluginHost({
@@ -46,6 +45,26 @@ function fixture(enabled = true) {
     post("/trusted/call", { sessionId, request: { op, input } });
   return { ...host, store, post, call };
 }
+// Result data is JSON on the wire. These parse the fields the tests read and
+// keep the rest, so a missing field fails here instead of being assumed.
+const sessionSchema = z.looseObject({
+  id: z.string(),
+  kind: z.string(),
+  actorId: z.string().nullable(),
+  principalId: z.string().nullable(),
+  provenance: z.string(),
+});
+const sessionOnlySchema = z.object({ session: sessionSchema });
+const registrationSchema = z.object({
+  session: sessionSchema,
+  project: z.looseObject({ channelId: z.string() }),
+  authentication: z.string(),
+});
+const sentSchema = z.object({
+  transmission: z.looseObject({ id: z.string(), cursor: z.number() }),
+  replayed: z.boolean(),
+});
+
 function data(result: SurfaceResult) {
   assert.equal(result.ok, true, JSON.stringify(result));
   return result.data;
@@ -59,24 +78,22 @@ test("a no-credential outside client registers, replays, polls a BB reply and ex
       name: "Outside",
       tool: "test-client",
     });
-    const first = data(registered.result) as unknown as {
-      session: Participant;
-      project: Project;
-      authentication: string;
-    };
+    const first = registrationSchema.parse(data(registered.result));
     assert.equal(registered.response.status, 200);
     assert.equal(registered.response.headers.get("cache-control"), "no-store");
     assert.equal(first.session.kind, "external-session");
     assert.equal(first.session.provenance, "self-reported");
     assert.ok(first.authentication.includes("no-credentials"));
-    const updated = data(
-      (
-        await f.post("/trusted/register", {
-          sessionId: "outside-client",
-          name: "Changed claim",
-        })
-      ).result,
-    ) as unknown as typeof first;
+    const updated = registrationSchema.parse(
+      data(
+        (
+          await f.post("/trusted/register", {
+            sessionId: "outside-client",
+            name: "Changed claim",
+          })
+        ).result,
+      ),
+    );
     assert.equal(updated.session.id, first.session.id);
     assert.deepEqual(
       f.store.identities.get(first.session.actorId!).metadata,
@@ -103,12 +120,12 @@ test("a no-credential outside client registers, replays, polls a BB reply and ex
       body: "Review the migration",
       idempotencyKey: "outside-send",
     };
-    const sent = data(
-      (await f.call(sessionId, "tx", input)).result,
-    ) as unknown as { transmission: Transmission; replayed: boolean };
-    const replay = data(
-      (await f.call(sessionId, "tx", input)).result,
-    ) as unknown as typeof sent;
+    const sent = sentSchema.parse(
+      data((await f.call(sessionId, "tx", input)).result),
+    );
+    const replay = sentSchema.parse(
+      data((await f.call(sessionId, "tx", input)).result),
+    );
     assert.equal(sent.replayed, false);
     assert.equal(replay.replayed, true);
     assert.deepEqual(replay.transmission, sent.transmission);
@@ -129,15 +146,19 @@ test("a no-credential outside client registers, replays, polls a BB reply and ex
         },
       }),
     );
-    const answer = data(response) as unknown as typeof sent;
-    const scan = data(
-      (
-        await f.call(sessionId, "scan", {
-          channelId: first.project.channelId,
-          after: sent.transmission.cursor,
-        })
-      ).result,
-    ) as { items: { id: string }[] };
+    const answer = sentSchema.parse(data(response));
+    const scan = z
+      .looseObject({ items: z.array(z.looseObject({ id: z.string() })) })
+      .parse(
+        data(
+          (
+            await f.call(sessionId, "scan", {
+              channelId: first.project.channelId,
+              after: sent.transmission.cursor,
+            })
+          ).result,
+        ),
+      );
     assert.deepEqual(
       scan.items.map(({ id }) => id),
       [answer.transmission.id],
@@ -178,22 +199,26 @@ test("a no-credential outside client registers, replays, polls a BB reply and ex
 test("trusted-test sessions share one principal but claims and foreign canonical IDs never acquire BB/human authority", async () => {
   const f = fixture();
   try {
-    const first = data(
-      (
-        await f.post("/trusted/register", {
-          sessionId: "thr_claimed",
-          name: "User",
-        })
-      ).result,
-    ) as unknown as { session: Participant };
-    const second = data(
-      (
-        await f.post("/trusted/register", {
-          sessionId: "another",
-          name: "User",
-        })
-      ).result,
-    ) as unknown as typeof first;
+    const first = sessionOnlySchema.parse(
+      data(
+        (
+          await f.post("/trusted/register", {
+            sessionId: "thr_claimed",
+            name: "User",
+          })
+        ).result,
+      ),
+    );
+    const second = sessionOnlySchema.parse(
+      data(
+        (
+          await f.post("/trusted/register", {
+            sessionId: "another",
+            name: "User",
+          })
+        ).result,
+      ),
+    );
     assert.notEqual(first.session.id, "thr_claimed");
     assert.notEqual(first.session.id, second.session.id);
     assert.equal(first.session.actorId, second.session.actorId);

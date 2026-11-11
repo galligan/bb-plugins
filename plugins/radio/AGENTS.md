@@ -9,3 +9,11 @@ This package currently implements identity, handle and channel storage, address 
 - Recheck the installed public SDK before implementation. The local BB source checkout and authoring references inspected during research differed from installed declarations.
 
 Keep `bb-plugin-radio` independently buildable using public BB APIs. Implement only the released task scope; the package scaffold does not authorize communication surfaces, live installation or publication.
+
+## Tests
+
+- `bun run test` runs `lib/**/*.test.ts` with `node --test`, then `tests/**/*.test.tsx` with Vitest and jsdom. Neither needs a running bb, an outside client, or credentials.
+- Test backend behavior under `createFakePluginHost` from `@get-bb/plugin-sdk/testing`, loading the real `server.ts`. Storage is a real temporary SQLite database; MUST NOT mock it. Drive `harness.behavior`, read `harness.inspection`, and reload or dispose through `harness.lifecycle`.
+- Test the panel in `tests/` through `@get-bb/plugin-sdk/testing/app`, loading the real `app.tsx`.
+- Operation results are JSON. Parse the fields a test reads with a small zod schema; do not cast result data to a type.
+- Go live only for what those cannot show: layout, host chrome, and delivery to a real provider session. Live installation needs its own authorization; see [choose the test boundary](../../docs/dev/verification.md#choose-the-test-boundary).

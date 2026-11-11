@@ -10,7 +10,7 @@ Research date: 2026-11-10. This is contract/source inspection, not an installed 
 - Local BB source was at `a124a8d4f211ae101ceb6f09e99ebaee9cadc011`. Its bundled declarations were older than the installed SDK. Use it for historical implementation evidence, not as the installed release contract.
 - Installed `bb-plugin-authoring` references also had older instruction-refresh wording. Exact 0.6.132 declarations took precedence.
 
-The local declaration path used was `/Users/mg/Developer/bb/bb-plugins/node_modules/.bun/@get-bb+plugin-sdk@0.6.132+6363e488c8850005/node_modules/@get-bb/plugin-sdk/bundled-types/bb-plugin-sdk.d.ts`. This is a research locator, not a dependency or portable link. Re-resolve and recheck before implementation.
+The local declaration path used was `~/Developer/bb/bb-plugins/node_modules/.bun/@get-bb+plugin-sdk@0.6.132+6363e488c8850005/node_modules/@get-bb/plugin-sdk/bundled-types/bb-plugin-sdk.d.ts`. This is a research locator, not a dependency or portable link. Re-resolve and recheck before implementation.
 
 ## Public SDK evidence
 
@@ -49,7 +49,7 @@ Examples are references, not shared runtime dependencies. Revalidate exact APIs 
 
 ## Dispatch findings
 
-Checkout: `/Users/mg/Developer/outfitter/dispatch`, HEAD `74fff0a70fdc5a196f401808fe0e5e3c40044495`.
+Checkout: `~/Developer/outfitter/dispatch`, HEAD `74fff0a70fdc5a196f401808fe0e5e3c40044495`.
 
 | Source in Dispatch                                                   | Evidence                                                                                                                  |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
@@ -67,7 +67,7 @@ Borrow durable storage separate from execution, stable references and idempotent
 
 ## Historical Radio
 
-Planning sources: `/Users/mg/Developer/outfitter/trailblazing/plans/radio/v0-spec.md` and `legacy.md`. Source checkout: `/Users/mg/Developer/outfitter/radio`.
+Planning sources: `~/Developer/outfitter/trailblazing/plans/radio/v0-spec.md` and `legacy.md`. Source checkout: `~/Developer/outfitter/radio`.
 
 The complete legacy document was read. Useful ideas include short txs, first-class refs, per-actor acknowledgments, separate commitments, attention digests, immutable messages and explicit session lifecycle. The original sync-ready ambition does not require implementing sync now.
 
