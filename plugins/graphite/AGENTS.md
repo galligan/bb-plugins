@@ -47,6 +47,6 @@ The read path and write verbs are implemented. The September 2026 plan records h
 
 ## Verification
 
-- Verify server and host-entry behavior in `lib/server.test.ts` and `lib/host-entry.test.ts` before starting BB. The tab and thread action have no `@get-bb/plugin-sdk/testing/app` suite yet; add it with the first UI behavior change.
+- Verify behavior in tests before starting BB: server in `lib/server.test.ts`, host entry in `lib/host-entry.test.ts`, and the tab and header action in `tests/stack.test.tsx` (Vitest with jsdom). A UI behavior change adds or updates a test there.
 - `bb plugin build` must succeed before install.
 - Go live only for what the harness cannot show, against a separate BB instance, not the live one. Follow [verification](../../docs/dev/verification.md); the linked September 2026 setup notes are historical and their flags and runtime paths need verification before reuse.
