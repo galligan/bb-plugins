@@ -5,12 +5,14 @@ import type {
 import { z } from "zod";
 import type { Setup } from "./contracts.ts";
 import type { SetupStore } from "./storage.ts";
+import type { SoulStore } from "../soul/store.ts";
 
 const lookupSchema = z.object({ botId: z.string(), requestId: z.string() });
 export function registerAdmission(
   bb: BbPluginApi,
   store: SetupStore,
   inspect: (botId: string) => Promise<Setup>,
+  soul: SoulStore,
 ) {
   bb.experimental_hooks.on(
     "message.dispatch",
@@ -75,7 +77,7 @@ export function registerAdmission(
             "Main conversation environment differs from its recorded home. Restore the original home environment before continuing.",
           );
         const soul = store.documents.get(owner.botId, "SOUL.md");
-        if (!soul || soul.markdown.length > 16000)
+        if (!soul || !soul.markdown.trim() || soul.markdown.length > 16000)
           throw new Error(
             "SOUL.md is missing or exceeds the 16,000-character session limit. Correct it before starting work.",
           );
@@ -92,14 +94,6 @@ export function registerAdmission(
     },
   );
   bb.agents.configure((ctx) => {
-    const owner = store.conversations.ownerOfThread(ctx.thread.id);
-    if (!owner) return { tools: [], skills: [] };
-    const bot = store.profiles.get(owner.botId);
-    const soul = store.documents.get(bot.id, "SOUL.md");
-    return {
-      tools: [],
-      skills: ["bbots"],
-      instructions: `Your persistent bot identity is ${JSON.stringify(bot.name)} (bot ID ${bot.id}). Native per-thread Stop must not be treated as permission to resume canceled work.\n\n${soul && soul.markdown.length <= 16000 ? soul.markdown : "Your soul is unavailable. Ask the user to repair SOUL.md before executing assignments."}`,
-    };
+    return soul.supply(ctx.thread.id) ?? { tools: [], skills: [] };
   });
 }

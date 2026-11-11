@@ -43,4 +43,9 @@ export const migrations = [
     PRIMARY KEY (document_id, revision)
   )`,
   ...setupMigrations,
+  `CREATE TABLE soul_supplied (
+    thread_id TEXT PRIMARY KEY REFERENCES conversations(thread_id),
+    revision INTEGER NOT NULL CHECK (revision > 0),
+    supplied_at TEXT NOT NULL
+  )`,
 ];

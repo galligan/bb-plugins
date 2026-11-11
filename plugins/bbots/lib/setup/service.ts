@@ -1,11 +1,13 @@
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { homeContract, type CreateBotInput } from "./contracts.ts";
 import type { SetupStore } from "./storage.ts";
+import type { SoulStore } from "../soul/store.ts";
 
 export function createSetupService(
   bb: BbPluginApi,
   store: SetupStore,
   signal: AbortSignal,
+  execution: SoulStore["defaults"],
 ) {
   const host = bb.hosts.experimental_client({ contract: homeContract });
   const active = new Set<string>();
@@ -128,10 +130,7 @@ export function createSetupService(
             pluginId: bb.pluginId,
             data: { botId, requestId: setup.requestId },
           },
-          ...(setup.request.providerId
-            ? { providerId: setup.request.providerId }
-            : {}),
-          ...(setup.request.model ? { model: setup.request.model } : {}),
+          ...execution(botId).defaults.main,
           prompt:
             "Introduce yourself briefly as this persistent collaborator, without tools, then wait for the user's next request. Do not create tasks, workers or background work during this setup acknowledgement.",
         });

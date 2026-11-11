@@ -8,6 +8,8 @@ Installed-runtime evidence used BB 0.49.0 / SDK 0.6.132. Prototype evidence is p
 
 ## Feature-specific evidence and disposition
 
+BOTS-6 bounded creation acceptance passed in shared Dev (BB0.49.0/runtime SDK0.6.140) on `77ebaf0`, not a modified core prototype: one Codex setup request/turn, rename/unpin/reload/archive and retained home. BOTS-7's offline actual-entry tests distinguish current and last supplied SOUL revision and always report applied revision unknown. The configure context lacks a session receipt and can resolve for an existing session. Editing does not trigger a refresh/turn; verified application remains an affected BOTS-3/BOTS-11 gate. Future native execution defaults and worker inheritance are stored; fallback execution remains disabled.
+
 “Installed runtime” used BB 0.49.0 / SDK 0.6.132. “Prototype” used an isolated copied-data server/daemon with connected host and Codex registered; it is not installed in production. Latest bounded source results are attached as `22..29` on BOTS-3/BOTS-18. Six distinct requests, five turns started, one missing-rollout rejection before start; each scenario at most three requests and 30-second waits. Synthetic events/usage are identified below. All temporary runtimes are stopped.
 
 | Area                         | Evidence and current limit                                                                                                                                                                    | Owning work / support disposition                                                                                               |

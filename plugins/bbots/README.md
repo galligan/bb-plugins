@@ -2,7 +2,7 @@
 
 Persistent collaborators for BB, independent of the selected sidebar. The first default collaborator is Bob, with a main conversation named `@Bob`.
 
-**Development preview:** `bb-plugin-bbots` (plugin ID `bbots`, display Bots) implements CLI/RPC creation, persistent host homes, revisioned identity and a named/pinned native main conversation. Automated continuity, maintenance, workers, model fallback and UI are not enabled. This slice has offline harness evidence; shared Dev acceptance is pending. Do not install it into a production instance as part of development.
+**Development preview:** `bb-plugin-bbots` (plugin ID `bbots`, display Bots) implements CLI/RPC creation, persistent host homes, revisioned identity/SOUL, future execution defaults and a named/pinned native main conversation. Automated continuity, maintenance, workers, model fallback and UI are not enabled. BOTS-6 creation passed a bounded shared Dev check; the configuration slice is verified offline. Do not install it into a production instance as part of development.
 
 The package uses the repository's published SDK pin (currently 0.6.138), with BB >=0.49.0 / runtime SDK >=0.6.132 manifest minima. The build pin is not the installed runtime SDK. Preflight reports the installed stable BB separately; new behavior must be checked on the actual target. BOTS-3 tracks affected feature limits; BOTS-18 stays deferred/non-blocking. No custom production core is required.
 
@@ -18,9 +18,23 @@ Use `bb bot list`, `show <bot-id>`, `resume <bot-id>` and `rename <bot-id> --nam
 
 Creation records SQLite intent before native side effects. The first ordinary dispatch binds exclusive main ownership from that intent before session construction; metadata is only a lookup mirror, not ownership authority. A lost receipt after this point recovers the recorded thread. If project creation lost its receipt or main creation failed before ownership was durably bound, the outcome is visibly uncertain and automatic adoption/recreation is disabled. Pre-existing home project matches are refused rather than adopted. Inspect the original native request and the bot's home project/queue; do not rerun with a new request ID as a blind retry. A successful Stop does not certify cancellation of held queue entries; use native queue cancellation to discard unwanted pending work. Bots cannot veto native Send now or another plugin's compaction/retry operations.
 
-A small revisioned starter SOUL is created and supplied at construction so the first session has standing guidance. This moves only the minimal binding earlier than BOTS-7; the deliberate soul editor, applied-versus-current revision display, model/permission controls and fuller operating skills remain there. Soul text is not a live home file; session guidance is bounded to 16,000 characters. No idle/failed listener, schedule or automatic wake is registered.
+A small revisioned starter SOUL is created and supplied at configuration resolution so the first session has standing guidance. Soul text is not a live home file; session guidance is bounded to 16,000 characters. No idle/failed listener, schedule or automatic wake is registered.
 
 Run package `bun run check`, `bun run test` and `bun run build`, then the repository verification before pushing. The real `server.ts` and `host.ts` are loaded through public SDK harnesses; provider timing, native Stop/queues, real routing and retirement require the separately scheduled Dev slot.
+
+## Soul and execution defaults
+
+Use `bb bot soul show <bot-id>` and `soul update <bot-id> --revision <current> --markdown <complete-markdown> --author <truthful-identity> --reason <user-instruction-or-approval>`. Updates preserve Markdown verbatim, append an attributable revision and reject stale bases, blank text or more than 16,000 characters. The `bbots-soul` skill helps propose a deliberate persona edit; ordinary observations and maintenance do not authorize rewriting it.
+
+The display distinguishes current revision, last supplied revision and applied revision. **Applied revision is unknown:** the public synchronous configure callback can run without constructing a new provider session and has no session receipt. A newer edit is pending supply; a matching last supplied revision is still unverified for the live session. Editing starts no turn and performs no clear, compact or refresh. This limitation remains BOTS-3/BOTS-11 work rather than a fabricated applied marker.
+
+Use `models show <bot-id>` / `models update <bot-id> --revision <current-or-zero> --defaults '<complete-json>' --author <identity> --reason <instruction>` for revisioned future conversation choices. JSON has `main`, `worker` and `fallback` fields. Each choice accepts native `providerId`, `model` and `reasoningLevel`; main/worker also accept `permissionMode` (`accept-edits`, `auto` or `full`). Start with `{"main":{},"worker":null,"fallback":null}`: omitted native choices inherit BB policy, and a null worker inherits the whole main choice. An explicit worker object is independent. Provider/model/reasoning availability is checked by BB when constructing the conversation, not asserted by saving this document. Fallback cannot change permissions and automatic fallback remains disabled.
+
+Saving defaults does not mutate an existing main. Use its native BB controls for current execution choices; the minimal UI and native pickers land in BOTS-17. New main creation accepts `--reasoning` and `--permissions` alongside provider/model, and pending pre-spawn setup uses the latest saved main defaults. `bb bot brief <bot-id>` pulls bounded current identity, home, revision/defaults and unavailable feature names. It does not inject full SOUL or assume fresh memory, tasks or reporting contracts.
+
+## Bounded creation acceptance
+
+[PR140](https://github.com/galligan/bb-plugins/pull/140) passed shared Dev acceptance on `77ebaf0`: BB 0.49.0 / runtime SDK 0.6.140, one connected host and Codex `gpt-6.1-sol`, exactly one short no-tools setup turn. Initial title/pin, rename with stable IDs/home, manual unpin across resume/reload, childless archive and retained marker/artifact hashes passed. The new contribution was disabled afterward; fixture home/history remain. This is evidence for that Dev runtime, not a claim that stable SDK 0.6.132 or every provider passed the same behavior. Global restart, managed-home retirement, workers, UI and automatic continuity/fallback remain outside that check.
 
 ## Storage behavior
 

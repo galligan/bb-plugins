@@ -30,6 +30,8 @@ export const createSchema = z.strictObject({
   associations: associationsSchema.default({ mode: "none" }),
   providerId: idSchema.optional(),
   model: z.string().min(1).max(256).optional(),
+  reasoningLevel: z.string().trim().min(1).max(128).optional(),
+  permissionMode: z.enum(["accept-edits", "auto", "full"]).optional(),
 });
 export type CreateBotInput = z.infer<typeof createSchema>;
 export const setupSchema = z.strictObject({

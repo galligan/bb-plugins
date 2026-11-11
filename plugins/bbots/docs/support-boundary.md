@@ -23,6 +23,10 @@ Native per-thread Stop controls that thread. Bots will not restart a canceled as
 
 Existing native Compact may bypass message admission and report incomplete caller attribution. Bots therefore does not claim a veto over Auto Compact, provider-retry or other installed plugins. Do not disable/reconfigure those plugins, use internal imports, or make control over them a prerequisite for independent plugin work. Preserve durable capture/checkpoints and verified pickup as implementation goals for both main and workers; do not equate an API acceptance with recovery.
 
+## Soul and execution configuration
+
+BOTS-7 uses existing public synchronous configuration and native spawn execution fields. The callback can run for an existing provider session and has no session identity/application receipt. Persist current SOUL and last supplied revision separately; applied revision is unknown, even if both match. No automatic clear, compact, turn or refresh is triggered by an edit. Saved execution defaults affect future construction only; existing conversations keep native controls. Provider availability is checked at native creation, worker null inherits main, and automatic fallback remains disabled. UI pickers and verified refresh/continuity retain their owning feature gates.
+
 ## Deferred prototype and rollback caveat
 
 The separate [core fork draft](https://github.com/galligan/bb/pull/3) at `56024d263` changes durable compact-first queue semantics. It is not a Bots dependency, upstream submission or supported release. Keep it and its evidence intact; no further upstream pings, merge or deployment under this direction.
