@@ -85,6 +85,10 @@ export const managementContract = defineRpcContract({
   },
 });
 export const homeContract = defineRpcContract({
+  validateBase: {
+    input: z.strictObject({ base: z.string().max(4096).optional() }),
+    output: z.strictObject({ path: z.string() }),
+  },
   prepare: {
     input: z.strictObject({
       botId: z.string().regex(/^bot_[a-f0-9-]{36}$/),

@@ -30,52 +30,66 @@ export function ExecutionChoice({
     setError(null);
     if (!custom) return;
     const controller = new AbortController();
+    const signal = AbortSignal.any([
+      controller.signal,
+      AbortSignal.timeout(10000),
+    ]);
     void (async () => {
       const providers = await sdk.providers.list({
         hostId,
-        signal: controller.signal,
+        signal,
       });
-      const provider = providers.find((p) => p.available);
-      if (!provider) throw new Error("No available provider");
-      const options = await sdk.providers.models({
-        hostId,
-        providerId: provider.id,
-        signal: controller.signal,
-      });
-      const model =
-        options.models.find((m) => m.isDefault) ?? options.models[0];
-      const modes = ["accept-edits", "auto", "full"] as const;
-      const allowed = Object.fromEntries(
-        providers.map((p) => [
-          p.id,
-          modes.filter(
-            (mode, rank) =>
-              rank <= modes.indexOf(options.permissionCeiling) &&
-              p.capabilities.permissionModes.includes(mode),
-          ),
-        ]),
-      );
-      const permissionMode = modes.find(
-        (mode, rank) =>
-          rank <= modes.indexOf(options.permissionCeiling) &&
-          provider.capabilities.permissionModes.includes(mode),
-      );
-      if (!model || options.modelLoadError || !permissionMode)
-        throw new Error("Execution choices unavailable");
-      const next = {
-        providerId: provider.id,
-        model: model.model,
-        reasoningLevel: model.defaultReasoningEffort,
-        permissionMode,
-        ...(provider.capabilities.supportsServiceTier
-          ? { serviceTier: "default" }
-          : {}),
-      };
-      if (!controller.signal.aborted) {
-        setPermissions(allowed);
-        setChoice(next);
-        onChange(next);
+      for (const provider of providers
+        .filter((p) => p.available)
+        .slice(0, 16)) {
+        signal.throwIfAborted();
+        let options;
+        try {
+          options = await sdk.providers.models({
+            hostId,
+            providerId: provider.id,
+            signal,
+          });
+        } catch {
+          signal.throwIfAborted();
+          continue;
+        }
+        const model =
+          options.models.find((m) => m.isDefault) ?? options.models[0];
+        const modes = ["accept-edits", "auto", "full"] as const;
+        const allowed = Object.fromEntries(
+          providers.map((p) => [
+            p.id,
+            modes.filter(
+              (mode, rank) =>
+                rank <= modes.indexOf(options.permissionCeiling) &&
+                p.capabilities.permissionModes.includes(mode),
+            ),
+          ]),
+        );
+        const permissionMode = modes.find(
+          (mode, rank) =>
+            rank <= modes.indexOf(options.permissionCeiling) &&
+            provider.capabilities.permissionModes.includes(mode),
+        );
+        if (!model || options.modelLoadError || !permissionMode) continue;
+        const next = {
+          providerId: provider.id,
+          model: model.model,
+          reasoningLevel: model.defaultReasoningEffort,
+          permissionMode,
+          ...(provider.capabilities.supportsServiceTier
+            ? { serviceTier: "default" }
+            : {}),
+        };
+        if (!controller.signal.aborted) {
+          setPermissions(allowed);
+          setChoice(next);
+          onChange(next);
+        }
+        return;
       }
+      throw new Error("No usable native execution choices");
     })().catch(() => {
       if (!controller.signal.aborted)
         setError(

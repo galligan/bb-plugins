@@ -1,5 +1,12 @@
-import type { BbPluginApi } from "@get-bb/plugin-sdk";
-import { homeContract, type CreateBotInput } from "./contracts.ts";
+import {
+  type BbPluginApi,
+  experimental_PluginRpcRefusal,
+} from "@get-bb/plugin-sdk";
+import {
+  createSchema,
+  homeContract,
+  type CreateBotInput,
+} from "./contracts.ts";
 import type { SetupStore } from "./storage.ts";
 import type { SoulStore } from "../soul/store.ts";
 
@@ -187,8 +194,27 @@ export function createSetupService(
     inspect,
     resume,
     create: async (input: CreateBotInput, requestSignal?: AbortSignal) => {
-      signal.throwIfAborted();
-      requestSignal?.throwIfAborted();
+      input = createSchema.parse(input);
+      const operationSignal = requestSignal
+        ? AbortSignal.any([signal, requestSignal])
+        : signal;
+      operationSignal.throwIfAborted();
+      if (!store.findRequest(input.requestId)) {
+        try {
+          await host.call(
+            "validateBase",
+            input.homeBase ? { base: input.homeBase } : {},
+            { hostId: input.hostId, signal: operationSignal, timeoutMs: 5000 },
+          );
+        } catch (error) {
+          operationSignal.throwIfAborted();
+          throw new experimental_PluginRpcRefusal({
+            code: "invalid",
+            message: `Home validation failed before saving creation intent: ${error instanceof Error ? error.message : "Reconnect the selected machine and check the base."}`,
+          });
+        }
+        operationSignal.throwIfAborted();
+      }
       return resume(store.plan(input).botId, requestSignal);
     },
     rename: async (

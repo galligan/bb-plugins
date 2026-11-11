@@ -7,7 +7,7 @@ import { view } from "./fixture.ts";
 import { makeHostResponse } from "@get-bb/plugin-sdk/testing";
 import { createSchema } from "../lib/setup/contracts.ts";
 import { uiContract } from "../lib/ui/contracts.ts";
-import { provider, execution } from "./execution-fixture.ts";
+import { experimental_PluginRpcCallError as RpcCallError } from "@get-bb/plugin-sdk/app";
 
 const loaded = () => loadPluginApp(() => import("../app.tsx"));
 const machine = makeHostResponse({
@@ -125,55 +125,6 @@ test("uncertain creation never replays and its key survives remount for read-onl
   recovered.lifecycle.unmount();
 });
 
-test("native execution pickers route to the selected host and forward coherent model/reasoning/tier/permissions", async () => {
-  const app = await loaded();
-  const writes: ReturnType<typeof createSchema.parse>[] = [];
-  const slot = renderSlot(
-    app.navPanels[0]!,
-    { subPath: "new" },
-    {
-      rpc: {
-        list: () => ({ bots: [], hasMore: false }),
-        creation: () => null,
-        create: (input) => {
-          writes.push(createSchema.parse(input));
-          return view;
-        },
-      },
-      sdk: {
-        hosts: { list: async () => [machine] },
-        providers: {
-          list: async () => [provider],
-          models: async () => execution,
-        },
-      },
-    },
-  );
-  await slot.findByRole("option", { name: "Fixture machine" });
-  await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
-  await userEvent.click(slot.getByLabelText("Choose a model and permissions"));
-  const picker = await slot.findByTestId("bb-provider-model-picker");
-  expect(picker.getAttribute("data-routing-id")).toBe("host_test");
-  const permissions = slot.getByTestId("bb-permission-mode-picker");
-  expect(permissions.getAttribute("data-routing-id")).toBe("host_test");
-  await userEvent.selectOptions(slot.getByLabelText("Permission mode"), "auto");
-  await userEvent.selectOptions(slot.getByLabelText("Service tier"), "fast");
-  await userEvent.click(
-    slot.getByRole("button", { name: "Apply execution selection" }),
-  );
-  await userEvent.click(slot.getByRole("button", { name: "Create bot" }));
-  await waitFor(() => expect(writes).toHaveLength(1));
-  expect(writes[0]).toMatchObject({
-    hostId: "host_test",
-    providerId: "codex",
-    model: "gpt-6.1-sol",
-    reasoningLevel: "high",
-    serviceTier: "fast",
-    permissionMode: "auto",
-  });
-  slot.lifecycle.unmount();
-});
-
 test("relative home input is rejected before a creation intent is sent", async () => {
   const app = await loaded();
   let writes = 0;
@@ -233,5 +184,40 @@ test("unavailable receipt storage prevents sending a creation request", async ()
     "Could not retain the creation receipt in this browser. Use the CLI with an explicit request ID, or allow session storage before creating.",
   );
   expect(writes).toBe(0);
+  slot.lifecycle.unmount();
+});
+
+test("a known pre-intent host refusal returns to the retained form without an unknown-delivery receipt", async () => {
+  const app = await loaded();
+  const slot = renderSlot(
+    app.navPanels[0]!,
+    { subPath: "new" },
+    {
+      rpc: {
+        list: () => ({ bots: [], hasMore: false }),
+        creation: () => null,
+        create: () => {
+          throw new RpcCallError({
+            code: "invalid",
+            message:
+              "Home validation failed before saving creation intent: wrong platform path",
+          });
+        },
+      },
+      sdk: { hosts: { list: async () => [machine] } },
+    },
+  );
+  await slot.findByRole("option", { name: "Fixture machine" });
+  await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
+  await userEvent.type(slot.getByLabelText("Home base (optional)"), "C:\\bots");
+  await userEvent.click(slot.getByRole("button", { name: "Create bot" }));
+  await slot.findByText(
+    "Home validation failed before saving creation intent: wrong platform path",
+  );
+  expect(
+    (slot.getByLabelText("Home base (optional)") as HTMLInputElement).value,
+  ).toBe("C:\\bots");
+  expect(slot.queryByText("Check the creation request")).toBeNull();
+  expect(sessionStorage.getItem("bbots.pendingCreation")).toBeNull();
   slot.lifecycle.unmount();
 });

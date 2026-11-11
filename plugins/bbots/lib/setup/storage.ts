@@ -83,6 +83,12 @@ export function openSetup(storage: PluginStorage) {
   return {
     ...records,
     get,
+    findRequest: (requestId: string) => {
+      const row = db
+        .prepare("SELECT bot_id AS botId FROM bot_setup WHERE request_id = ?")
+        .get(requestId) as { botId: string } | undefined;
+      return row ? get(row.botId) : null;
+    },
     plan,
     phase,
     view: (botId: string) => {

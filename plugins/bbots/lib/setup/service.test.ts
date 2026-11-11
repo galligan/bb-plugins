@@ -19,7 +19,8 @@ function fixture(t: TestContext) {
     lostAfterAdmission = false,
     lostProjectReceipt = false,
     missingThread = false,
-    movedThread = false;
+    movedThread = false,
+    invalidBase = false;
   let thread = makeThreadResponse({
     id: "thr_main",
     projectId: "proj_home",
@@ -53,13 +54,18 @@ function fixture(t: TestContext) {
     pluginId: "bbots",
     agentSkillIds: ["bbots", "bbots-soul"],
     experimental_hostEntry: true,
-    experimental_callHostRpc: async (call) =>
-      call.method === "prepare"
+    experimental_callHostRpc: async (call) => {
+      if (call.method === "validateBase") {
+        if (invalidBase) throw new Error("Wrong platform home base");
+        return { path: "/safe/homes" };
+      }
+      return call.method === "prepare"
         ? {
             path: `/safe/homes/${(call.input as { botId: string }).botId}`,
             status: "created",
           }
-        : { status: missing ? "missing" : "present" },
+        : { status: missing ? "missing" : "present" };
+    },
     sdk: {
       hosts: {
         get: async () =>
@@ -167,6 +173,9 @@ function fixture(t: TestContext) {
     },
     setOffline: (x: boolean) => {
       offline = x;
+    },
+    setInvalidBase: (value: boolean) => {
+      invalidBase = value;
     },
     setMissingThread: () => {
       missingThread = true;
@@ -278,6 +287,28 @@ test("new main uses native explicit reasoning/permission choices and revised def
   assert.equal(args.permissionMode, "accept-edits");
   assert.equal(args.serviceTier, "fast");
   assert.equal(f.harness.inspection.sdk.callsTo("threads.send").length, 0);
+});
+
+test("host validation refuses a new request before immutable creation intent and allows explicit correction", async (t) => {
+  const f = fixture(t);
+  f.setInvalidBase(true);
+  await assert.rejects(
+    f.harness.behavior.callRpc("create", { ...f.input, homeBase: "C:\\bots" }),
+    /before saving creation intent/,
+  );
+  assert.deepEqual(f.store.list().bots, []);
+  assert.equal(f.store.findRequest(f.input.requestId), null);
+  assert.equal(f.harness.inspection.sdk.callsTo("threads.spawn").length, 0);
+  f.setInvalidBase(false);
+  const corrected = viewSchema.parse(
+    await f.harness.behavior.callRpc("create", {
+      ...f.input,
+      homeBase: "/valid/base",
+    }),
+  );
+  assert.equal(corrected.setup.phase, "ready");
+  assert.equal(f.store.list().bots.length, 1);
+  assert.equal(f.harness.inspection.sdk.callsTo("threads.spawn").length, 1);
 });
 
 test("rename preserves home, logical/physical IDs and applies the title only on explicit change", async (t) => {

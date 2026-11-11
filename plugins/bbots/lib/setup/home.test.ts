@@ -7,6 +7,8 @@ import {
   writeFile,
   rm,
   symlink,
+  lstat,
+  realpath,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,6 +16,35 @@ import { experimental_createHostEntryHarness } from "@get-bb/plugin-sdk/testing/
 import entry from "../../host.ts";
 
 const botId = "bot_11111111-1111-4111-8111-111111111111";
+test("host preflight uses native path rules, rejects repository aliases, and creates no directories", async (t) => {
+  const base = await mkdtemp(join(tmpdir(), "bbots-validate-"));
+  t.after(() => rm(base, { recursive: true, force: true }));
+  const host = experimental_createHostEntryHarness(entry);
+  t.after(() => host.experimental_dispose());
+  const candidate = join(base, "new", "nested");
+  assert.deepEqual(
+    await host.experimental_call("validateBase", { base: candidate }),
+    { path: join(await realpath(base), "new", "nested") },
+  );
+  await assert.rejects(lstat(join(base, "new")), { code: "ENOENT" });
+  await assert.rejects(
+    host.experimental_call("validateBase", {
+      base: process.platform === "win32" ? "relative" : "C:\\bots",
+    }),
+    /absolute home base/,
+  );
+  const repo = join(base, "repo");
+  await mkdir(join(repo, ".git"), { recursive: true });
+  await symlink(repo, join(base, "alias"));
+  await assert.rejects(
+    host.experimental_call("validateBase", {
+      base: join(base, "alias", "new"),
+    }),
+    /outside Git/,
+  );
+  await assert.rejects(lstat(join(repo, "new")), { code: "ENOENT" });
+});
+
 test("real host entry prepares a stable home once and inspect never recreates a missing home", async (t) => {
   const base = await mkdtemp(join(tmpdir(), "bbots-home-"));
   t.after(() => rm(base, { recursive: true, force: true }));

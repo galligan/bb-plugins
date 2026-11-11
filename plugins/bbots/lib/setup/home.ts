@@ -1,6 +1,21 @@
-import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  stat,
+  mkdir,
+  readFile,
+  realpath,
+  writeFile,
+} from "node:fs/promises";
 import { homedir } from "node:os";
-import { isAbsolute, join, resolve, dirname, relative, sep } from "node:path";
+import {
+  isAbsolute,
+  join,
+  resolve,
+  dirname,
+  basename,
+  relative,
+  sep,
+} from "node:path";
 
 const marker = ".bbots-home.json";
 const missing = (error: unknown) =>
@@ -115,4 +130,37 @@ export async function prepareHome(
     { flag: "wx", mode: 0o600 },
   );
   return { path, status: "created" as const };
+}
+
+export async function validateHomeBase(
+  base = join(homedir(), ".bb-bots"),
+  dataDirectory?: string,
+  signal?: AbortSignal,
+) {
+  if (!isAbsolute(base))
+    throw new Error(
+      "Choose an absolute home base for this machine's operating system.",
+    );
+  signal?.throwIfAborted();
+  await outsideData(resolve(base), dataDirectory);
+  let ancestor = resolve(base);
+  const segments: string[] = [];
+  while (true) {
+    signal?.throwIfAborted();
+    try {
+      const physical = await realpath(ancestor);
+      if (!(await stat(physical)).isDirectory())
+        throw new Error(
+          "The home base's existing ancestor must be a directory.",
+        );
+      const path = join(physical, ...segments);
+      await outsideData(path, dataDirectory);
+      await assertOutsideRepository(path);
+      return { path };
+    } catch (error) {
+      if (!missing(error) || dirname(ancestor) === ancestor) throw error;
+      segments.unshift(basename(ancestor));
+      ancestor = dirname(ancestor);
+    }
+  }
 }

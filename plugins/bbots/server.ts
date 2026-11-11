@@ -58,11 +58,8 @@ export default function plugin(bb: BbPluginApi) {
           }),
         ),
       creation: ({ requestId }) => {
-        const row = bb.storage
-          .database()
-          .prepare("SELECT bot_id AS botId FROM bot_setup WHERE request_id = ?")
-          .get(requestId) as { botId: string } | undefined;
-        return row ? store.view(row.botId) : null;
+        const setup = store.findRequest(requestId);
+        return setup ? store.view(setup.botId) : null;
       },
     },
   );

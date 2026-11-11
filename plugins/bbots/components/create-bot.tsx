@@ -3,6 +3,7 @@ import {
   useBbNavigate,
   experimental_useRpcQuery as useRpcQuery,
   experimental_useRpcMutation as useRpcMutation,
+  experimental_PluginRpcCallError as RpcCallError,
 } from "@get-bb/plugin-sdk/app";
 import { createSchema, managementContract } from "../lib/setup/contracts.ts";
 import { uiContract } from "../lib/ui/contracts.ts";
@@ -88,7 +89,21 @@ export function CreateBot({
       sessionStorage.removeItem(pendingCreationKey);
       setPending(null);
       navigate.toPluginPanel("bots", { subPath: value.bot.id });
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof RpcCallError &&
+        (error.code === "invalid" || error.code === "invalid_input")
+      ) {
+        try {
+          // These refusals occur before creation intent, so the form can be corrected safely.
+          sessionStorage.removeItem(pendingCreationKey);
+          setPending(null);
+          setError(error.message);
+          return;
+        } catch {
+          /* Keep the receipt when browser storage cannot be cleared. */
+        }
+      }
       setError(
         "Creation delivery is unconfirmed. Check the recorded request before creating another bot; no automatic retry was sent.",
       );
