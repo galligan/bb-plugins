@@ -16,5 +16,6 @@ Persistent collaborators for BB, independent of the selected sidebar. The first 
 - [Public capability verification](docs/capabilities.md): current declarations, bounded runtime evidence and open support gates.
 - [Capability follow-up](docs/capability-followup.md): queue/Stop regressions, native board routing and unmanaged home archive/restart evidence.
 - [Native continuity admission gate](docs/sdk-continuity-gates.md): focused reproduction and the required upstream contract investigation.
+- [Continuity acceptance matrix](docs/continuity-matrix.md): evidence level, remaining Stop/override/recovery checks and concrete queue compatibility limits.
 
 The dedicated BB Tasks project is **Bots**, prefix **BOTS**, stable project ID `01M73NSQMGEYPWZ30WSR2CEYBP`. It is intentionally not linked in place of the repository's existing BBP tracker. Tasks are the source of implementation intent; keep them and these documents aligned as constraints are verified.

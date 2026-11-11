@@ -8,7 +8,7 @@ Matt subsequently authorized the separately scoped BB core/SDK investigation and
 
 - Builder thread: `thr_898bvuxcfi`, title **bb Bots Builder**; provider `codex`, model `gpt-6.1-sol`, reasoning `high`.
 - Environment: `env_i9zexe2j36`, existing worktree `/Users/mg/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_cc23h4keqr-1/bb-plugins`.
-- Current branch: `docs/bbots/runtime-readiness-evidence`, based on merged main `ca408e3`; coordination thread `thr_cc23h4keqr`. The original exploration branch is preserved at `5799fd01f91086f07f164b45963ba1ddd12a2c0d`.
+- Current branch: `docs/bbots/continuity-acceptance-matrix`, based on merged main `7b08141`; coordination thread `thr_cc23h4keqr`. The original exploration branch is preserved at `5799fd01f91086f07f164b45963ba1ddd12a2c0d`.
 - Reviewer: `thr_h8dwtwfbn2`, Claude Fable 5.2 High. Read [review dispositions](review.md); declaration inspection is not runtime proof.
 - Tracker: **Bots**, prefix `BOTS`, ID `01M73NSQMGEYPWZ30WSR2CEYBP`. Parent BOTS-1; planning BOTS-2; implementation BOTS-3 through BOTS-17. The existing BBP repository association remains unchanged.
 
@@ -29,6 +29,8 @@ Matt confirmed native per-thread Stop plus the background-maintenance toggle for
 Keep task descriptions and specification aligned with verified constraints. Missing critical SDK capability blocks that support path; it does not permit undocumented imports or an unannounced reduction in continuity. BB core is authorized only for the separately scoped BOTS-18 admission/attribution fix. Sibling plugins and the separate Radio work remain outside scope. Follow Bun checks and draft-PR rules when implementation is released.
 
 ## Current verification and next work
+
+The [continuity acceptance matrix](continuity-matrix.md) makes remaining Stop/override/retry/clear/successor/coexistence gates explicit. A new source-extracted compatibility check establishes that the pinned baseline payload reader throws an internal error for a retained compact-first row, while its public payload schema rejects that kind. The prototype reads it and existing inline/retry controls match. This is not a full downgrade test; rollout and old-client behavior need a maintainer-approved disposition. Evidence and reproduction script are attached to BOTS-18. PR #95 has merged; the core draft still has clean current-head Devin review, queued remote CI and no upstream maintainer response at the latest bounded check. No duplicate upstream ping was sent.
 
 Read [capability follow-up](capability-followup.md): native Tasks board navigation and single-host unmanaged home retention through archive/restart are now observed. PRs #82 and #93 merged after fresh Devin review with zero open findings and all current-head checks green. The first source smoke overstated daemon participation; corrected source, home and held-queue restart checks now require both live processes, connected host and registered provider, and all pass with zero added provider requests. Read the explicit correction and superseding evidence in the follow-up. BOTS-3 and BOTS-18 remain incomplete; BOTS-4 is unstarted. Continue independent capability checks while awaiting supported upstream compaction-contract alignment. Matt's authorization persists; another go is not required. No production app replacement, sibling-plugin work or continuity waiver is authorized.
 

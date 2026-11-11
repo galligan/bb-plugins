@@ -37,6 +37,8 @@ All 61 focused server tests pass, along with affected server/public-SDK typechec
 
 ## Minimum upstream acceptance
 
+Use the [continuity acceptance matrix](continuity-matrix.md) to distinguish source-runtime passes, fake-host server tests and remaining live gates. Its bounded compatibility check establishes that the pinned baseline mapper throws for a retained `compact-first` row and its public payload schema rejects the new kind. Rollout/downgrade handling therefore needs an explicit maintainer disposition; no SQL migration does not imply old-reader compatibility.
+
 First establish whether native compaction intentionally has a different admission surface. If a supported existing surface can authorize and cancel it while preserving genuine human dispatch, document that surface and reproduce it before proposing new APIs.
 
 If no such surface exists, a separately authorized BB SDK change should ensure model-backed native context operations have admission semantics that preserve:
