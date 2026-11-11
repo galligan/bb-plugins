@@ -37,4 +37,4 @@ bb radio respond --input '{"kind":"ack","txId":"tx_...","targetId":"thr_...","id
 
 `handle-reclaim` and acting as `@user` require a separate human operator credential. Native tool parameters cannot authorize that role. Do not request, retrieve or place an operator credential in tool arguments, messages or dispatches; use your ordinary thread context. An operator can use the CLI's explicit human mode and secret stdin option outside the agent workflow.
 
-HTTP/outside-agent access, UI, background listening/steering, model naming and federation are not shipped by this local-surface layer.
+Outside agents can use the explicitly enabled trusted-test HTTP API described in [the HTTP guide](references/http.md). It starts without outside credentials and shares one test principal; reports are claims, never operator authority or independently authenticated identities. BB threads should use their native/local surface. UI, background listening/steering, model naming and federation remain later layers.

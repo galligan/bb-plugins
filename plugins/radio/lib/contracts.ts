@@ -40,7 +40,7 @@ export interface Channel {
   name: string;
 }
 
-/** Adapter-authenticated context, never copied from a self-report or request body. */
+/** Adapter-established authority, never a self-report. The initial no-credential test principal represents deployment trust, not independent external authentication. */
 export type TrustedCaller =
   | { kind: "human"; actorId: string }
   | { kind: "actor"; actorId: string }

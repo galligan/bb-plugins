@@ -4,7 +4,7 @@
 
 One BB server plugin owns one Radio database and domain service. Thin adapters expose CLI, native tools, typed local RPC, trusted-test HTTP (initially without outside-agent credentials) and additive UI. Use the public SDK; do not import BB internals, sibling plugin source, old Radio implementation code or Dispatch runtime code.
 
-Package identity is `bb-plugin-radio`, plugin ID `radio`, pinned to public SDK 0.6.132. The current backend initializes identity/project/channel storage, immutable transmissions and versioned Markdown dispatches; the shared local CLI/RPC/native adapters are implemented. HTTP and additive UI remain separate layers. Follow repository build/release procedures as each layer is implemented.
+Package identity is `bb-plugin-radio`, plugin ID `radio`, pinned to public SDK 0.6.132. The current backend initializes identity/project/channel storage, immutable transmissions and versioned Markdown dispatches; the shared local CLI/RPC/native adapters are implemented. Trusted-test HTTP is implemented but disabled by default; additive UI remains separate. Follow repository build/release procedures as each layer is implemented.
 
 ## Persistence model
 
@@ -77,3 +77,5 @@ Remote replies and response events reference the original canonical tx and recip
 Implement station transport after local/external-client behavior is proven. Stable station-scoped IDs preserve the option without requiring federation for the first release.
 
 Verified local project bootstrap keeps an existing Radio mapping. For a new project whose BB display name is invalid, reserved, too long or already allocated after normalization, it uses a bounded `project-` qualifier derived from the immutable BB project ID. It never truncates the proposed name, displaces another project or silently renames an existing mapping. The resulting canonical qualifier is returned by project registry reads and remains explicitly renameable. BB thread IDs are opaque and retain hyphenated suffixes without applying readable-name normalization.
+
+The initial trusted-test HTTP adapter uses the same surface-result runner as local adapters. It validates a configured BB project, accepts only registered canonical sessions belonging to its shared station test principal and never offers human mode. Mode/project changes cancel in-flight HTTP calls; historical communication/attention records remain durable. See [HTTP](../skills/radio/references/http.md) for bounds, no-credential identity limitations and the remaining live verification gate.

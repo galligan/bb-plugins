@@ -253,7 +253,7 @@ test("CLI help and native configuration expose only implemented operations with 
       ["radio_call"],
     );
     assert.deepEqual(config.skills, ["radio"]);
-    assert.equal(f.harness.inspection.registrations.httpRoutes.length, 0);
+    assert.equal(f.harness.inspection.registrations.httpRoutes.length, 2);
     assert.equal(f.harness.inspection.registrations.services.length, 0);
     assert.equal(f.harness.inspection.registrations.schedules.length, 0);
   } finally {
