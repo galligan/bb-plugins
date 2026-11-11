@@ -6,7 +6,7 @@
 
 - Builder `thr_898bvuxcfi`, parent `thr_cc23h4keqr`, Codex gpt-6.1-sol/high.
 - Environment `env_i9zexe2j36`; existing exploration worktree preserved at `/Users/mg/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_cc23h4keqr-1/bb-plugins`.
-- Implementation branch `feat/bbots/main-home`; original exploration and documentation branches retained. Never clean/reset this worktree.
+- Implementation branches `feat/bbots/main-home` (BOTS-6 merged) and `feat/bbots/soul-models` (BOTS-7); original exploration and documentation branches retained. Never clean/reset this worktree.
 - Dedicated tracker **BOTS**, stable ID `01M73NSQMGEYPWZ30WSR2CEYBP`; never BBP. Matt's “Ok go” and subsequent correction authorize routine implementation/review/merge without another go.
 
 ## Delivered and current slices
@@ -16,6 +16,8 @@ BOTS-4 merged in [PR #112](https://github.com/galligan/bb-plugins/pull/112), and
 BOTS-6 adds CLI/RPC home/main creation with persisted intent, pre-construction ownership admission, safe partial recovery, project responsibility scope and native initial title/pin. A minimal revisioned starter SOUL/configure binding is pulled forward to cover the first session; BOTS-7 retains editing/model controls, applied-revision presentation and fuller skills. Resume never resends the setup prompt or repins an existing main. Uncertain pre-admission outcomes remain visible and are not blindly retried. No home is deleted by lifecycle handlers.
 
 The actual server and host entries pass offline public SDK harness tests. Shared Dev acceptance must be scheduled separately with `thr_my8t4atsyy`; no install/reload/settings change is allowed outside that slot. BOTS-7 and BOTS-17 can be prepared independently while a live slot is queued; no new release from Matt is needed between routine milestones. Preserve native controls and use additive UI only.
+
+BOTS-6 merged in [PR140](https://github.com/galligan/bb-plugins/pull/140) as `348d585` after fresh exact-head Devin, CI and bounded shared Dev acceptance on `77ebaf0`. Exactly one short no-tools setup turn, rename/unpin/reload/archive/home retention passed; fixture `thr_geqas74r5f` is stopped/archived, bbots disabled, queue/children empty and home/history preserved. Dev reported BB0.49.0/runtime SDK0.6.140; keep that separate from stable bundled0.6.132. BOTS-7 supplies revision-checked SOUL/default editing and bounded brief, with applied revision explicitly unknown because configuration resolution has no session receipt. Automatic refresh/fallback stays disabled. BOTS-17 owns minimal UI/native pickers; harness owner cleared package-local frontend/test dependencies and additive generated lock entries, with no root manifest/scripts/SDK pin changes.
 
 ## Controls and support
 
@@ -29,7 +31,7 @@ Evidence PRs #82/#93/#95/#98/#101 are merged. Source-runtime proof and failed se
 
 ## Delivery
 
-Follow root Bun 1.3.14 / Node 24 verification and draft → fresh Devin → scoped fixes/review → green CI → ready → exact-head requirements → normal merge. No package publication or production installation. Keep Tasks/spec current as real capability decisions land; no standalone evidence-only PRs to imply implementation progress.
+Follow the current root toolchain / Node 24 verification and draft → fresh Devin → scoped fixes/review → green CI → ready → exact-head requirements → normal merge. No package publication or production installation. Keep Tasks/spec current as real capability decisions land; no standalone evidence-only PRs to imply implementation progress.
 
 ## Resumed integration
 

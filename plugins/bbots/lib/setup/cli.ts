@@ -8,6 +8,8 @@ import { createSchema, type Setup } from "./contracts.ts";
 import { newRequestId, type SetupStore } from "./storage.ts";
 import type { createSetupService } from "./service.ts";
 import { developmentStatus, formatStatus } from "../status.ts";
+import { soulCommands } from "../soul/cli.ts";
+import type { SoulStore } from "../soul/store.ts";
 
 const json = {
   type: "boolean",
@@ -32,11 +34,13 @@ function result(value: unknown, json: boolean | undefined): PluginCliResult {
 export function botCli(
   store: SetupStore,
   service: ReturnType<typeof createSetupService>,
+  soul: SoulStore,
 ) {
   return defineCli({
     name: "bot",
     summary: "Create and inspect persistent Bots",
     commands: {
+      ...soulCommands(soul, store),
       status: cliCommand({
         summary: "Show development status and support limits",
         options: { json },
@@ -103,6 +107,17 @@ export function botCli(
             type: "string",
             description: "Native model ID (otherwise BB default)",
           },
+          reasoning: {
+            type: "string",
+            description:
+              "Native provider/model reasoning level (otherwise BB default)",
+          },
+          permissions: {
+            type: "enum",
+            values: ["accept-edits", "auto", "full"],
+            description:
+              "Native permission mode (otherwise BB default); applies to the new main only",
+          },
           json,
         },
         async run({ options }, ctx) {
@@ -125,6 +140,8 @@ export function botCli(
             homeBase: options["home-base"],
             providerId: options.provider,
             model: options.model,
+            reasoningLevel: options.reasoning,
+            permissionMode: options.permissions,
           });
           if (!input.success)
             throw new PluginCliError(

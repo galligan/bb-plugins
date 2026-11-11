@@ -51,7 +51,7 @@ function fixture(t: TestContext) {
   let current: ReturnType<typeof createFakePluginHost>;
   const host = createFakePluginHost({
     pluginId: "bbots",
-    agentSkillIds: ["bbots"],
+    agentSkillIds: ["bbots", "bbots-soul"],
     experimental_hostEntry: true,
     experimental_callHostRpc: async (call) =>
       call.method === "prepare"
@@ -215,6 +215,10 @@ test("real server creation binds ownership before configure, replays idempotentl
   assert.equal(spawn.length, 1);
   assert.equal((spawn[0]![0] as { pinned: boolean }).pinned, true);
   assert.equal(
+    (spawn[0]![0] as { permissionMode?: string }).permissionMode,
+    undefined,
+  );
+  assert.equal(
     (spawn[0]![0] as { parentThreadId?: string }).parentThreadId,
     undefined,
   );
@@ -230,6 +234,48 @@ test("real server creation binds ownership before configure, replays idempotentl
     f.harness.behavior.callRpc("create", { ...f.input, name: "Another" }),
     /already used/,
   );
+});
+
+test("new main uses native explicit reasoning/permission choices and revised defaults after offline setup", async (t) => {
+  const f = fixture(t);
+  f.setOffline(true);
+  const planned = viewSchema.parse(
+    await f.harness.behavior.callRpc("create", {
+      ...f.input,
+      providerId: "codex",
+      model: "initial-model",
+      reasoningLevel: "medium",
+      permissionMode: "accept-edits",
+    }),
+  );
+  await f.harness.behavior.callRpc("defaultsUpdate", {
+    botId: planned.bot.id,
+    expectedRevision: 0,
+    defaults: {
+      main: {
+        providerId: "codex",
+        model: "chosen-model",
+        reasoningLevel: "high",
+        permissionMode: "accept-edits",
+      },
+      worker: null,
+      fallback: null,
+    },
+    author: "fixture-user",
+    reason: "Explicit model choice",
+  });
+  f.setOffline(false);
+  const ready = viewSchema.parse(
+    await f.harness.behavior.callRpc("resume", { botId: planned.bot.id }),
+  );
+  assert.equal(ready.setup.phase, "ready");
+  const args = f.harness.inspection.sdk.callsTo(
+    "threads.spawn",
+  )[0]![0] as Record<string, unknown>;
+  assert.equal(args.model, "chosen-model");
+  assert.equal(args.reasoningLevel, "high");
+  assert.equal(args.permissionMode, "accept-edits");
+  assert.equal(f.harness.inspection.sdk.callsTo("threads.send").length, 0);
 });
 
 test("rename preserves home, logical/physical IDs and applies the title only on explicit change", async (t) => {

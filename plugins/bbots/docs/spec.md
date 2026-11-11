@@ -18,11 +18,13 @@ The defining acceptance scenario is: create Bob, discuss a project, delegate an 
 
 ## Configuration and soul
 
-The BOTS-6 creation slice includes the minimal revisioned starter SOUL and construction callback, moved forward from BOTS-7 to ensure the first native session is owned and instructed. Full soul editing, model/permission controls and applied-revision presentation remain BOTS-7.
+The BOTS-6 creation slice includes the minimal revisioned starter SOUL and construction callback, moved forward from BOTS-7 to ensure the first native session is owned and instructed. BOTS-7 adds deliberate CLI/RPC editing, revisioned future execution defaults and current/last-supplied/unknown-applied presentation. Native picker UI follows in BOTS-17; saving defaults does not mutate an existing conversation or authorize a provider turn.
 
 Each bot has a stable identity, name/appearance, soul document, execution defaults, default machine/home, project associations, task-source association, and conversation references. Use native provider/model controls, including supported reasoning settings.
 
 Execution choices include a main model, a fallback model, and a working-thread model that initially inherits the main model. Main and worker permission modes use the native permission picker and initially inherit BB defaults; fallback never broadens permissions. Do not assume fallback is merely swapping a string: same-provider and cross-provider behavior must be verified and recorded in the continuity support matrix. Failure-trigger rules belong in [continuity](continuity.md).
+
+The current public configure context has no provider-session receipt and can be resolved for an existing session. Record only last supplied revision, never infer application from that callback. Display applied revision as unknown even when current and supplied revisions match. A newer edit is pending supply; no refresh or model turn runs as a side effect. Verified application/refresh remains an affected continuity gate. Future execution defaults preserve omitted BB choices; worker null inherits main, while an explicit worker choice is independent. Fallback configuration cannot set permissions and its automatic execution stays disabled.
 
 `SOUL.md` is the named, readable and editable Markdown persona document, stored with revisions in SQLite. It describes communication, values, judgment, initiative, disagreement, and collaboration. It is supplied when each bot-owned provider session is constructed. Existing live sessions can retain their construction-time instructions; edits and restores are pending until the next verified session construction or supported refresh. Show applied versus current revision, and do not silently reset a session merely to apply a soul edit. It is not an independently writable live file synchronized with the database; export/materialization must be explicit.
 
