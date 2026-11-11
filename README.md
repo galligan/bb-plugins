@@ -17,7 +17,7 @@ from this repository without a separate distribution branch.
 
 ## In preparation
 
-[Judge](plugins/judge) implements typed CLI/RPC asks, saved question sets, cases/calibration, opt-in event verdicts, BB-native settings/Info and an optional agent tool. Scoped synthetic Jev and authenticated remote UI checks passed; provider/platform/remote-host limitations remain explicit in its [live verification record](plugins/judge/docs/LIVE-VERIFICATION.md). It remains private and outside the install collection pending delivery gates; [distribution preparation](plugins/judge/docs/RELEASE.md) records independent builds and safe lifecycle expectations.
+[Judge](plugins/judge) implements typed CLI/RPC asks, saved question sets, cases/calibration, opt-in event verdicts, BB-native settings/Info and an optional agent tool. Scoped synthetic Jev and authenticated remote UI checks passed; provider/platform/remote-host limitations remain explicit in its [live verification record](plugins/judge/docs/LIVE-VERIFICATION.md). Its reviewed implementation and private preparation have merged; it remains private and outside the install collection under the current availability scope; [distribution preparation](plugins/judge/docs/RELEASE.md) records independent builds and safe lifecycle expectations.
 
 ## Install
 
