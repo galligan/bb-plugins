@@ -10,7 +10,26 @@ bun test ./scripts/compatibility-report.test.mjs
 
 The report reads `plugins/*/package.json`, root workspace patterns and gate scripts, `.prettierignore`, and the optional `.node-version` policy file. It lists package versions, declared BB and SDK engine ranges, direct SDK and `bb-app` build-tool pins from both dependency sections, and root gate selection. It does not install dependencies, resolve the lockfile, invoke package scripts, access the running BB installation, or change files. Ranged dependencies are shown as declarations, not resolved versions. A missing direct SDK pin remains visible even if a transitive dependency happens to supply it.
 
-The human output is for inspection; `--json` emits schema version 1 with stable field names and plugins sorted by directory. `policy` contains declared runtime policy; `gateCommands` preserves the configuration behind the assessment. Each plugin has `declared`, `pins`, `comparison`, `coverage`, and actionable `diagnostics`. Diagnostics are advisory and exit successfully, because differing pins and deliberate exclusions are not universally invalid. Invalid input, unsupported command-line arguments, and unreadable/malformed manifests fail with exit code 1. Keep generated reports as CI or PR artifacts rather than committing an inventory that will become stale.
+The human output is for inspection; `--json` emits schema version 1 with stable field names and plugins sorted by directory. `policy` contains declared runtime policy; `gateCommands` preserves the configuration behind the assessment. Each plugin has `declared`, `pins`, `comparison`, `coverage`, `harness`, and actionable `diagnostics`. Diagnostics are advisory and exit successfully, because differing pins and deliberate exclusions are not universally invalid. Invalid input, unsupported command-line arguments, and unreadable/malformed manifests fail with exit code 1. Keep generated reports as CI or PR artifacts rather than committing an inventory that will become stale.
+
+## Harness coverage and tooling drift
+
+`harness` answers one question per plugin: can its entry files be verified without a live BB? For each entry the manifest declares under `bb.server`, `bb.host`, and `bb.app`, the value is:
+
+| Value            | Meaning                                                                                                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `covered`        | A `*.test.*` file that the package's `test` script runs imports the matching harness (`@get-bb/plugin-sdk/testing`, `/testing/host`, `/testing/app`) and that entry file |
+| `unselected`     | Such a test exists, but the package's `test` script does not run it                                                                                                      |
+| `missing`        | No such test exists                                                                                                                                                      |
+| `not-applicable` | The manifest declares no such entry                                                                                                                                      |
+
+`importScan` uses the same values for a test that calls `experimental_scanPublicSdkOnly`. Each `missing` or `unselected` value adds a diagnostic naming the entry, the harness, and the unselected file.
+
+An import counts only when it resolves, relative to the test file, to the exact entry path in the manifest. An extensionless or `.js`-style specifier counts when it names no other real file and no other file shares the entry's stem. Test selection is read from the repository's command forms only: quoted `node --test` globs, and `vitest run` with the literal `include` globs in `vitest.config.ts`, or Vitest's default when there are none. A new runner form needs a reviewed change to [`harness.mjs`](../../scripts/compatibility/harness.mjs).
+
+This is a static text signal read from sources. It runs nothing and does not judge assertions, so `covered` means a selected harness test loads the entry, not that the behavior is tested well. Fixtures and non-test files do not count. See [choose the test boundary](verification.md#choose-the-test-boundary) for what each harness can and cannot verify.
+
+The top-level `toolingDrift` list names shared test tooling (`better-sqlite3`, React, React DOM, Testing Library, jsdom, and Vitest) pinned to more than one version, across packages or across one package's two dependency sections. SDK pins are checked by [`bun run preflight`](verification.md#bb-and-sdk-versions), not here. Both fields are additive to schema version 1.
 
 ## Meaning of coverage
 
