@@ -66,6 +66,10 @@ Ship an operating skill included in every bot-owned session. Wire one synchronou
 
 Commitments identify what is owed, owner logical conversation, authoritative task reference, and supporting evidence. When linked to a task, status is read from that task source; only an unlinked commitment owns its own open/closed state. They are a small continuity record, not a second competing task board. Resolve task detail from the configured source and reconcile references rather than silently duplicating its status authority.
 
+## Supported runtime
+
+Matt chose explicit minimum supported BB/runtime and runtime-SDK versions instead of full backward/downgrade compatibility. Use the existing `engines.bb` and `engines.bbPluginSdk` manifest checks, with the build-time SDK dependency pin recorded separately. Select numeric floors only after verifying releases containing the accepted admission contract; proposed SDK 0.6.139 is not a released floor. Development version exceptions require a separate reviewed source pin. Plugin engine fields do not protect older core readers from persisted compact-first rows. Post-upgrade data stays on the supported runtime; rollback requires preserving it separately and restoring a consistent pre-upgrade snapshot with matching binaries/plugins. See [support boundary](support-boundary.md) for enforcement evidence, upgrade/rollback consequences and remaining release gates. No production installation or continuity requirement is waived.
+
 ## Stop and background activity
 
 Confirmed by Matt: v1 uses native per-thread Stop plus a persistent per-bot background-maintenance toggle, with no new bot-wide Pause command. The separate implementation release is recorded in the handoff.
