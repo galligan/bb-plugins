@@ -211,3 +211,21 @@ test("a package that pins a tool differently in its two sections is drift", () =
     ],
   );
 });
+
+test("the compiler is shared tooling: two TypeScript pins are drift", () => {
+  assert.deepEqual(
+    toolingDrift([
+      {
+        directory: "plugins/a",
+        manifest: { devDependencies: { typescript: "7.0.2" } },
+      },
+      {
+        directory: "plugins/b",
+        manifest: { devDependencies: { typescript: "^5.7.0" } },
+      },
+    ]),
+    [
+      "typescript: 7.0.2 (plugins/a devDependencies); ^5.7.0 (plugins/b devDependencies). Pin one version in every package.",
+    ],
+  );
+});
