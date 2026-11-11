@@ -32,7 +32,9 @@ await page.waitForSelector('[aria-label="Refresh worktrees"]', {
 const waitForOverview = () =>
   page.waitForFunction(
     () =>
-      document.querySelector("[data-wt-project]") !== null ||
+      document.querySelector(
+        '[data-wt-project]:not([data-wt-project^="rescues:"])',
+      ) !== null ||
       [...document.querySelectorAll("main")].some((main) =>
         main.textContent.includes("No Worktree+ worktrees."),
       ),
@@ -59,7 +61,9 @@ assert(
 const actions = await page.$$(
   '[data-wt-row] button[aria-label="Remove worktree"]',
 );
-const projects = await page.$$("[data-wt-project]");
+const projects = await page.$$(
+  '[data-wt-project]:not([data-wt-project^="rescues:"])',
+);
 if (projects.length === 0) {
   console.log("SKIPPED: touch target size (no worktrees on this instance)");
 } else {

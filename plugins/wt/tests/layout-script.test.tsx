@@ -19,15 +19,26 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function run({ empty = false, coarse = true, height = 36 } = {}) {
+async function run({
+  empty = false,
+  coarse = true,
+  height = 36,
+  rescues = false,
+} = {}) {
   const messages: string[] = [];
   let loaded = false;
-  let waitedWhileLoading = false;
+  let loadingWaits = 0;
   vi.stubGlobal("innerWidth", 390);
   vi.stubGlobal("matchMedia", () => ({ matches: coarse }));
   const page = {
     url: () => "https://isolated.invalid/plugins/wt/worktrees",
-    setViewport: async () => {},
+    setViewport: async ({ hasTouch }: { hasTouch?: boolean }) => {
+      if (hasTouch) {
+        loaded = false;
+        document.body.innerHTML =
+          "<p>Worktrees</p><main>Loading worktrees…</main>";
+      }
+    },
     goto: async (url: string) => {
       if (url.endsWith("/worktrees")) {
         document.body.innerHTML =
@@ -40,9 +51,9 @@ async function run({ empty = false, coarse = true, height = 36 } = {}) {
     waitForSelector: async () => {},
     waitForFunction: async (predicate: () => boolean) => {
       if (predicate()) return;
-      waitedWhileLoading = true;
+      loadingWaits++;
       document.querySelector("main")!.innerHTML = empty
-        ? "No Worktree+ worktrees."
+        ? `No Worktree+ worktrees.${rescues ? '<section data-wt-project="rescues:fixture:host">Saved rescue</section>' : ""}`
         : '<section data-wt-project><div data-wt-row><button aria-label="Remove worktree"></button></div></section>';
       const button = document.querySelector("[data-wt-row] button");
       if (button) {
@@ -70,7 +81,7 @@ async function run({ empty = false, coarse = true, height = 36 } = {}) {
     { getPage: async () => page },
     { log: (value: string) => messages.push(value) },
   );
-  expect(waitedWhileLoading).toBe(true);
+  expect(loadingWaits, "waits for initial load and viewport reload").toBe(2);
   return messages;
 }
 
@@ -94,4 +105,9 @@ test("a narrow fine-pointer viewport cannot pass touch coverage", async () => {
 
 test("undersized targets in the delayed overview fail", async () => {
   await expect(run({ height: 28 })).rejects.toThrow("touch-sized targets");
+});
+
+test("rescue-only sections do not count as worktrees", async () => {
+  const messages = await run({ empty: true, rescues: true, coarse: false });
+  expect(messages.at(-1)).toContain("touch targets skipped (no worktrees)");
 });
