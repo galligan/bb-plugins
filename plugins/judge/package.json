@@ -2,6 +2,18 @@
   "name": "bb-plugin-judge",
   "version": "0.1.0",
   "private": true,
+  "files": [
+    "dist/",
+    "server.ts",
+    "app.tsx",
+    "app.css",
+    "lib/",
+    "components/",
+    "skills/",
+    "docs/",
+    "tsconfig.json",
+    "components.json"
+  ],
   "type": "module",
   "license": "MIT",
   "repository": {
