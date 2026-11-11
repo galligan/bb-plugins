@@ -1,3 +1,5 @@
+import { RecipientResponseControls } from "./recipient-responses.tsx";
+import { ResponseHistory } from "./response-history.tsx";
 import { PostingComposer } from "./posting-composer.tsx";
 import { z } from "zod";
 import { UrlLink } from "@get-bb/plugin-sdk/app";
@@ -99,6 +101,11 @@ export function TransmissionReader({
             </ul>
           ) : null}
           <RecipientResponses projectId={projectId} txId={id} />
+          <ResponseHistory projectId={projectId} txId={id} />
+          <RecipientResponseControls
+            txId={id}
+            recipientIds={query.data.recipientIds}
+          />
           <PostingComposer
             projectId={projectId}
             channelId={query.data.channelId}

@@ -57,6 +57,8 @@ function data(request: z.infer<typeof browseInputSchema>["request"]) {
       return tx;
     case "dispatch-read":
       return doc;
+    case "responses":
+      return { items: [], nextCursor: 0, hasMore: false };
     case "response-summary":
       return [
         {
