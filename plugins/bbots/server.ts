@@ -9,6 +9,11 @@ import { botCli } from "./lib/setup/cli.ts";
 import { openSoul } from "./lib/soul/store.ts";
 import { soulContract } from "./lib/soul/contracts.ts";
 import { uiContract } from "./lib/ui/contracts.ts";
+import { openWork } from "./lib/work/storage.ts";
+import { createRouting } from "./lib/work/routing.ts";
+import { createWorkService } from "./lib/work/service.ts";
+import { createWorkerAdmission } from "./lib/work/admission.ts";
+import { workCommands } from "./lib/work/cli.ts";
 import { createTaskSource } from "./lib/tasks/source.ts";
 
 export default function plugin(bb: BbPluginApi) {
@@ -19,6 +24,17 @@ export default function plugin(bb: BbPluginApi) {
     if (!lifecycle.signal.aborted) bb.rpc.experimental_invalidate(["bots"]);
   };
   const soul = openSoul(bb.storage, store, changed);
+  const work = openWork(bb.storage, store);
+  const routing = createRouting(bb, store, work);
+  const workers = createWorkService(
+    bb,
+    store,
+    work,
+    soul,
+    routing,
+    lifecycle.signal,
+    changed,
+  );
   const tasks = createTaskSource(bb, store, lifecycle.signal, changed);
   const service = createSetupService(
     bb,
@@ -26,8 +42,15 @@ export default function plugin(bb: BbPluginApi) {
     lifecycle.signal,
     soul.defaults,
     changed,
+    workers.finishTitles,
   );
-  registerAdmission(bb, store, service.inspect, soul);
+  registerAdmission(
+    bb,
+    store,
+    service.inspect,
+    soul,
+    createWorkerAdmission(store, work, workers),
+  );
   bb.rpc.register(
     defineRpcContract({
       ...rpcContract,
@@ -65,5 +88,14 @@ export default function plugin(bb: BbPluginApi) {
       },
     },
   );
-  bb.cli.register(botCli(store, service, soul, tasks));
+  bb.cli.register(
+    botCli(
+      store,
+      service,
+      soul,
+      workCommands(store, work, workers, routing, changed),
+      work,
+      tasks,
+    ),
+  );
 }

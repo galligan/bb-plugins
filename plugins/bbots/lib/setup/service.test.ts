@@ -396,6 +396,7 @@ test("forged metadata cannot adopt an unrelated conversation; archived lifecycle
     "message.dispatch"
   ]!({
     ...base,
+    thread: { ...base.thread, originPluginId: "bbots" },
     origin: "plugin",
     originPluginId: "bbots",
     experimental_submission: {
@@ -404,6 +405,11 @@ test("forged metadata cannot adopt an unrelated conversation; archived lifecycle
     },
   });
   assert.equal(decision.action, "reject");
+  assert.equal(f.store.conversations.ownerOfThread(base.thread.id), null);
+  const explicitCommunication = await f.harness.inspection.registrations.hooks[
+    "message.dispatch"
+  ]!({ ...base, origin: "plugin", originPluginId: "bbots" });
+  assert.equal(explicitCommunication.action, "proceed");
   assert.equal(f.store.conversations.ownerOfThread(base.thread.id), null);
   const unrelated =
     await f.harness.inspection.registrations.hooks["message.dispatch"]!(base);
