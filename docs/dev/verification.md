@@ -95,8 +95,24 @@ Go live only for a boundary the table above assigns to a live check, and name th
 
 For frontend changes, use the [UI review matrix](ui-ux.md#ui-review-and-verification) to cover theme, layout, keyboard/touch interaction, data states, and lifecycle behavior on the affected surface.
 
-Build before installing or releasing a plugin. Use an isolated BB instance and disposable projects for development, especially for worktree creation/removal and stack write operations. Verify the CLI points to the intended instance before installing, reloading, or invoking a destructive operation. Keep the user's active instance and repositories outside that test scope unless the user has explicitly included them.
+Build before installing or releasing a plugin. Use an isolated BB instance and disposable projects for development, especially for worktree creation/removal and stack write operations. Keep the user's active instance and repositories outside that test scope unless the user has explicitly included them.
 
-Graphite has an [isolated-instance helper](../../plugins/graphite/scripts/bb-test-instance.sh) and [historical setup notes](../../plugins/graphite/.agents/plans/20260918-init/testing-setup.md). Those notes were verified against BB 0.43.1 in September 2026, not against every current release. Check the installed entrypoints, flags, ports, and runtime before reusing the helper. Its `install` command targets Graphite specifically. The app's native SQLite binding may require the app's Electron runtime rather than system Node.
+Name the instance for every command sent to it, read-only ones included:
+
+```sh
+bun run bb-target --url <server-url> --data-dir <path> [--daemon-port <port>] [--cli <bb-entry>] -- <bb arguments>
+```
+
+[`scripts/bb-target.mjs`](../../scripts/bb-target.mjs) first asks the server at that URL which data directory it serves, and forwards the command only if the answer is the directory named. Three things make that necessary:
+
+- Inside a bb thread, inherited `BB_*` variables point the CLI at the instance the thread runs in. The command drops all of them and sets only the target it was given.
+- A URL alone does not identify an instance: a port can be forwarded or reused. The data directory the server reports does.
+- The default instance must not be reachable by mistake. The command refuses port 38886, the default server port, on every host, and `~/.bb` in any spelling of the path. It refuses the port everywhere because a hostname can reach this machine in more spellings than can be listed, and an isolated instance has no reason to use it.
+
+It runs one command and returns its exit code. It does not start, stop, install, reload, or retry anything, and it never prints the forwarded arguments. Pass `--cli` when the instance needs its own CLI entry, such as a source build's `dist/bb.js`; pass `--daemon-port` when it has its own host daemon. How an isolated instance is created is outside this repository. Its cases are covered with injected process execution in [`scripts/bb-target.test.mjs`](../../scripts/bb-target.test.mjs).
+
+Say what kind of instance produced live evidence. One built from source is evidence for that commit; it does not establish compatibility with the released binary that reports the same version.
+
+Graphite keeps an older [isolated-instance script](../../plugins/graphite/scripts/bb-test-instance.sh) and [historical setup notes](../../plugins/graphite/.agents/plans/20260918-init/testing-setup.md), verified against BB 0.43.1 in September 2026 and not since. That script starts an instance of its own from the installed app and installs only Graphite. Prefer an instance provided for the purpose, reached through `bb-target`; check the script's entrypoints, flags, ports, and runtime before reusing it. The app's native SQLite binding may require the app's Electron runtime rather than system Node.
 
 After the package is installed in the intended instance, `bb plugin dev` rebuilds and reloads it on changes. Exercise the affected CLI/RPC or UI flow and inspect plugin logs. Verify cancellation and disposal when changing resource ownership; a successful happy-path call alone does not test cleanup.

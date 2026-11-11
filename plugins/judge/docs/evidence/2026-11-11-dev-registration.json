@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-11",
+  "scope": "Isolated Dev registration and disablement only",
+  "sourceAtInstall": "a79503643712af76aa1da59a22e679183196c18d",
+  "pluginDirectory": "plugins/judge",
+  "devSourceCommit": "365d7c5237ae270be0555b5b44ea61020252713e",
+  "devServerPort": 26207,
+  "devIdentityVerified": true,
+  "judgeAbsentBeforeInstall": true,
+  "firstConsumedRelease": {
+    "installAttempts": 1,
+    "exitCode": 1,
+    "elapsedMs": 245.637,
+    "cause": "Command omitted required noninteractive --yes confirmation",
+    "diagnosticBasis": "Submitted argv, noninteractive execution, read-only CLI confirmation guard and subsequent Judge absence; stderr was not retained",
+    "judgeAbsentAfterAttempt": true,
+    "retryWithinRelease": false
+  },
+  "separateCorrectedRelease": {
+    "explicitlyAuthorized": true,
+    "installAttempts": 1,
+    "confirmationFlag": "--yes",
+    "exitCode": 0,
+    "elapsedMs": 5486.065,
+    "activeInventory": {
+      "id": "judge",
+      "version": "0.1.0",
+      "enabled": true,
+      "status": "running",
+      "statusDetail": null,
+      "capabilities": ["agent-tool:judge_ask", "skill:judge"]
+    },
+    "disableElapsedMs": 2829.748,
+    "disableExitCode": 0,
+    "finalInventory": {
+      "enabled": false,
+      "status": "disabled",
+      "statusDetail": null,
+      "capabilities": ["skill:judge"]
+    },
+    "inventoryReads": 3
+  },
+  "agentSetting": "Not read or changed; declaration defaults to false",
+  "preserved": [
+    "Existing Worktree+ source and running status",
+    "Built-in Thread list source and running status",
+    "User provider conversation and custom appearance",
+    "Main BB instance and occupied trunk"
+  ],
+  "modelCalls": 0,
+  "newThreads": 0,
+  "credentialOperations": 0,
+  "toolSettingChanges": 0,
+  "serverRestarts": 0,
+  "eventsGenerated": 0,
+  "preferenceChanges": 0,
+  "slotReleased": true,
+  "pendingActivity": false,
+  "notEstablished": [
+    "Native provider-session selection or invocation",
+    "Cause of the historical stable-client exposure gap",
+    "Positive built-in sidebar visual",
+    "Actual failure-event behavior",
+    "Enrolled remote or sleeping-host behavior",
+    "Equivalence of source-built Dev and the released BB binary"
+  ]
+}
