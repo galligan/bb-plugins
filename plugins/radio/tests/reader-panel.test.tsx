@@ -1,3 +1,4 @@
+import { setPageVisible } from "./page-visibility.ts";
 import { describe, it, expect } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { fireEvent, waitFor } from "@testing-library/react";
@@ -101,7 +102,9 @@ async function mount(
   handler?: (input: z.infer<typeof browseInputSchema>) => unknown,
   visible = true,
   projects = [project],
+  sideTabVisible = false,
 ) {
+  setPageVisible(visible);
   const app = await loadPluginApp(() => import("../app.tsx"));
   expect(app.navPanels).toHaveLength(1);
   return renderSlot(
@@ -109,7 +112,7 @@ async function mount(
     { subPath },
     {
       pluginId: "radio",
-      tabVisible: visible,
+      tabVisible: sideTabVisible,
       experimental_rpcContract: browseContract,
       sdk: {
         projects: {
@@ -137,6 +140,42 @@ async function mount(
 }
 
 describe("Radio additive reader", () => {
+  it("loads a visible navigation page when the unrelated side-panel tab flag is false", async () => {
+    const slot = await mount(
+      "proj_one/channel/channel_main",
+      undefined,
+      true,
+      [project],
+      false,
+    );
+    expect(await slot.findByText(tx.body)).toBeTruthy();
+    expect(
+      slot.getByRole("combobox", { name: "Project" }).textContent,
+    ).toContain("One");
+    expect(slot.inspection.rpcCalls.length).toBeGreaterThan(0);
+    slot.lifecycle.unmount();
+  });
+
+  it("pauses a mounted page while the browser is hidden and refreshes it when shown again", async () => {
+    const slot = await mount("proj_one/channel/channel_main");
+    await slot.findByText(tx.body);
+    const reads = slot.inspection.rpcCalls.length;
+    setPageVisible(false);
+    await slot.behavior.experimental_invalidateRpc(["radio"]);
+    expect(slot.inspection.rpcCalls).toHaveLength(reads);
+    setPageVisible(true);
+    await waitFor(() =>
+      expect(slot.inspection.rpcCalls.length).toBeGreaterThan(reads),
+    );
+    await waitFor(() =>
+      expect(
+        slot
+          .getByRole("button", { name: "Refresh projects" })
+          .matches(":disabled"),
+      ).toBe(false),
+    );
+    slot.lifecycle.unmount();
+  });
   it("works without sidebar/thread context, keeps canonical links and never acts or confirms receipt", async () => {
     const slot = await mount("proj_one/channel/channel_main");
     expect(await slot.findByText(tx.body)).toBeTruthy();

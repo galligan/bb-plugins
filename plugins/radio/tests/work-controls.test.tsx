@@ -1,3 +1,4 @@
+import { setPageVisible } from "./page-visibility.ts";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -120,6 +121,7 @@ async function fixture(exclusive = false) {
     commitmentId?: string,
     visible = true,
   ) {
+    setPageVisible(visible);
     const app = await loadPluginApp(async () => ({
       default: definePluginApp((app) => {
         app.slots.navPanel({
@@ -165,7 +167,7 @@ async function fixture(exclusive = false) {
       { subPath: "" },
       {
         pluginId: "radio",
-        tabVisible: visible,
+        tabVisible: false,
         experimental_rpcContract: browseContract,
         rpc: { browse: (raw) => host.harness.behavior.callRpc("browse", raw) },
       },

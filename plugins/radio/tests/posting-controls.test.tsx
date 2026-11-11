@@ -1,3 +1,4 @@
+import { setPageVisible } from "./page-visibility.ts";
 import { useState } from "react";
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { act, fireEvent, waitFor, within } from "@testing-library/react";
@@ -60,6 +61,7 @@ async function mount(
     handler?: (request: Send, who: ActingIdentity) => Promise<SurfaceResult>;
   } = {},
 ) {
+  setPageVisible(options.visible ?? true);
   const requests: Send[] = [];
   const app = await loadPluginApp(async () => ({
     default: definePluginApp((app) => {
@@ -109,7 +111,7 @@ async function mount(
   const slot = await renderSlot(
     app.navPanels[0]!,
     { subPath: "" },
-    { pluginId: "radio", tabVisible: options.visible ?? true },
+    { pluginId: "radio", tabVisible: false },
   );
   return { slot, requests };
 }

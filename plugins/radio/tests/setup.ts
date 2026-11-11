@@ -1,5 +1,7 @@
-import { afterEach, vi } from "vitest";
+import { setPageVisible } from "./page-visibility.ts";
+import { beforeEach, afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
+beforeEach(() => setPageVisible(true));
 afterEach(() => cleanup());
 Object.defineProperty(window, "matchMedia", {
   writable: true,

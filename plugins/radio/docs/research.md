@@ -91,3 +91,9 @@ The referenced historical fieldwork skill was absent at its documented path and 
 ## Remaining evidence gaps
 
 No adapter has been proven live. In particular: guarded steering races and grouped queues; external HTTP route reachability through BB remote access; per-provider hooks; session receipt evidence; plugin unload with pending work; and station-to-station forwarding remain unverified. See [scope and verification](decisions.md).
+
+## Navigation-page visibility correction (2026-11-11)
+
+Bounded Dev acceptance of source `2476cd2d9f4cf691bf630191c49e09920a2f1474` on BB 0.49.0 / bundled SDK 0.6.140 exposed a loading screen and immediate operator-mode reset. The public SDK contract for `experimental_useTabVisible` says it returns false outside panel tabs; Radio registers a navigation page. Read-only host inspection confirmed that `TabVisibleContext` is provided by `ThreadSecondaryPanel`, while `PluginPagePanelHost` renders navigation pages without it. This is incorrect hook use in Radio, not evidence of a missing core capability.
+
+Radio now observes the browser document's `visibilitychange` event through React's external-store hook. A mounted, visible navigation page can read and retain explicit acting selection; hiding the browser pauses reads and locks operator authority. Page unmount still disposes query subscriptions and authority. SDK frontend regressions set the unrelated side-tab flag false, check read loading and explicit operator unlock, then check hide/show invalidation and late-unlock rejection. These source tests do not establish actual host layout, split-pane lifecycle, or browser acceptance of the corrected candidate. The original Dev slot was cleaned up and released; BBP-45/50 remain open pending a separately bounded exact-candidate retest.

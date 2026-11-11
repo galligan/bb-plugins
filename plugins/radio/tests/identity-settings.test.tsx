@@ -1,3 +1,4 @@
+import { setPageVisible } from "./page-visibility.ts";
 import { afterEach, beforeEach, describe, it, expect } from "vitest";
 import { fireEvent, waitFor } from "@testing-library/react";
 import { definePluginApp } from "@get-bb/plugin-sdk/app";
@@ -70,6 +71,7 @@ async function fixture() {
   const human = identitySchema.parse(humanResult.data);
   const behavior = { loseNext: false, attempts: [] as OperationInput[] };
   async function mount(asHuman = false, visible = true) {
+    setPageVisible(visible);
     const identity = asHuman ? human : worker;
     const app = await loadPluginApp(async () => ({
       default: definePluginApp((app) => {
@@ -106,7 +108,7 @@ async function fixture() {
     const slot = await renderSlot(
       app.navPanels[0]!,
       { subPath: "" },
-      { pluginId: "radio", tabVisible: visible },
+      { pluginId: "radio", tabVisible: false },
     );
     fireEvent.click(slot.getByText("Identity and handles"));
     return slot;

@@ -1,9 +1,7 @@
+import { useRadioVisible } from "./use-radio-visible.ts";
 import { useMemo, useRef } from "react";
 import { z } from "zod";
-import {
-  experimental_useRpcQuery,
-  experimental_useTabVisible,
-} from "@get-bb/plugin-sdk/app";
+import { experimental_useRpcQuery } from "@get-bb/plugin-sdk/app";
 import { rpcContract } from "../../lib/surface-contract.ts";
 import type { OperationInput } from "./acting-context.ts";
 
@@ -14,7 +12,7 @@ export function useLocalRead<T>(
   request: Extract<OperationInput, { op: "whoami" | "check" | "listening" }>,
   schema: z.ZodType<T>,
 ) {
-  const visible = experimental_useTabVisible();
+  const visible = useRadioVisible();
   const query = experimental_useRpcQuery({
     contract: rpcContract,
     method: "call",

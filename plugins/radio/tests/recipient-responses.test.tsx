@@ -1,3 +1,4 @@
+import { setPageVisible } from "./page-visibility.ts";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -144,17 +145,19 @@ async function fixture(
       });
     }),
   }));
-  const mount = (visible = true) =>
-    renderSlot(
+  const mount = (visible = true) => {
+    setPageVisible(visible);
+    return renderSlot(
       app.navPanels[0]!,
       { subPath: "" },
       {
         pluginId: "radio",
-        tabVisible: visible,
+        tabVisible: false,
         experimental_rpcContract: browseContract,
         rpc: { browse: (raw) => host.harness.behavior.callRpc("browse", raw) },
       },
     );
+  };
   const count = (
     table: "response_events" | "receipt_confirmations" | "commitments",
   ) =>

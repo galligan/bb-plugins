@@ -1,7 +1,7 @@
+import { useRadioVisible } from "./use-radio-visible.ts";
 import { replaceRecoveryRecord } from "./recovery-storage.ts";
 import { z } from "zod";
 import { useRef, useState } from "react";
-import { experimental_useTabVisible } from "@get-bb/plugin-sdk/app";
 import { Button } from "../ui/button.tsx";
 import { useActing } from "./acting-context.ts";
 import { RadioLink } from "./link.tsx";
@@ -42,7 +42,7 @@ export function PostingComposer({
 }
 function Composer({ scope }: { scope: PostingScope }) {
   const { perform, pending } = useActing();
-  const visible = experimental_useTabVisible();
+  const visible = useRadioVisible();
   const unreadableRaw = useRef<string | null | undefined>(undefined);
   const [state, setState] = useState<{
     draft: PostingDraft | null;

@@ -1,6 +1,6 @@
+import { useRadioVisible } from "./use-radio-visible.ts";
 import { normalizeName } from "../../lib/names.ts";
 import { useRef, useState } from "react";
-import { experimental_useTabVisible } from "@get-bb/plugin-sdk/app";
 import { z } from "zod";
 import { useActing, type OperationInput } from "./acting-context.ts";
 import { pageSchema } from "./view-schemas.ts";
@@ -41,7 +41,7 @@ type Change = Extract<
 >;
 export function useIdentitySettings() {
   const acting = useActing();
-  const visible = experimental_useTabVisible();
+  const visible = useRadioVisible();
   const busy = useRef(false);
   const [pending, setPending] = useState(false);
   const [page, setPage] = useState<z.infer<typeof handlesSchema> | null>(null);

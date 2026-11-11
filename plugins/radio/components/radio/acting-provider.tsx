@@ -1,3 +1,4 @@
+import { useRadioVisible } from "./use-radio-visible.ts";
 import { IdentitySettings } from "./identity-settings.tsx";
 import { useLocalRead } from "./use-local-read.ts";
 import { AttentionPanel } from "./attention-panel.tsx";
@@ -8,10 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  experimental_useRpcMutation,
-  experimental_useTabVisible,
-} from "@get-bb/plugin-sdk/app";
+import { experimental_useRpcMutation } from "@get-bb/plugin-sdk/app";
 import { rpcContract, type SurfaceResult } from "../../lib/surface-contract.ts";
 import {
   ActingContext,
@@ -43,7 +41,7 @@ export function ActingProvider({
     contract: rpcContract,
     method: "call",
   });
-  const visible = experimental_useTabVisible();
+  const visible = useRadioVisible();
   const generation = useRef(0);
   const selection = useRef({ mode, threadId });
   selection.current = { mode, threadId };
