@@ -21,6 +21,9 @@ import { VerdictPublisher } from "./verdict-publisher.ts";
 import { VerdictReader } from "./verdict-reader.ts";
 import { CalibrationService } from "./calibration.ts";
 
+import { PUBLIC_DOMAIN_ERRORS } from "./ui-errors.ts";
+import { displayBadges, displayThread } from "./ui.ts";
+
 export function publicError(error: unknown): string {
   if (error instanceof PersistenceError) return "persistence_failed";
   if (error instanceof z.ZodError || error instanceof ValidationError)
@@ -165,6 +168,14 @@ export function registerRpc(bb: BbPluginApi, api: JudgeApi): void {
     try {
       return await operation();
     } catch (error) {
+      if (
+        error instanceof ValidationError &&
+        PUBLIC_DOMAIN_ERRORS.has(error.message)
+      )
+        throw new experimental_PluginRpcRefusal({
+          code: "invalid",
+          message: error.message,
+        });
       const code = publicError(error);
       if (code === "invalid_input")
         throw new experimental_PluginRpcRefusal({
@@ -175,6 +186,15 @@ export function registerRpc(bb: BbPluginApi, api: JudgeApi): void {
     }
   }
   bb.rpc.register(rpcContract, {
+    "ui.badges": (input, ctx) =>
+      safe(() => displayBadges(api, input, ctx.experimental_signal)),
+    "ui.thread": (input, ctx) =>
+      safe(() => displayThread(api, input.threadId, ctx.experimental_signal)),
+    "projects.get": (input) =>
+      safe(() => ({
+        projectId: input.projectId,
+        enabled: api.repository.definitions.projectEnabled(input.projectId),
+      })),
     "triggers.list": (input) => safe(() => api.triggers.list(input)),
     "triggers.show": (input) => safe(() => api.triggers.get(input.id)),
     "triggers.save": (input) => safe(() => api.triggers.save(input)),

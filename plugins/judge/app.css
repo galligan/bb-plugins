@@ -1,0 +1,126 @@
+.judge-ui {
+  color: var(--foreground);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+/* Container queries follow the settings panel, including split panes. */
+.judge-settings {
+  container-type: inline-size;
+  display: grid;
+  gap: 1.5rem;
+}
+.judge-ui .judge-group {
+  min-width: 0;
+}
+.judge-ui .judge-group-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.judge-ui .judge-group > summary {
+  display: list-item;
+}
+.judge-ui .judge-group > summary > div {
+  display: inline-block;
+  vertical-align: top;
+}
+.judge-ui .judge-group-body {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  box-shadow: none;
+}
+.judge-ui .judge-group-body > button {
+  justify-self: end;
+}
+.judge-ui .judge-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-width: 0;
+}
+.judge-ui .judge-control {
+  min-width: 0;
+  width: 100%;
+}
+.judge-ui .judge-field:has([role="checkbox"], [role="switch"]) {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.judge-ui .judge-field:has([role="checkbox"], [role="switch"]) .judge-control {
+  width: auto;
+  flex: none;
+}
+.judge-ui form {
+  display: grid;
+  gap: 0.625rem;
+}
+.judge-ui form > button,
+.judge-ui fieldset > button {
+  justify-self: end;
+}
+.judge-ui p {
+  margin-block: 0;
+}
+@container (min-width: 36rem) {
+  .judge-ui .judge-field {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1.25rem;
+  }
+  .judge-ui .judge-control {
+    flex: 0 1 16rem;
+    width: 16rem;
+    max-width: 55%;
+  }
+  .judge-ui .judge-control:has([role="combobox"]) {
+    flex-basis: 11rem;
+    width: 11rem;
+  }
+}
+.judge-ui .judge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+.judge-ui .judge-actions > button {
+  max-width: 100%;
+  min-width: 0;
+  min-height: 1.75rem;
+  height: auto;
+  white-space: normal;
+}
+.judge-ui .judge-badge {
+  display: inline-block;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  margin: 0.1rem 0.2rem 0.1rem 0;
+  font-size: 0.75rem;
+}
+.judge-ui [role="alert"] {
+  color: var(--destructive, var(--foreground));
+}
+.judge-ui small {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+.judge-ui fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+  display: grid;
+  gap: 0.625rem;
+}
+.judge-ui pre {
+  white-space: pre-wrap;
+  max-height: 18rem;
+  overflow: auto;
+}

@@ -64,7 +64,21 @@ export class VerdictPublisher {
       }),
     );
   }
+  private listeners = new Set<(threadId: string) => void>();
+  onChange(listener: (threadId: string) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+  private changed(threadId: string): void {
+    for (const listener of this.listeners)
+      try {
+        listener(threadId);
+      } catch {
+        /* Display notifications cannot fail a committed result. */
+      }
+  }
   dispose(): void {
+    this.listeners.clear();
     this.disposal.abort();
     for (const off of this.unsubscribe) off();
   }
@@ -183,6 +197,7 @@ export class VerdictPublisher {
     for (const id of ids)
       if (this.repository.triggerAttempts.get(id))
         this.repository.triggerAttempts.publication(id, "published", null);
+    this.changed(threadId);
     return ids;
   }
   async publish(
@@ -241,6 +256,7 @@ export class VerdictPublisher {
       // New/replaced references already start unacknowledged. Preserve unrelated
       // acknowledgements; keyed readers still require the exact current raw summary.
       // This also handles uncertain writes without hiding an unchanged badge.
+      this.changed(run.threadId);
       if (stale) {
         this.repository.publications.invalidateRun(
           run.threadId,
@@ -300,6 +316,7 @@ export class VerdictPublisher {
                   "failed",
                   "metadata_clear_failed",
                 );
+            this.changed(threadId);
             scope.assertActive();
           }
         }

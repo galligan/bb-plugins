@@ -1,6 +1,6 @@
 # Judge implementation spec
 
-Status: staged implementation underway; connection settings and offline foundations are implemented, inference surfaces are not yet available. Baseline: BB 0.49.0 / public SDK 0.6.132. This document supersedes conflicting details in [the original proposal](original-proposal.txt). See [compatibility evidence](COMPATIBILITY.md) and [delivery gates](IMPLEMENTATION.md).
+Status: staged implementation underway; typed asks, saved sets, evaluation, triggers and verdict UI are implemented in staged delivery; live integration gates remain tracked separately. Baseline: BB 0.49.0 / public SDK 0.6.132. This document supersedes conflicting details in [the original proposal](original-proposal.txt). See [compatibility evidence](COMPATIBILITY.md) and [delivery gates](IMPLEMENTATION.md).
 
 ## Goal and scope
 

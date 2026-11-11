@@ -16,6 +16,8 @@ import { triggerReadContracts } from "./trigger-read-contract.ts";
 import { verdictContracts } from "./verdict-reader.ts";
 import { evaluationContracts } from "./evaluation-contract.ts";
 
+import { uiContracts } from "./ui-contract.ts";
+
 export const askSchema = z.strictObject({
   state: jsonSchema,
   questions: questionsSchema,
@@ -55,6 +57,7 @@ export const logSchema = z.strictObject({
     .optional(),
 });
 export const rpcContract = defineRpcContract({
+  ...uiContracts,
   ...setContracts,
   ...templateContracts,
   ...evaluationContracts,

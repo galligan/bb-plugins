@@ -185,7 +185,19 @@ test("migration failures are operational errors and appended statements roll bac
 test("package imports only public SDK and declared runtime dependencies", async () => {
   const report = await experimental_scanPublicSdkOnly(
     new URL("..", import.meta.url).pathname,
-    { allow: [/^zod$/, /^yaml$/] },
+    {
+      allow: [
+        /^zod$/,
+        /^yaml$/,
+        /^react(?:-dom)?(?:\/.*)?$/,
+        /^jsdom$/,
+        /^@testing-library\/react$/,
+        /^@radix-ui\/react-(?:checkbox|select|slot)$/,
+        /^class-variance-authority$/,
+        /^clsx$/,
+        /^tailwind-merge$/,
+      ],
+    },
   );
   assert.deepEqual(report.violations, []);
   assert.deepEqual(report.privateDependencies, []);

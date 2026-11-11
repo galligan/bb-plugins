@@ -272,10 +272,19 @@ test("request/question limits refuse before dispatch; response size is enforced 
   assert.equal(cancelled, 2);
 });
 
-test("request timeout and whole budget bound both stalled dispatch and response streams", async () => {
+test("request timeout and whole budget bound both stalled dispatch and response streams", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let now = 0;
+  t.mock.method(performance, "now", () => now);
   for (const stalledBody of [false, true]) {
     for (const budget of [false, true]) {
       let aborted = false;
+      let bodyRead = false;
+      now = 0;
+      const expire = () => {
+        now = 16;
+        t.mock.timers.tick(16);
+      };
       const result = await systemOne({
         ...options(),
         model: { ...base.model, timeoutMs: budget ? 2000 : 15 },
@@ -288,9 +297,21 @@ test("request timeout and whole budget bound both stalled dispatch and response 
             },
             { once: true },
           );
-          if (!stalledBody) return new Promise<Response>(() => {});
+          if (!stalledBody) {
+            expire();
+            return new Promise<Response>(() => {});
+          }
           return new Response(
-            new ReadableStream({ pull: () => new Promise(() => {}) }),
+            new ReadableStream(
+              {
+                pull() {
+                  bodyRead = true;
+                  expire();
+                  return new Promise(() => {});
+                },
+              },
+              { highWaterMark: 0 },
+            ),
           );
         },
       });
@@ -299,6 +320,7 @@ test("request timeout and whole budget bound both stalled dispatch and response 
         budget ? "budget" : "timeout",
       );
       assert.equal(aborted, true);
+      assert.equal(bodyRead, stalledBody);
     }
   }
 });

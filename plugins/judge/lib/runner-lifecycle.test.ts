@@ -104,11 +104,19 @@ test("whole budget includes a hanging context read and a later source read; abor
   }
 });
 
-test("per-request timeout and remaining whole budget keep distinct diagnostics", async () => {
+test("per-request timeout and remaining whole budget keep distinct diagnostics", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let now = 0;
+  t.mock.method(performance, "now", () => now);
   for (const reason of ["timeout", "budget"]) {
+    now = 0;
     let observed: AbortSignal | undefined;
     const h = await setup(async (_url, init) => {
       observed = init?.signal ?? undefined;
+      // Expire after dispatch, so scheduler load cannot skip the operation
+      // whose per-request/whole-run diagnostic this fixture is checking.
+      now = 31;
+      t.mock.timers.tick(31);
       return new Promise(() => {});
     });
     try {
