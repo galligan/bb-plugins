@@ -13,7 +13,7 @@
 - `lib/wasm.ts`, `lib/ghostty.ts`, `lib/frame-reader.ts`, `lib/ghostty-build.ts`, `vendor/ghostty-vt.wasm` — libghostty-vt.
 - `lib/target-command.ts`, `lib/targets.ts` — `bb rex target` and the menu's requests.
 - `skills/rex-thread-terminal/` — the skill shipped to agents that work in a thread.
-- `lib/fake-rex.ts`, `lib/pane-fixture.ts` — test support: an in-memory Rex, and a pane restored by the real WASM.
+- `lib/fake-rex.ts`, `lib/fake-rex-socket.ts`, `lib/pane-fixture.ts` — test support: an in-memory Rex, that Rex behind a real control socket with a `rex` command that reports it, and a pane restored by the real WASM.
 
 ## Invariants
 
@@ -36,11 +36,13 @@
 
 ## Tests
 
-- `lib/**/*.test.ts` run with `node --test`. They need no bb server, no Rex server, and no browser.
+- `bun run test` runs `lib/**/*.test.ts` with `node --test`, then `tests/*.test.tsx` with Vitest. Neither needs a bb server, a Rex server, or a browser.
 - If a change calls Rex, test it against `FakeRex`. If `FakeRex` lacks the method, add it there in the shape the Rex API page gives.
 - If a change touches decoding, scrolling, or history, test it against the real WASM through `lib/pane-fixture.ts`.
 - `lib/relay.test.ts` uses real sockets on a Unix socket in a temporary directory.
-- No test loads `server.ts` or `app.tsx` yet. If a change touches a route, `bb rex`, the setting, a listener, or the tab registration, test it through `createFakePluginHost` from `@get-bb/plugin-sdk/testing` or `loadPluginApp` from `@get-bb/plugin-sdk/testing/app`. Do not check it in the running app instead.
+- `lib/server.test.ts` loads the real `server.ts` under `createFakePluginHost`. If a change touches a route, `bb rex`, the setting, the instructions hook, or a listener, test it there. `lib/fake-rex-socket.ts` serves a `FakeRex` on a temporary Unix socket and puts a `rex` command that reports it first on `PATH`, so the server finds Rex the way it does in use and never reaches a real one.
+- `tests/*.test.tsx` run with Vitest and jsdom and load the real `app.tsx` through `@get-bb/plugin-sdk/testing/app`. The tab reaches the plugin's routes with `fetch`, so stub `fetch` there. An open terminal is not covered: test decoding in `lib/`, and check drawing live.
+- Do not check in the running app what one of these can show.
 
 ## Checking in the running app
 

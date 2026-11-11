@@ -42,7 +42,7 @@ export class FakeRex implements RexCaller {
   readonly sessions: FakeSession[] = [];
   /** Every call made, in order, as `[method, payload]`. */
   readonly calls: [string, unknown][] = [];
-  /** The sessions this connection has attached to. */
+  /** The sessions the default connection, `call`, has attached to. */
   readonly #attached = new Set<string>();
   #nextId = 1;
 
@@ -128,9 +128,33 @@ export class FakeRex implements RexCaller {
   }
 
   call<T>(method: string, payload: unknown, schema: z.ZodType<T>): Promise<T> {
+    return this.#call(method, payload, schema, this.#attached);
+  }
+
+  /**
+   * One more control connection to the same server. Attachment is kept per
+   * connection, as in Rex: a new connection is attached to nothing, whatever
+   * an earlier one attached to.
+   */
+  connection(): RexCaller {
+    const attached = new Set<string>();
+    return {
+      call: (method, payload, schema) =>
+        this.#call(method, payload, schema, attached),
+    };
+  }
+
+  #call<T>(
+    method: string,
+    payload: unknown,
+    schema: z.ZodType<T>,
+    attached: Set<string>,
+  ): Promise<T> {
     this.calls.push([method, payload]);
     try {
-      return Promise.resolve(schema.parse(this.#answer(method, payload)));
+      return Promise.resolve(
+        schema.parse(this.#answer(method, payload, attached)),
+      );
     } catch (error) {
       return Promise.reject(
         error instanceof Error ? error : new Error(String(error)),
@@ -138,7 +162,7 @@ export class FakeRex implements RexCaller {
     }
   }
 
-  #answer(method: string, payload: unknown): unknown {
+  #answer(method: string, payload: unknown, attached: Set<string>): unknown {
     const args = record(payload);
     if (method === "session.list") {
       return {
@@ -177,11 +201,11 @@ export class FakeRex implements RexCaller {
     }
     const session = this.#session(args.session_id);
     if (method === "session.attach") {
-      this.#attached.add(session.id);
+      attached.add(session.id);
       return { client_id: "client:test", view: this.#view(session) };
     }
     // Rex takes a change to a session only from a connection attached to it.
-    if (!this.#attached.has(session.id)) {
+    if (!attached.has(session.id)) {
       throw new PaneError(
         "rex_refused",
         `stream is not attached to session ${session.id}`,

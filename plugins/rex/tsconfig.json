@@ -15,5 +15,5 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["server.ts", "app.tsx", "components", "lib"]
+  "include": ["server.ts", "app.tsx", "components", "lib", "tests"]
 }
