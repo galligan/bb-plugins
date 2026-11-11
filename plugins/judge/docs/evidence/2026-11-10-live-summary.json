@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "scope": "Sanitized evidence summary; not full BBP-23 acceptance",
+  "provider": "jev-1.13.0",
+  "manualDispatches": 8,
+  "automaticCacheMisses": 0,
+  "nativeAgentInvocations": 0,
+  "nativeAgentStatus": "unverified: unavailable after one same-owner runtime restart; no retry or RPC substitute",
+  "caseReportId": "ecc43065-69c6-4155-a196-743b708b46d1",
+  "caseVariants": [
+    {
+      "kind": "primary",
+      "counts": {
+        "correct": 2,
+        "incorrect": 0,
+        "unavailable": 0
+      }
+    },
+    {
+      "kind": "comparison",
+      "counts": {
+        "correct": 2,
+        "incorrect": 0,
+        "unavailable": 0
+      }
+    }
+  ],
+  "dispatchRecords": [
+    {
+      "runId": "4c764d71-c286-487a-930f-6adefc87a8d4",
+      "providerModel": "jev-1.13.0",
+      "latencyMs": 174.5880419909954,
+      "inputTokens": 313
+    },
+    {
+      "runId": "bc66c56f-f94b-4cd0-bebd-64728dceb260",
+      "providerModel": "jev-1.13.0",
+      "latencyMs": 85.57916700839996,
+      "inputTokens": 310
+    },
+    {
+      "runId": "e1324272-dc55-4731-953b-631bc25e58b0",
+      "providerModel": "jev-1.13.0",
+      "latencyMs": 56.30850000679493,
+      "inputTokens": 313
+    },
+    {
+      "runId": "78aeb3e3-a5d4-45b1-beda-bba1e378c111",
+      "providerModel": "jev-1.13.0",
+      "latencyMs": 91.50883400440216,
+      "inputTokens": 310
+    },
+    {
+      "runId": "ded28f2d-9e83-4e86-b28b-a10701a8ea3d",
+      "providerModel": "jev-1.13.0",
+      "latencyMs": 137.97554199397564,
+      "inputTokens": 313
+    },
+    {
+      "runId": "4a804237-d5fa-4e56-889d-56b4579d70ec",
+      "providerModel": "jev-1.13.0",
+      "latencyMs": 195.57420799136162,
+      "inputTokens": 313
+    },
+    {
+      "runId": "84b786af-2a1f-493e-b02f-c3df274a4690",
+      "providerModel": "jev-1.13.0",
+      "latencyMs": 86.79033400118351,
+      "inputTokens": 314
+    },
+    {
+      "runId": "ad205459-06b3-44e4-a366-7690d4e89aa8",
+      "providerModel": "jev-1.13.0",
+      "latencyMs": 125.3826249986887,
+      "inputTokens": 312
+    }
+  ],
+  "idle": {
+    "runId": "7392f0ca-1d84-4b58-93e4-149d9f6439a9",
+    "complete": true,
+    "calibrated": true,
+    "outcomes": {
+      "recognized": true
+    },
+    "cacheHit": true,
+    "inputTokens": 0,
+    "latencyMs": 6.163749992847443
+  },
+  "watchdog": {
+    "armed": true,
+    "activationRequested": true,
+    "disableAfterSeconds": 7.0,
+    "fallbackUsed": false,
+    "enabled": true,
+    "bindingDisabled": true,
+    "elapsedMs": 7354.2
+  },
+  "negativeLocalHttp": {
+    "requests": 3,
+    "paidRequests": 0,
+    "allConnectionsClosed": true,
+    "timeoutRun": "f45610a4-df7d-4b15-ad8e-ad890161c112",
+    "configurationCancellationRun": "df169a76-5ee5-4239-b33f-591bdae9a040",
+    "reloadCancellationRun": "bef25c5c-0a2b-4f10-81c8-5cbf8d82eeb2"
+  },
+  "remoteOrigin": "authenticated settings verified; latest redesign validation separately in BBP-21-second-pass-evidence.json",
+  "remaining": [
+    "Cloudflare actual endpoints deferred by user",
+    "actual compatible custom provider unavailable",
+    "native agent invocation unavailable",
+    "separate positive sidebar visual not captured",
+    "actual turn.failed event path not exercised",
+    "separate enrolled remote/sleeping host unavailable"
+  ],
+  "sourceArtifacts": [
+    "BBP-23-observer.json",
+    "BBP-23-live-cases.json",
+    "BBP-23-case-runs-browser.json",
+    "BBP-23-final-prime.json",
+    "BBP-23-idle-run.json",
+    "BBP-23-watchdog-live.json"
+  ],
+  "reportedInputTokens": 2498,
+  "codeHead": "553c93cbd28d330b8e392f8036be3376421ad17a",
+  "liveAppBundle": "a7410af9a920bd0c",
+  "sourceArtifactsNote": "Named sanitized artifacts are retained with BB Tasks; this portable summary contains no keys, raw answers or source state."
+}
