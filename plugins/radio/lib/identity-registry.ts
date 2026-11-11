@@ -55,12 +55,39 @@ export class IdentityRegistry {
     return this.insert("actor", metadataSchema.parse(metadata));
   }
 
+  /** Only a BB adapter that verified this thread may bootstrap its actor. */
+  localThread(threadId: string, metadata: SessionMetadata = {}): Participant {
+    return this.db
+      .transaction(() => {
+        const prior = this.db
+          .prepare("SELECT id FROM participants WHERE id = ?")
+          .get(threadId);
+        if (prior) {
+          const session = this.get(threadId);
+          if (session.kind !== "bb-thread" || !session.actorId)
+            throw new RadioError(
+              "conflict",
+              "Invoking thread is not a BB session.",
+            );
+          const actor = this.requireActor(session.actorId);
+          if (actor.kind !== "actor" || actor.principalId !== null)
+            throw new RadioError(
+              "forbidden",
+              "Local thread attribution cannot acquire human or external authority.",
+            );
+          return this.registerThread(threadId, actor.id, metadata);
+        }
+        return this.registerThread(threadId, this.createActor().id, metadata);
+      })
+      .immediate();
+  }
+
   registerThread(
     threadId: string,
     actorId: string,
     metadata: SessionMetadata = {},
   ): Participant {
-    if (!/^thr_[a-zA-Z0-9]+$/.test(idSchema.parse(threadId)))
+    if (!/^thr_[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(idSchema.parse(threadId)))
       throw new RadioError("invalid_input", "Use the existing BB thread ID.");
     const parsed = metadataSchema.parse(metadata);
     return this.db
