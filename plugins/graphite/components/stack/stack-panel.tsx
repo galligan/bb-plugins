@@ -26,7 +26,13 @@ export function StackPanel({ threadId }: ExperimentalThreadActionTabProps) {
     new Set(),
   );
 
-  if (error && stack === null)
+  const empty =
+    stack !== null &&
+    (stack.outcome !== "stacked" ||
+      (stack.total < 2 &&
+        stack.branches.every((branch) => branch.offshoots.length === 0)));
+
+  if (error && (stack === null || empty))
     return (
       <p className="text-sm text-warning-text">
         Unable to load the Graphite stack.
@@ -34,11 +40,7 @@ export function StackPanel({ threadId }: ExperimentalThreadActionTabProps) {
     );
   if (stack === null)
     return <p className="text-sm text-muted-foreground">Loading stack…</p>;
-  if (
-    stack.outcome !== "stacked" ||
-    (stack.total < 2 &&
-      stack.branches.every((branch) => branch.offshoots.length === 0))
-  )
+  if (empty || stack.outcome !== "stacked")
     return (
       <p className="text-sm text-muted-foreground">
         No Graphite stack for this thread.
