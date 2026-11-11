@@ -14,11 +14,12 @@
   },
   "bb": {
     "name": "Bots",
-    "description": "Persistent collaborators with revisioned identity, persistent homes and native main conversations. Development preview.",
+    "description": "Persistent collaborators with an additive create/open panel, revisioned identity, persistent homes and native main conversations. Development preview.",
     "branding": {
       "icon": "Bot"
     },
     "server": "./server.ts",
+    "app": "./app.tsx",
     "skills": [
       "skills"
     ],
@@ -27,14 +28,26 @@
   "scripts": {
     "check": "tsc --noEmit",
     "build": "bb plugin build",
-    "test": "node --test \"lib/**/*.test.ts\""
+    "test": "node --test \"lib/**/*.test.ts\" && vitest run"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "1.5.0",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "tailwind-merge": "3.7.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@get-bb/plugin-sdk": "0.6.138",
     "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.9",
+    "jsdom": "31.0.0",
+    "vitest": "5.1.0",
     "bb-app": "0.49.0",
     "typescript": "7.0.2",
     "better-sqlite3": "13.0.3",

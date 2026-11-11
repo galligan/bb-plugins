@@ -12,7 +12,11 @@ const suppliedSchema = z.object({
   revision: z.number(),
   suppliedAt: z.string(),
 });
-export function openSoul(storage: PluginStorage, store: SetupStore) {
+export function openSoul(
+  storage: PluginStorage,
+  store: SetupStore,
+  changed: () => void,
+) {
   const db = storage.database();
   function defaults(botId: string) {
     const setup = store.get(botId);
@@ -30,6 +34,9 @@ export function openSoul(storage: PluginStorage, store: SetupStore) {
               : {}),
             ...(setup.request.permissionMode
               ? { permissionMode: setup.request.permissionMode }
+              : {}),
+            ...(setup.request.serviceTier
+              ? { serviceTier: setup.request.serviceTier }
               : {}),
           },
           worker: null,
@@ -73,6 +80,7 @@ export function openSoul(storage: PluginStorage, store: SetupStore) {
       const value = soulWriteSchema.parse(input);
       store.get(value.botId);
       store.documents.write({ ...value, name: "SOUL.md" });
+      changed();
       return show(value.botId);
     },
     updateDefaults: (input: z.infer<typeof defaultsWriteSchema>) => {
@@ -86,6 +94,7 @@ export function openSoul(storage: PluginStorage, store: SetupStore) {
         author: value.author,
         reason: value.reason,
       });
+      changed();
       return defaults(value.botId);
     },
     supply: (threadId: string) => {
@@ -100,11 +109,14 @@ export function openSoul(storage: PluginStorage, store: SetupStore) {
           instructions:
             "Your soul is unavailable. Ask the user to repair SOUL.md before executing assignments.",
         };
-      db.prepare(
-        `INSERT INTO soul_supplied (thread_id,conversation_id,revision,supplied_at) VALUES (?,?,?,?)
+      const updated = db
+        .prepare(
+          `INSERT INTO soul_supplied (thread_id,conversation_id,revision,supplied_at) VALUES (?,?,?,?)
         ON CONFLICT(thread_id) DO UPDATE SET conversation_id=excluded.conversation_id,revision=excluded.revision,supplied_at=excluded.supplied_at
         WHERE soul_supplied.revision <> excluded.revision OR soul_supplied.conversation_id <> excluded.conversation_id`,
-      ).run(threadId, owner.id, doc.revision, new Date().toISOString());
+        )
+        .run(threadId, owner.id, doc.revision, new Date().toISOString());
+      if (updated.changes) changed();
       return {
         tools: [],
         skills: ["bbots", "bbots-soul"],

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export const statusSchema = z.strictObject({
   pluginId: z.literal("bbots"),
-  stage: z.literal("configuration"),
+  stage: z.literal("interface"),
   automaticMaintenance: z.literal("disabled"),
   automaticContinuity: z.literal("disabled"),
   limitations: z.array(z.string()).max(8),

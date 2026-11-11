@@ -8,17 +8,22 @@ import { registerAdmission } from "./lib/setup/admission.ts";
 import { botCli } from "./lib/setup/cli.ts";
 import { openSoul } from "./lib/soul/store.ts";
 import { soulContract } from "./lib/soul/contracts.ts";
+import { uiContract } from "./lib/ui/contracts.ts";
 
 export default function plugin(bb: BbPluginApi) {
   const store = openSetup(bb.storage);
   const lifecycle = new AbortController();
   bb.onDispose(() => lifecycle.abort());
-  const soul = openSoul(bb.storage, store);
+  const changed = () => {
+    if (!lifecycle.signal.aborted) bb.rpc.experimental_invalidate(["bots"]);
+  };
+  const soul = openSoul(bb.storage, store, changed);
   const service = createSetupService(
     bb,
     store,
     lifecycle.signal,
     soul.defaults,
+    changed,
   );
   registerAdmission(bb, store, service.inspect, soul);
   bb.rpc.register(
@@ -26,6 +31,7 @@ export default function plugin(bb: BbPluginApi) {
       ...rpcContract,
       ...managementContract,
       ...soulContract,
+      ...uiContract,
     }),
     {
       status: () => developmentStatus(),
@@ -39,6 +45,22 @@ export default function plugin(bb: BbPluginApi) {
       soulUpdate: (input) => soul.update(input),
       defaultsShow: ({ botId }) => soul.defaults(botId),
       defaultsUpdate: (input) => soul.updateDefaults(input),
+      ownership: ({ keys }) =>
+        Object.fromEntries(
+          keys.map((threadId) => {
+            const owner = store.conversations.ownerOfThread(threadId);
+            if (!owner) return [threadId, null];
+            const bot = store.profiles.get(owner.botId);
+            return [
+              threadId,
+              { botId: bot.id, name: bot.name, role: owner.role },
+            ];
+          }),
+        ),
+      creation: ({ requestId }) => {
+        const setup = store.findRequest(requestId);
+        return setup ? store.view(setup.botId) : null;
+      },
     },
   );
   bb.cli.register(botCli(store, service, soul));
