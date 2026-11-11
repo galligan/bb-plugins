@@ -36,12 +36,18 @@ function matchesEvidence(
 /** Reports contain only outcome/model diagnostics; state and raw answers stay out. */
 export class EvaluationRepository {
   private db: Database;
+  private retiredListeners = new Set<(setIds: string[]) => void>();
+  onRetire(listener: (setIds: string[]) => void): () => void {
+    this.retiredListeners.add(listener);
+    return () => this.retiredListeners.delete(listener);
+  }
   constructor(db: Database) {
     this.db = db;
   }
   saveReport(value: unknown, now = Date.now()): EvaluationReport {
     const report = parseEvaluationReport(value);
-    return persist(() =>
+    const retired: string[] = [];
+    const result = persist(() =>
       this.db.transaction(() => {
         this.db
           .prepare(
@@ -62,12 +68,26 @@ export class EvaluationRepository {
           )
           .run();
         // Expired evidence cannot keep a calibration acceptance alive.
+        const rows = this.db
+          .prepare(
+            "SELECT set_id FROM calibration_acceptance WHERE test_run_id NOT IN (SELECT id FROM evaluation_reports)",
+          )
+          .all() as { set_id: string }[];
+        retired.push(...rows.map((row) => idSchema.parse(row.set_id)));
         this.db.exec(
           "DELETE FROM calibration_acceptance WHERE test_run_id NOT IN (SELECT id FROM evaluation_reports)",
         );
         return report;
       })(),
     );
+    if (retired.length)
+      for (const listener of this.retiredListeners)
+        try {
+          listener(retired);
+        } catch {
+          /* Report commit is authoritative; readers reject retired evidence even if display cleanup fails. */
+        }
+    return result;
   }
   getReport(id: string): EvaluationReport | null {
     idSchema.parse(id);

@@ -88,7 +88,11 @@ export class Runner {
   async run(
     value: unknown,
     signal?: AbortSignal,
-    options: { deadlineAt?: number; bypassCache?: boolean } = {},
+    options: {
+      deadlineAt?: number;
+      bypassCache?: boolean;
+      sourceContext?: Pick<SourceContext, "idle" | "event">;
+    } = {},
   ): Promise<Verdict> {
     const start = performance.now();
     const startedAt = Date.now();
@@ -117,7 +121,10 @@ export class Runner {
     let stopped = false;
     try {
       try {
-        context = await this.context(input, scope);
+        context = {
+          ...(await this.context(input, scope)),
+          ...options.sourceContext,
+        };
         scope.assertActive();
         if (!this.sets.applicable(set, context.projectId))
           throw new SourceFailure("set_not_applicable");

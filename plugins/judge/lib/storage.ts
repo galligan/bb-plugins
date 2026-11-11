@@ -5,6 +5,9 @@ import { parseVerdict, runSummarySchema, type Verdict } from "./results.ts";
 
 import { persist, type Database } from "./persistence.ts";
 import { DefinitionRepository } from "./sets-storage.ts";
+import { TriggerAttempts } from "./trigger-attempts.ts";
+import { PublicationRepository } from "./publication-storage.ts";
+import { TriggerRepository } from "./triggers-storage.ts";
 import { ResponseCache } from "./response-cache.ts";
 import { EvaluationRepository } from "./evaluation-storage.ts";
 export { PersistenceError } from "./persistence.ts";
@@ -32,6 +35,9 @@ export const MIGRATIONS = [
   `CREATE TABLE model_defaults (id INTEGER PRIMARY KEY CHECK(id = 1), default_id TEXT, private_id TEXT)`,
   `CREATE TABLE evaluation_reports (id TEXT PRIMARY KEY, set_id TEXT NOT NULL, created_at INTEGER NOT NULL, report_json TEXT NOT NULL)`,
   `CREATE INDEX evaluation_reports_created ON evaluation_reports(created_at, id)`,
+  `CREATE TABLE trigger_attempts (run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE, trigger_id TEXT NOT NULL, record_json TEXT NOT NULL)`,
+  `CREATE INDEX trigger_attempts_trigger ON trigger_attempts(trigger_id, run_id)`,
+  `CREATE TABLE verdict_publications (thread_id TEXT NOT NULL, set_id TEXT NOT NULL, trigger_id TEXT NOT NULL, run_id TEXT REFERENCES runs(id) ON DELETE SET NULL, summary_json TEXT NOT NULL, snapshot_json TEXT NOT NULL, published INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(thread_id,set_id))`,
 ];
 
 export function openJudgeStorage(storage: Storage): JudgeRepository {
@@ -48,6 +54,9 @@ export class JudgeRepository {
   readonly definitions: DefinitionRepository;
   readonly evaluations: EvaluationRepository;
   readonly cache: ResponseCache;
+  readonly triggers: TriggerRepository;
+  readonly triggerAttempts: TriggerAttempts;
+  readonly publications: PublicationRepository;
   constructor(db: Database) {
     this.db = db;
     this.definitions = new DefinitionRepository(db, () =>
@@ -55,6 +64,9 @@ export class JudgeRepository {
     );
     this.evaluations = new EvaluationRepository(db);
     this.cache = new ResponseCache(db);
+    this.triggers = new TriggerRepository(db);
+    this.triggerAttempts = new TriggerAttempts(db);
+    this.publications = new PublicationRepository(db);
   }
 
   saveModel(value: unknown): ModelConfig {
