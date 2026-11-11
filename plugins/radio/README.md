@@ -68,3 +68,5 @@ bb radio reply TX-17 "Migration verified against staging." --done --ref pr:142
 ```
 
 A broadcast creates one transmission with individual recipient records. Reading a count is not receiving the transmission. Receiving it is not acknowledging it. Acknowledging it is not accepting work. Accepting work is not completing it.
+
+The next adapter foundation includes `LocalContexts`: verified BB thread/project routing, atomic actor/session bootstrap, preservation of explicit mappings and separate operator-credential validation for human authority. Missing context never selects `@user`; native attribution cannot inherit a human/external actor mapping. These helpers do not yet register public commands/tools/RPC or provision credentials. Matt chose an initial trusted-environment outside-agent test without credentials; the future HTTP adapter will keep that shared test principal separate from operator authority. See [adapter authority](docs/decisions.md#released-adapter-authority-decisions).

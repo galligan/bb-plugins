@@ -2,7 +2,7 @@
 
 ## Smallest useful shape
 
-One BB server plugin owns one Radio database and domain service. Thin adapters expose CLI, native tools, typed local RPC, token-authenticated HTTP and additive UI. Use the public SDK; do not import BB internals, sibling plugin source, old Radio implementation code or Dispatch runtime code.
+One BB server plugin owns one Radio database and domain service. Thin adapters expose CLI, native tools, typed local RPC, trusted-test HTTP (initially without outside-agent credentials) and additive UI. Use the public SDK; do not import BB internals, sibling plugin source, old Radio implementation code or Dispatch runtime code.
 
 Package identity is `bb-plugin-radio`, plugin ID `radio`, pinned to public SDK 0.6.132. The current backend initializes identity/project/channel storage, immutable transmissions and versioned Markdown dispatches; the communication adapters described here remain future work. Follow repository build/release procedures as each layer is implemented.
 
@@ -42,13 +42,15 @@ UI invalidation/realtime signals carry IDs or minimal change hints; clients refe
 
 ## Authentication and access
 
-Initial trusted-personal deployment can use BB's per-plugin HTTP token in `x-bb-plugin-token`. It authorizes that token holder for the exposed API; it does not identify independent external agents or enforce per-agent scopes. Self-reported author labels remain attribution. Local RPC caller identity distinguishes plugin from client, not human from agent.
+Matt explicitly chose no outside-agent credentials for the first trusted-environment test. This supersedes the original shared-token proposal. All such callers share a deployment-authorized test principal; claimed session metadata cannot grant BB actor/human authority. Future code-based authentication is deferred until after testing, with its exact design open. This test mode must be explicitly enabled for its deployment; no route reachability or exposure follows from implementing it.
 
-If separately revocable external agents are required, introduce a small credential-to-principal mapping with hashed tokens, allowed scopes and revocation. An external principal may report session metadata but cannot acquire another actor by supplying its handle. Canonical-ID lookup is not authorization. Apply channel/document access checks to reads, refs, replies and broadcasts, not just writes.
+Local RPC distinguishes plugin from client, with app, CLI and agents all classified as clients. Thread/project selection attributes an ordinary local request within the trusted BB account; it is not cryptographic per-agent authentication. Native tools use host invocation context. Ordinary CLI/RPC require explicit thread attribution when context is absent. Resolve the actual thread and matching project through the public SDK, preserve registered ownership, and scope the initial operation to that project. No parentage, title or bot relationship grants authority.
 
-Secret material stays in server secret settings/storage, never frontend settings, URLs, dispatches or logs. Prefer header tokens. No credential was created or inspected during research.
+Acting as the station human requires an explicit mode and a separate server operator credential, including from a local client. Re-read the secret per privileged request so rotation/unset takes effect immediately. Compare digests without content-dependent timing, and pass only the resulting trusted context into domain operations. The credential must not become a native tool argument, transmission/request replay field, dispatch, output or log. Server secret settings hold the configured credential; later CLI input may use the SDK's secret stdin option to avoid process arguments. No credential is provisioned by source work.
 
-Remote reachability and authentication are separate. Verify TLS/private tunnel or BB routing for these routes before claiming off-host support. The getbb.app connection does not by itself prove plugin route forwarding. Do not expose a route with `auth:none` merely to reach external clients.
+If independently revocable external identities are later required, introduce a small credential-to-principal mapping with allowed scopes and revocation. Canonical-ID lookup never supplies ownership. Apply channel/document access to reads, refs, replies and broadcasts. In the initial no-credential test, do not claim isolation among external callers or expired per-agent credential verification.
+
+Remote reachability and authentication remain separate. Verify authorized TLS/private routing before claiming off-host support. The getbb.app connection does not prove plugin route forwarding. An explicitly enabled unauthenticated trusted test route implements Matt's choice; do not use that mode as a generic reachability workaround or silently expose an existing instance.
 
 ## Bot plugin boundary
 

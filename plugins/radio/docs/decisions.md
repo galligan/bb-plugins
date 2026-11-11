@@ -32,7 +32,7 @@ This is the current design baseline from discussion with Matt. “Agreed” reco
 - Project-main-channel listening by default for BB threads; subchannel subscriptions explicit.
 - Mute pauses future channel audience inclusion and passive surfacing, not direct mentions or existing obligations.
 - First local/external slice uses explicit reads, tool-result hints and composer mentions, while listening/steering receive isolated runtime probes.
-- A trusted personal shared-token deployment is the smallest auth option, with its identity limitations made explicit.
+- The initial trusted-environment outside-agent test uses no credentials, as explicitly chosen below; later code-based authentication remains deferred.
 - No automatic claim expiry, reassignment or repeated idle-driven notifications.
 
 ## Released identity/addressing contract
@@ -64,25 +64,31 @@ The implemented rule is exact-channel selection: parent/main/subchannel relation
 
 Tx acceptance snapshots unmuted channel listeners in its existing immediate transaction. Canonical target IDs deduplicate across direct/channel overlaps; distinct sessions of one actor remain distinct. Per-channel eligible counts (including zero) are frozen separately from the global unique recipient list. A 100-recipient overflow rejects the full send. Muting or leaving never changes historical audiences, direct mentions, required responses or commitments. Matt explicitly resolved mixed actor/session coverage as one recipient at a time; an answer satisfies only the canonical recipient it is sent for. The attention digest and explicit ambiguous-reply selection implement that rule. Discovery is invoking-actor/exact-session scoped, while required responses/open work remain visible across owned sessions; recent cutoffs never hide obligations. Each group has an independent bounded cursor and page counts with hasMore, never implied global totals or receipt evidence.
 
+## Released adapter authority decisions
+
+Matt chose no outside-agent credentials for the initial trusted-environment test. Those callers share one deployment-authorized test principal; reported labels/session IDs are claims, not independently authenticated identities. They cannot acquire BB actors or the station human. Future code-based authentication follows testing; its exact design is undecided. Source implementation does not itself authorize live installation or route exposure.
+
+Matt requires a separate operator credential for human-only actions, including acting as `@user` and reclaiming handles. BB app, CLI and agents are all SDK `client` callers; local origin and missing thread context do not prove human authority. The local context helper verifies the selected BB thread/project through the public SDK, bootstraps one durable actor per unmapped thread atomically, and preserves an existing explicit actor mapping without inferring parentage or bot ownership. A thread mapped to a human/external principal cannot acquire that authority through ordinary local invocation. Missing context requires an explicit thread, or explicit human mode with project and a valid current operator secret. A title refresh updates only bounded session metadata; BB project/title changes do not silently rename Radio qualifiers or actors. The helper prepares these rules; adapters are implemented separately.
+
 ## Unresolved product decisions
 
-| Decision                     | Why it matters / recommendation                                                                                             |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Response coverage extensions | Initial rules keep ack, reply coverage and commitments independent; combined operations or UI grouping need explicit policy |
-| Audience extensions          | Initial selection is exact-channel; hierarchical inclusion and dormant-listener filtering remain future policy choices      |
-| Actor delivery               | Which of several sessions receives an actor-addressed tx; bot routing should choose rather than broadcasting silently       |
-| Reply routing extensions     | Internal replies use explicit audiences and the same channel; public preselection and cross-channel routing remain separate |
-| Transfer and waiver          | How session-specific obligations move after handoff, deletion or abandonment; require explicit dispositions                 |
-| Handle lifecycle             | Manual allocation, rename aliases and explicit human reclaim are approved above; automated naming remains deferred          |
-| Address parsing              | Grammar and literal-region defaults are approved above; exact edge cases follow the identity/addressing implementation      |
-| External credentials         | Trusted shared token versus individually scoped/revocable principals                                                        |
-| Receipt evidence             | Adapter-specific guarantee, confirmation operation and how unknown outcomes appear                                          |
-| Dispatch governance          | Editing authority, revision limits, attachment support, export and audited removal                                          |
-| Global channels              | Whether needed in the first release; project channels suffice initially                                                     |
-| Cross-station address syntax | `::` is illustrative only; preserve unambiguous local syntax                                                                |
-| Station trust                | Pairing, channel scopes, actor equivalence, listener privacy, retry/retention policy                                        |
-| Bot integration              | Ownership of shared identity registry, msg/report behavior and independent operation without bot plugin                     |
-| Delivery defaults            | Quiet versus live steering/listening; on-duty execution belongs to bot policy                                               |
+| Decision                          | Why it matters / recommendation                                                                                             |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Response coverage extensions      | Initial rules keep ack, reply coverage and commitments independent; combined operations or UI grouping need explicit policy |
+| Audience extensions               | Initial selection is exact-channel; hierarchical inclusion and dormant-listener filtering remain future policy choices      |
+| Actor delivery                    | Which of several sessions receives an actor-addressed tx; bot routing should choose rather than broadcasting silently       |
+| Reply routing extensions          | Internal replies use explicit audiences and the same channel; public preselection and cross-channel routing remain separate |
+| Transfer and waiver               | How session-specific obligations move after handoff, deletion or abandonment; require explicit dispositions                 |
+| Handle lifecycle                  | Manual allocation, rename aliases and explicit human reclaim are approved above; automated naming remains deferred          |
+| Address parsing                   | Grammar and literal-region defaults are approved above; exact edge cases follow the identity/addressing implementation      |
+| External authentication follow-up | Initial test has no external credentials; later code-based authentication needs a concrete design after testing             |
+| Receipt evidence                  | Adapter-specific guarantee, confirmation operation and how unknown outcomes appear                                          |
+| Dispatch governance               | Editing authority, revision limits, attachment support, export and audited removal                                          |
+| Global channels                   | Whether needed in the first release; project channels suffice initially                                                     |
+| Cross-station address syntax      | `::` is illustrative only; preserve unambiguous local syntax                                                                |
+| Station trust                     | Pairing, channel scopes, actor equivalence, listener privacy, retry/retention policy                                        |
+| Bot integration                   | Ownership of shared identity registry, msg/report behavior and independent operation without bot plugin                     |
+| Delivery defaults                 | Quiet versus live steering/listening; on-duty execution belongs to bot policy                                               |
 
 ## Delivery stages
 
@@ -98,24 +104,24 @@ Model-generated handles can follow deterministic manual allocation; they need no
 
 ## Verification gates for future implementation
 
-| Scenario                      | Required evidence                                                                                             |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Restart after accepted tx     | Same content/ID, refs and recipients survive; no duplicate on exact replay                                    |
-| Lost write response           | Same key/request returns original result; changed payload conflicts                                           |
-| Concurrent exclusive wilco    | Exactly one claim winner; same claimant retry is idempotent                                                   |
-| Channel/handle/project rename | Existing messages, subscriptions and response ownership retain canonical targets                              |
-| Force handle reassignment     | Atomic displacement/assignment; old messages retain old target; no conflicting alias                          |
-| Address ambiguity             | Explicit refusal and qualified choices; no cross-project guessing                                             |
-| Broadcast overlap             | Dedupe identical recipients; retain two different sessions belonging to one bot                               |
-| Listener changes after send   | Frozen audience; mute/unlisten does not erase earlier obligations                                             |
-| External impersonation        | Self-reported metadata cannot exceed authenticated authority; shared-token limitations are visible            |
-| Receipt loss                  | Unknown delivery remains unknown; count hints and admin reads never fabricate received                        |
-| Dispatch update               | Pinned revision remains retrievable; current revision is explicit; external URL does not imply access         |
-| Stop/error/archive/disposal   | No unauthorized turn starts; pending reads cancel; txs and obligations remain durable                         |
-| Guarded steer                 | Exercise turn-end/stop races, provider mismatch, queue grouping, plugin waits/unload and send-now bypass      |
-| Compaction/handoff            | Stable bot responsibility and addresses; no dependence on fresh system instructions at compaction             |
-| Remote access                 | Verify actual authenticated route reachability and TLS/private routing; no assumption from getbb.app presence |
-| Cross-station retry/loop      | Stable originating IDs, one destination snapshot, no duplicate replies/acks or receipt inflation              |
-| UI                            | Keyboard/compact layout, no sidebar dependency, no focus stealing, clear partial/unknown states               |
+| Scenario                      | Required evidence                                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Restart after accepted tx     | Same content/ID, refs and recipients survive; no duplicate on exact replay                                          |
+| Lost write response           | Same key/request returns original result; changed payload conflicts                                                 |
+| Concurrent exclusive wilco    | Exactly one claim winner; same claimant retry is idempotent                                                         |
+| Channel/handle/project rename | Existing messages, subscriptions and response ownership retain canonical targets                                    |
+| Force handle reassignment     | Atomic displacement/assignment; old messages retain old target; no conflicting alias                                |
+| Address ambiguity             | Explicit refusal and qualified choices; no cross-project guessing                                                   |
+| Broadcast overlap             | Dedupe identical recipients; retain two different sessions belonging to one bot                                     |
+| Listener changes after send   | Frozen audience; mute/unlisten does not erase earlier obligations                                                   |
+| External impersonation        | Self-reported metadata cannot exceed authenticated authority; trusted-test shared-principal limitations are visible |
+| Receipt loss                  | Unknown delivery remains unknown; count hints and admin reads never fabricate received                              |
+| Dispatch update               | Pinned revision remains retrievable; current revision is explicit; external URL does not imply access               |
+| Stop/error/archive/disposal   | No unauthorized turn starts; pending reads cancel; txs and obligations remain durable                               |
+| Guarded steer                 | Exercise turn-end/stop races, provider mismatch, queue grouping, plugin waits/unload and send-now bypass            |
+| Compaction/handoff            | Stable bot responsibility and addresses; no dependence on fresh system instructions at compaction                   |
+| Remote access                 | Verify actual authenticated route reachability and TLS/private routing; no assumption from getbb.app presence       |
+| Cross-station retry/loop      | Stable originating IDs, one destination snapshot, no duplicate replies/acks or receipt inflation                    |
+| UI                            | Keyboard/compact layout, no sidebar dependency, no focus stealing, clear partial/unknown states                     |
 
 Follow root repository checks before any push. Design descriptions do not establish runtime behavior; the package README records the implemented scope and its verification limits.
