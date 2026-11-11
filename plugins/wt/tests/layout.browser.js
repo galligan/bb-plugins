@@ -27,6 +27,20 @@ await page.goto(`${origin}/plugins/wt/worktrees`);
 await page.waitForSelector('[aria-label="Refresh worktrees"]', {
   timeout: 15000,
 });
+// The host header mounts before the overview RPC finishes. Do not mistake
+// that loading state for an empty instance and skip row measurements.
+const waitForOverview = () =>
+  page.waitForFunction(
+    () =>
+      document.querySelector(
+        '[data-wt-project]:not([data-wt-project^="rescues:"])',
+      ) !== null ||
+      [...document.querySelectorAll("main")].some((main) =>
+        main.textContent.includes("No Worktree+ worktrees."),
+      ),
+    { timeout: 15000 },
+  );
+await waitForOverview();
 assert(
   await page.evaluate(
     () =>
@@ -38,6 +52,8 @@ assert(
 );
 
 await page.setViewport({ width: 390, height: 844, hasTouch: true });
+// Changing touch emulation can reload the page.
+await waitForOverview();
 assert(
   await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   "Compact panel must not overflow horizontally",
@@ -45,10 +61,16 @@ assert(
 const actions = await page.$$(
   '[data-wt-row] button[aria-label="Remove worktree"]',
 );
-const projects = await page.$$("[data-wt-project]");
+const projects = await page.$$(
+  '[data-wt-project]:not([data-wt-project^="rescues:"])',
+);
 if (projects.length === 0) {
   console.log("SKIPPED: touch target size (no worktrees on this instance)");
 } else {
+  assert(
+    await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+    "Touch target checks require coarse-pointer emulation, not just a narrow viewport",
+  );
   // Collapsed projects hide their rows. Refuse to pass without measuring.
   assert(
     actions.length > 0,
@@ -83,5 +105,5 @@ assert(
   "Escape must return focus to the compact Select trigger",
 );
 console.log(
-  "PASS: single host title bar, compact overflow, touch targets, compact Select drawer",
+  `PASS: single host title bar, compact overflow, compact Select drawer; touch targets ${projects.length > 0 ? "passed" : "skipped (no worktrees)"}`,
 );
