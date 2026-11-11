@@ -241,6 +241,9 @@ test("CLI help and native configuration expose only implemented operations with 
     const help = await f.harness.behavior.runCli(["whoami", "--help"]);
     assert.equal(help.exitCode, 0);
     assert.ok(help.stdout.includes("operator-credential"));
+    const responseHelp = await f.harness.behavior.runCli(["respond", "--help"]);
+    assert.ok(responseHelp.stdout.includes("targetId"));
+    assert.ok(responseHelp.stdout.includes("idempotencyKey"));
     assert.equal(f.harness.inspection.sdk.calls.length, 0);
     const config = await f.harness.behavior.resolveAgentConfiguration(
       makePluginAgentConfigurationContext(),
@@ -348,8 +351,15 @@ test("CLI reply requires one exact mixed actor/session target and never double-c
 test("CLI missing context, invalid flags/JSON and oversized bodies fail without accepting a transmission", async () => {
   const f = surfaceFixture();
   try {
-    const missingKey = await f.cli(["tx", "Body", "--ch", "local-project"]);
-    assert.equal(missingKey.execution.exitCode, 1);
+    const missingKey = await f.harness.behavior.runCli([
+      "tx",
+      "Body",
+      "--ch",
+      "local-project",
+      "--json",
+    ]);
+    assert.equal(missingKey.exitCode, 1);
+    assert.equal(JSON.parse(missingKey.stdout).error.code, "missing_required");
     const oversized = await f.cli([
       "tx",
       "x".repeat(401),

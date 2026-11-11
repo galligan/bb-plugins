@@ -2,7 +2,6 @@ import { cliCommand } from "@get-bb/plugin-sdk";
 import type { LocalRadioService } from "./local-service.ts";
 import { surfaceFailure } from "./local-service.ts";
 import { cliContext, contextOptions, parseCliInput } from "./cli-context.ts";
-import { RadioError } from "./errors.ts";
 
 export function sendCommand(service: LocalRadioService, op: "tx" | "reply") {
   return cliCommand({
@@ -13,6 +12,7 @@ export function sendCommand(service: LocalRadioService, op: "tx" | "reply") {
     positionals: [
       {
         name: "body",
+        required: true,
         description:
           "Essential transmission text, 1–400 Unicode code points; use a dispatch/ref for detail.",
       },
@@ -30,6 +30,7 @@ export function sendCommand(service: LocalRadioService, op: "tx" | "reply") {
       },
       key: {
         type: "string",
+        required: true,
         description:
           "Required stable idempotency key, 1–128 characters. Retry the exact input/key.",
       },
@@ -73,11 +74,6 @@ export function sendCommand(service: LocalRadioService, op: "tx" | "reply") {
     async run({ options, positionals }, invocation) {
       let result;
       try {
-        if (!positionals.body || !options.key)
-          throw new RadioError(
-            "invalid_input",
-            "Supply a body and --key; choose --ch or --channel-id.",
-          );
         result = await service.local(
           cliContext(options, invocation),
           {

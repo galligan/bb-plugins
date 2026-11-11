@@ -5,6 +5,7 @@ import {
   type PluginCliCommand,
 } from "@get-bb/plugin-sdk";
 import { operationSchema } from "./operation-contracts.ts";
+import { z } from "zod";
 import { surfaceFailure, type LocalRadioService } from "./local-service.ts";
 import { cliContext, contextOptions, parseCliInput } from "./cli-context.ts";
 import { sendCommand } from "./cli-send.ts";
@@ -19,7 +20,7 @@ export function registerCli(bb: BbPluginApi, service: LocalRadioService) {
     }
     commands[op] = cliCommand({
       summary: `Radio ${op}; validated JSON input, explicit actor context and bounded output.`,
-      description: `Input follows the shared ${op} operation schema. Use --input '{}' for empty reads. Read operations never confirm receipt.`,
+      description: `Use --input '{}' for empty reads. Reads never confirm receipt.\nJSON input schema:\n${JSON.stringify(z.toJSONSchema(variant.shape.input, { io: "input" }), null, 2)}`,
       options: {
         ...contextOptions,
         input: {
