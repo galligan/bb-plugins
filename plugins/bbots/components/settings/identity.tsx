@@ -59,6 +59,7 @@ export function IdentitySettings({
         >
           <Input
             id={inputId}
+            disabled={mutation.isPending}
             className={SETTINGS_CONTROL_CLASS}
             value={name}
             maxLength={128}

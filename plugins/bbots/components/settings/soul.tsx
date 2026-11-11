@@ -63,6 +63,7 @@ function SoulEditor({
       </label>
       <Textarea
         id={inputId}
+        disabled={mutation.isPending}
         value={markdown}
         maxLength={16000}
         rows={8}

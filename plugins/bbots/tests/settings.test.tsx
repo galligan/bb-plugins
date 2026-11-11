@@ -13,6 +13,55 @@ import { defaultsWriteSchema, soulWriteSchema } from "../lib/soul/contracts.ts";
 
 afterEach(cleanup);
 
+test.each(["name", "SOUL"])(
+  "%s fields preserve the submitted draft while its save is pending",
+  async (kind) => {
+    let reject!: (reason: Error) => void;
+    const pending = () =>
+      new Promise<never>((_yes, no) => {
+        reject = no;
+      });
+    const { slot } = await settingsFixture(
+      kind === "name" ? { rename: pending } : { soulUpdate: pending },
+    );
+    const editor = await slot.findByRole("textbox", {
+      name: kind === "name" ? "Name" : "SOUL.md",
+    });
+    await userEvent.clear(editor);
+    await userEvent.type(editor, "Retain this submitted draft");
+    await userEvent.click(
+      slot.getByRole("button", {
+        name: kind === "name" ? "Save name" : "Save SOUL",
+      }),
+    );
+    await waitFor(() => expect(editor.matches(":disabled")).toBe(true));
+    reject(new Error("Connection lost"));
+    await waitFor(() => expect(editor.matches(":disabled")).toBe(false));
+    expect((editor as HTMLInputElement).value).toBe(
+      "Retain this submitted draft",
+    );
+  },
+);
+
+test("pending defaults save locks every edit/reset control until its result is known", async () => {
+  let reject!: (reason: Error) => void;
+  const { slot } = await settingsFixture({
+    defaultsUpdate: () =>
+      new Promise<never>((_yes, no) => {
+        reject = no;
+      }),
+  });
+  await userEvent.click(
+    await slot.findByRole("button", { name: "Use BB defaults" }),
+  );
+  await userEvent.click(slot.getByRole("button", { name: "Save defaults" }));
+  const edit = slot.getByRole("button", { name: "Change worker defaults" });
+  await waitFor(() => expect(edit.matches(":disabled")).toBe(true));
+  reject(new Error("Unknown delivery"));
+  await waitFor(() => expect(edit.matches(":disabled")).toBe(false));
+  await slot.findByText(/Could not confirm the defaults save/);
+});
+
 test("a refreshed or truncated bot list does not replace the selected bot or discard an edited SOUL", async () => {
   let bots = [view.bot];
   const { slot } = await settingsFixture({
@@ -254,4 +303,13 @@ test("independent worker BB defaults and inheritance remain distinct explicit ch
     slot.getByRole("button", { name: "Use independent BB defaults" }),
   );
   await slot.findByText("Independent BB defaults");
+  await userEvent.click(
+    slot.getByRole("button", { name: "Change worker defaults" }),
+  );
+  expect(
+    slot
+      .getByRole("checkbox", { name: "Choose independent worker defaults" })
+      .getAttribute("aria-checked"),
+  ).toBe("false");
+  expect(slot.queryByTestId("bb-provider-model-picker")).toBeNull();
 });

@@ -13,6 +13,32 @@ import { ExecutionChoice } from "../components/execution-choice.tsx";
 import { experimental_PluginRpcCallError as RpcCallError } from "@get-bb/plugin-sdk/app";
 const loaded = () => loadPluginApp(() => import("../app.tsx"));
 
+test("empty saved execution defaults reopen as BB policy without a custom model or catalog read", async () => {
+  const changes: unknown[] = [];
+  const slot = renderSlot(
+    {
+      component: () => (
+        <ExecutionChoice
+          hostId="host_test"
+          initial={{}}
+          onChoosing={() => {}}
+          onChange={(value) => changes.push(value)}
+        />
+      ),
+    },
+    {},
+    {},
+  );
+  expect(
+    (slot.getByRole("checkbox") as HTMLButtonElement).getAttribute(
+      "aria-checked",
+    ),
+  ).toBe("false");
+  expect(slot.queryByTestId("bb-provider-model-picker")).toBeNull();
+  expect(slot.inspection.sdkCalls).toEqual([]);
+  expect(changes).toEqual([]);
+});
+
 test.each([
   { providerId: "missing" },
   { providerId: "codex", model: "removed-model" },

@@ -29,7 +29,9 @@ export function ExecutionChoice({
   const sdk = useSdk();
   const [seed, setSeed] = useState(initial);
   const initializeRequested = useRef(false);
-  const [custom, setCustom] = useState(initial !== undefined);
+  const [custom, setCustom] = useState(
+    initial !== undefined && Object.keys(initial).length > 0,
+  );
   const [choice, setChoice] = useState<Choice | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<

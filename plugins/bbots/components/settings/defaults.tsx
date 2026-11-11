@@ -97,139 +97,142 @@ function DefaultsEditor({
     reread();
   }
   return (
-    <form onSubmit={(event) => void save(event)} className="space-y-4">
-      <div className="space-y-2">
-        <h3 className="text-sm">Main conversations</h3>
-        <p className="text-xs text-muted-foreground">
-          {summary(main, "Use BB defaults")}
-        </p>
-        {editMain ? (
-          <ExecutionChoice
-            key={`main:${base.revision}`}
-            hostId={hostId}
-            initial={main}
-            label="Choose main defaults"
-            onChoosing={setChoosingMain}
-            onChange={changeMain}
-          />
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setEditMain(true)}
-          >
-            Change main defaults
-          </Button>
-        )}
-        {Object.keys(main).length > 0 && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setMain({});
-              setEditMain(false);
-              setChoosingMain(false);
-            }}
-          >
-            Use BB defaults
-          </Button>
-        )}
-      </div>
-      <div className="space-y-2 border-t border-border pt-4">
-        <h3 className="text-sm">Worker conversations</h3>
-        <p className="text-xs text-muted-foreground">
-          {summary(
-            worker,
-            worker === null
-              ? "Inherit main defaults"
-              : "Independent BB defaults",
+    <form onSubmit={(event) => void save(event)}>
+      <fieldset disabled={mutation.isPending} className="space-y-4">
+        <legend className="sr-only">Future execution defaults</legend>
+        <div className="space-y-2">
+          <h3 className="text-sm">Main conversations</h3>
+          <p className="text-xs text-muted-foreground">
+            {summary(main, "Use BB defaults")}
+          </p>
+          {editMain ? (
+            <ExecutionChoice
+              key={`main:${base.revision}`}
+              hostId={hostId}
+              initial={main}
+              label="Choose main defaults"
+              onChoosing={setChoosingMain}
+              onChange={changeMain}
+            />
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditMain(true)}
+            >
+              Change main defaults
+            </Button>
           )}
+          {Object.keys(main).length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setMain({});
+                setEditMain(false);
+                setChoosingMain(false);
+              }}
+            >
+              Use BB defaults
+            </Button>
+          )}
+        </div>
+        <div className="space-y-2 border-t border-border pt-4">
+          <h3 className="text-sm">Worker conversations</h3>
+          <p className="text-xs text-muted-foreground">
+            {summary(
+              worker,
+              worker === null
+                ? "Inherit main defaults"
+                : "Independent BB defaults",
+            )}
+          </p>
+          {editWorker ? (
+            <ExecutionChoice
+              key={`worker:${base.revision}`}
+              hostId={hostId}
+              initial={worker ?? undefined}
+              label="Choose independent worker defaults"
+              onChoosing={setChoosingWorker}
+              onChange={changeWorker}
+            />
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditWorker(true)}
+            >
+              Change worker defaults
+            </Button>
+          )}
+          {worker !== null && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setWorker(null);
+                setEditWorker(false);
+                setChoosingWorker(false);
+              }}
+            >
+              Inherit main defaults
+            </Button>
+          )}
+          {(worker === null || Object.keys(worker).length > 0) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setWorker({});
+                setEditWorker(false);
+                setChoosingWorker(false);
+              }}
+            >
+              Use independent BB defaults
+            </Button>
+          )}
+        </div>
+        <p className="text-xs leading-5 text-muted-foreground">
+          Automatic fallback is disabled. Any stored fallback preference is
+          retained; saving here does not activate it.
         </p>
-        {editWorker ? (
-          <ExecutionChoice
-            key={`worker:${base.revision}`}
-            hostId={hostId}
-            initial={worker ?? undefined}
-            label="Choose independent worker defaults"
-            onChoosing={setChoosingWorker}
-            onChange={changeWorker}
-          />
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setEditWorker(true)}
-          >
-            Change worker defaults
-          </Button>
-        )}
-        {worker !== null && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setWorker(null);
-              setEditWorker(false);
-              setChoosingWorker(false);
-            }}
-          >
-            Inherit main defaults
-          </Button>
-        )}
-        {(worker === null || Object.keys(worker).length > 0) && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setWorker({});
-              setEditWorker(false);
-              setChoosingWorker(false);
-            }}
-          >
-            Use independent BB defaults
-          </Button>
-        )}
-      </div>
-      <p className="text-xs leading-5 text-muted-foreground">
-        Automatic fallback is disabled. Any stored fallback preference is
-        retained; saving here does not activate it.
-      </p>
-      {mutation.error && (
-        <p role="alert" className="text-xs text-destructive">
-          Could not confirm the defaults save. Your draft is kept; read the
-          saved version before trying again.
-        </p>
-      )}
-      {saved && (
-        <p role="status" className="text-xs text-muted-foreground">
-          Future conversation defaults saved.
-        </p>
-      )}
-      <div className="flex flex-wrap justify-end gap-2">
         {mutation.error && (
-          <Button type="button" variant="outline" size="sm" onClick={discard}>
-            Discard draft and read saved defaults
-          </Button>
+          <p role="alert" className="text-xs text-destructive">
+            Could not confirm the defaults save. Your draft is kept; read the
+            saved version before trying again.
+          </p>
         )}
-        <Button
-          type="submit"
-          size="sm"
-          disabled={
-            !dirty ||
-            mutation.isPending ||
-            (choosingMain && Object.keys(main).length === 0) ||
-            (choosingWorker &&
-              (worker === null || Object.keys(worker).length === 0))
-          }
-        >
-          {mutation.isPending ? "Saving…" : "Save defaults"}
-        </Button>
-      </div>
+        {saved && !dirty && (
+          <p role="status" className="text-xs text-muted-foreground">
+            Future conversation defaults saved.
+          </p>
+        )}
+        <div className="flex flex-wrap justify-end gap-2">
+          {mutation.error && (
+            <Button type="button" variant="outline" size="sm" onClick={discard}>
+              Discard draft and read saved defaults
+            </Button>
+          )}
+          <Button
+            type="submit"
+            size="sm"
+            disabled={
+              !dirty ||
+              mutation.isPending ||
+              (choosingMain && Object.keys(main).length === 0) ||
+              (choosingWorker &&
+                (worker === null || Object.keys(worker).length === 0))
+            }
+          >
+            {mutation.isPending ? "Saving…" : "Save defaults"}
+          </Button>
+        </div>
+      </fieldset>
     </form>
   );
 }
