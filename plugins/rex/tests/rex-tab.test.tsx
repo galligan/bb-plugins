@@ -18,7 +18,7 @@ const THREAD = "thr_one";
 const wasm = await readFile(join(process.cwd(), "vendor/ghostty-vt.wasm"));
 
 /** Stubs `fetch`: the real decoder for the WASM route, `stream` for the rest. */
-function routes(stream: () => Response | Promise<Response>) {
+function routes(stream: (url: URL) => Response | Promise<Response>) {
   const requests: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -31,7 +31,7 @@ function routes(stream: () => Response | Promise<Response>) {
         return new Response(new Uint8Array(wasm), {
           headers: { "content-type": "application/wasm" },
         });
-      return stream();
+      return stream(url);
     }),
   );
   return requests;
@@ -85,6 +85,11 @@ test("shows connecting, then the server's own reason when the stream is refused,
     ),
   );
   await slot.findByText("The rex command is not on the bb server's PATH.");
+  // jsdom cannot measure media-query layout; assert the registry's compact
+  // touch sizing contract here and measure the rendered controls in BB.
+  expect(slot.getByRole("button", { name: "Try again" }).classList).toContain(
+    "max-md:pointer-coarse:h-9",
+  );
   expect(slot.queryByText("Connecting to Rex…")).toBeNull();
   expect(requests.filter((path) => path.startsWith("/stream"))).toEqual([
     `/stream?thread=${THREAD}`,
@@ -110,4 +115,56 @@ test("a stream without its pane headers is refused instead of being shown", asyn
   routes(() => new Response(new Uint8Array([1, 2, 3])));
   const slot = tab();
   await slot.findByText("The Rex stream response is missing its pane headers.");
+});
+
+test("an ended stream exposes a touch-sized reconnect that requests a fresh stream", async () => {
+  const requests = routes(
+    () =>
+      new Response(new Uint8Array(), {
+        headers: {
+          "x-rex-pane": "pane_one",
+          "x-rex-nonce": "nonce_one",
+          "x-rex-session-label": "test session",
+          "x-rex-window-label": "test window",
+        },
+      }),
+  );
+  const slot = tab();
+  const reconnect = await slot.findByRole("button", { name: "Reconnect" });
+  expect(reconnect.classList).toContain("max-md:pointer-coarse:h-9");
+  expect(
+    slot.getByRole("button", { name: /Choose the Rex window/ }).classList,
+  ).toContain("max-md:pointer-coarse:h-9");
+  await userEvent.click(reconnect);
+  await slot.findByRole("button", { name: "Reconnect" });
+  expect(requests.filter((path) => path.startsWith("/stream"))).toEqual([
+    `/stream?thread=${THREAD}`,
+    `/stream?thread=${THREAD}`,
+  ]);
+});
+
+test("session headings distinguish a session from a window with the same label", async () => {
+  routes((url) =>
+    url.pathname.endsWith("/targets")
+      ? Response.json({
+          own: null,
+          pick: null,
+          sessions: [
+            {
+              sessionId: "session_one",
+              label: "work",
+              windows: [{ windowId: "window_one", label: "work", panes: [] }],
+            },
+          ],
+        })
+      : refusal(503, "rex_unreachable", "Unavailable"),
+  );
+  const slot = tab();
+  await slot.findByText("Unavailable");
+  await userEvent.click(
+    slot.getByRole("button", { name: /Choose the Rex window/ }),
+  );
+  await slot.findByText("Session: work");
+  expect(slot.getByRole("group", { name: "work" })).toBeTruthy();
+  expect(slot.getByRole("menuitemcheckbox", { name: "work" })).toBeTruthy();
 });

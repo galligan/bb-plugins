@@ -11,6 +11,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { COARSE_POINTER_COMPACT_ROW_HEIGHT_CLASS } from "@/components/ui/coarse-pointer-sizing";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -135,7 +136,7 @@ function Choices({
       {others.map((session) => (
         <div key={session.sessionId} role="group" aria-label={session.label}>
           <DropdownMenuLabel className="truncate">
-            {session.label}
+            Session: {session.label}
           </DropdownMenuLabel>
           {session.windows.map((window) => (
             <DropdownMenuCheckboxItem
@@ -215,7 +216,7 @@ export function TargetMenu({
           size="sm"
           disabled={saving}
           aria-label={`${name}. Choose the Rex window this thread shows`}
-          className="h-6 min-w-0 shrink gap-1 px-1.5 font-medium text-foreground"
+          className={`${COARSE_POINTER_COMPACT_ROW_HEIGHT_CLASS} h-6 min-w-0 shrink gap-1 px-1.5 font-medium text-foreground`}
         >
           <span className="min-w-0 truncate">{name}</span>
           <Icon name="ChevronDown" className="size-3 shrink-0 opacity-70" />

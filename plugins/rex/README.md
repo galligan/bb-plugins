@@ -183,6 +183,8 @@ bun run build   # bb plugin build
 
 The menu is bb's dropdown menu and button, vendored from bb's component registry into `components/ui/` at the release named in `components.json`. Update them with `shadcn add @bb/<name>`.
 
+Session headings use an explicit “Session:” label to distinguish them from selectable windows in the compact sheet. The window trigger and retry buttons keep their desktop density and use the registry's 36px height on compact screens with a coarse pointer.
+
 `lib/fake-rex.ts` is a small Rex server for tests: sessions, windows, and the control methods the plugin calls to manage them. `lib/fake-rex-socket.ts` puts it behind a real control connection on a temporary Unix socket, with a `rex` command that reports that socket, so `lib/server.test.ts` can load the real `server.ts` under the SDK's fake host: registrations, every route's refusals, `bb rex target`, the session label setting, the instructions hook, closing a window on archive or delete, and the catch-up after a reload. `tests/rex-tab.test.tsx` loads the real `app.tsx` through the SDK's frontend harness for the tab's registration and its connecting and failed states.
 
 Two things are not covered by tests and need a running bb: an open stream end to end (Rex's data connection is not faked), and the terminal's drawing, scrolling and input.
