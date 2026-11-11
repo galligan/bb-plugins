@@ -31,7 +31,7 @@ Evidence PRs #82/#93/#95/#98/#101 are merged. Source-runtime proof and failed se
 
 ## Delivery
 
-Follow root Bun 1.3.14 / Node 24 verification and draft → fresh Devin → scoped fixes/review → green CI → ready → exact-head requirements → normal merge. No package publication or production installation. Keep Tasks/spec current as real capability decisions land; no standalone evidence-only PRs to imply implementation progress.
+Follow the current root toolchain / Node 24 verification and draft → fresh Devin → scoped fixes/review → green CI → ready → exact-head requirements → normal merge. No package publication or production installation. Keep Tasks/spec current as real capability decisions land; no standalone evidence-only PRs to imply implementation progress.
 
 ## Resumed integration
 
