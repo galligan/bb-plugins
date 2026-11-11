@@ -46,7 +46,7 @@ Acceptance: tool excluded by default and selected only by plugin configuration; 
 
 ## Verification commands
 
-Use Bun 1.3.14 from root:
+Use the repository's pinned Bun from root:
 
 ```sh
 bun install

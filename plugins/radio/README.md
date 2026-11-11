@@ -34,7 +34,7 @@ Reply expectation coverage is separate from acknowledgment. A linked reply selec
 
 ## Development
 
-Use the repository's Bun 1.3.14 and Node 24.x runtimes. Install dependencies at the repository root with `bun install --frozen-lockfile --ignore-scripts`. From this directory, run `bun run check`, `bun run test` and `bun run build`; run `bun run verify` at the repository root before pushing.
+Use the repository's pinned Bun and Node 24.x runtimes. Install dependencies at the repository root with `bun install --frozen-lockfile --ignore-scripts`. From this directory, run `bun run check`, `bun run test` and `bun run build`; run `bun run verify` at the repository root before pushing.
 
 Tests use the public SDK fake host and real temporary SQLite databases. They cover first load, repeated initialization, database reopen, plugin reload/disposal, independent station identity, failed migration rollback, changed migration history, metadata provenance, principal-scoped external sessions and project/channel renames. This establishes the storage contract in the harness, not live BB installation or delivery behavior. BB owns the database handle and closes it on reload/disposal; Radio does not close the shared handle itself.
 
