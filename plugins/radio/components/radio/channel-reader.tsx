@@ -1,3 +1,4 @@
+import { PostingComposer } from "./posting-composer.tsx";
 import { useState } from "react";
 import { z } from "zod";
 import { useBrowse } from "./use-browse.ts";
@@ -19,6 +20,7 @@ export function ChannelReader({
 }) {
   return (
     <div className="space-y-6">
+      <PostingComposer projectId={projectId} channelId={channelId} />
       <History projectId={projectId} channelId={channelId} />
       <Documents projectId={projectId} channelId={channelId} />
     </div>

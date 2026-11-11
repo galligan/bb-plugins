@@ -1,3 +1,4 @@
+import { PostingComposer } from "./posting-composer.tsx";
 import { z } from "zod";
 import { UrlLink } from "@get-bb/plugin-sdk/app";
 import { transmissionSchema, recipientSchema } from "./view-schemas.ts";
@@ -98,6 +99,11 @@ export function TransmissionReader({
             </ul>
           ) : null}
           <RecipientResponses projectId={projectId} txId={id} />
+          <PostingComposer
+            projectId={projectId}
+            channelId={query.data.channelId}
+            parent={query.data}
+          />
           {query.data.audiences.length ? (
             <p className="text-xs text-muted-foreground">
               Broadcast snapshots:{" "}
