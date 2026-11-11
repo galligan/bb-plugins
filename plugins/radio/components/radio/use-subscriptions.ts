@@ -36,6 +36,7 @@ export function useSubscriptions(channelId: string, targetId: string) {
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [uncertain, setUncertain] = useState(false);
   const [inspected, setInspected] = useState(false);
+  const [observation, setObservation] = useState<string | null>(null);
   const blocked = !visible || pending || acting.pending;
   async function read(after = cursors.at(-1)!, nextCursors = cursors) {
     if (!visible || busy.current || acting.pending) return;
@@ -62,7 +63,31 @@ export function useSubscriptions(channelId: string, targetId: string) {
       }
       setCursors(nextCursors);
       setPage({ after, data: parsed.data });
-      setInspected(true);
+      if (uncertain) {
+        const current = await acting.perform({
+          op: "listening",
+          input: { targetId, channelId, after: 0, limit: 1 },
+        });
+        if (!current.ok) throw new Error("Affected channel lookup failed");
+        const exact = listingSchema.parse(current.data);
+        if (
+          exact.hasMore ||
+          exact.items.length > 1 ||
+          exact.items.some(
+            (item) =>
+              item.targetId !== targetId || item.channelId !== channelId,
+          )
+        )
+          throw new Error("Affected subscription scope changed");
+        setObservation(
+          exact.items[0]
+            ? exact.items[0].muted
+              ? "Muted at last exact check."
+              : "Listening at last exact check."
+            : "Unsubscribed at last exact check.",
+        );
+        setInspected(true);
+      }
     } catch {
       setError("Subscriptions could not be checked. Check again explicitly.");
     } finally {
@@ -77,6 +102,7 @@ export function useSubscriptions(channelId: string, targetId: string) {
     setError(null);
     setConfirmation(null);
     setInspected(false);
+    setObservation(null);
     try {
       const result = await acting.perform({
         op: "subscribe",
@@ -131,6 +157,7 @@ export function useSubscriptions(channelId: string, targetId: string) {
     confirmation,
     uncertain,
     inspected,
+    observation,
     blocked,
     read: () => read(),
     next: () =>
@@ -141,6 +168,7 @@ export function useSubscriptions(channelId: string, targetId: string) {
     allowNewChange: () => {
       if (blocked || !inspected) return;
       setUncertain(false);
+      setObservation(null);
       setError(null);
       setInspected(false);
     },

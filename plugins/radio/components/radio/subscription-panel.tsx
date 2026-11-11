@@ -181,6 +181,9 @@ function Controls({
             No automatic retry is made. A repeated change could override a newer
             change from another panel.
           </p>
+          {controls.observation ? (
+            <p className="text-sm">This channel: {controls.observation}</p>
+          ) : null}
           <label className="flex min-h-9 items-center gap-2">
             <input
               type="checkbox"

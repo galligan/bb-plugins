@@ -338,6 +338,44 @@ describe("Identity settings with actual backend", () => {
     ).toHaveLength(2);
     slot.lifecycle.unmount();
   });
+  it("uses an exact affected-name lookup before releasing uncertainty when the current page does not contain that name", async () => {
+    const f = await fixture();
+    for (let index = 0; index < 21; index++)
+      await f.rpc({
+        op: index ? "handle-rename" : "handle-assign",
+        input: { name: `aaa-${index.toString().padStart(2, "0")}` },
+      });
+    const slot = await f.mount();
+    fireEvent.change(slot.getByLabelText("Handle name"), {
+      target: { value: "zzz-accepted" },
+    });
+    f.behavior.loseNext = true;
+    fireEvent.click(slot.getByRole("button", { name: "Rename (keep alias)" }));
+    expect(await slot.findByRole("alert")).toBeTruthy();
+    fireEvent.click(slot.getByRole("button", { name: "Inspect handles" }));
+    await slot.findByText(/Affected name @zzz-accepted/);
+    expect(slot.getAllByRole("listitem")).toHaveLength(20);
+    expect(slot.queryByText(/@zzz-accepted · Primary/)).toBeNull();
+    expect(f.behavior.attempts.at(-1)).toEqual({
+      op: "handle-read",
+      input: { name: "zzz-accepted" },
+    });
+    expect(slot.getByText(/Affected name @zzz-accepted/).textContent).toContain(
+      f.worker.sessionId,
+    );
+    fireEvent.click(
+      slot.getByLabelText(
+        "I inspected settings and intend to make a new change.",
+      ),
+    );
+    fireEvent.click(
+      slot.getByRole("button", { name: "Allow a new settings change" }),
+    );
+    expect(
+      f.store.handles.primary(f.projectId, f.worker.sessionId!)?.name,
+    ).toBe("zzz-accepted");
+    slot.lifecycle.unmount();
+  });
   it("keeps handle pages bounded and disables hidden reads/writes", async () => {
     const f = await fixture();
     for (let index = 0; index < 21; index++)

@@ -10,6 +10,7 @@ export const subscriptionMutationSchema = z
   .strict();
 export const subscriptionListingSchema = z
   .object({
+    channelId: idSchema.optional(),
     targetId: idSchema.optional(),
     after: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0),
     limit: z.number().int().min(1).max(50).default(20),

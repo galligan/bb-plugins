@@ -55,6 +55,11 @@ export function useIdentitySettings() {
     null,
   );
   const [inspected, setInspected] = useState(false);
+  const [uncertainName, setUncertainName] = useState<string | null>(null);
+  const [observedHandle, setObservedHandle] = useState<{
+    name: string;
+    handle: z.infer<typeof handleSchema> | null;
+  } | null>(null);
   const blocked = !visible || pending || acting.pending;
   async function read(kind: "handles" | "profile", nextCursors = cursors) {
     if (!visible || busy.current || acting.pending) return;
@@ -90,7 +95,24 @@ export function useIdentitySettings() {
           throw new Error("Profile scope changed");
         setProfile(parsed);
       }
-      if (uncertain === kind) setInspected(true);
+      if (uncertain === kind && kind === "handles" && uncertainName) {
+        const current = await acting.perform({
+          op: "handle-read",
+          input: { name: uncertainName },
+        });
+        if (!current.ok) throw new Error("Affected handle lookup failed");
+        const observation = z
+          .object({ handle: handleSchema.nullable() })
+          .parse(current.data);
+        if (
+          observation.handle &&
+          (observation.handle.projectId !== acting.projectId ||
+            observation.handle.name !== uncertainName)
+        )
+          throw new Error("Affected handle scope changed");
+        setObservedHandle({ name: uncertainName, handle: observation.handle });
+        setInspected(true);
+      } else if (uncertain === kind && kind === "profile") setInspected(true);
     } catch {
       setError("Settings could not be checked. Inspect again explicitly.");
     } finally {
@@ -139,6 +161,12 @@ export function useIdentitySettings() {
       setConfirmation(message + " Inspect settings for current state.");
     } catch (error) {
       setUncertain(request.op === "human-profile-set" ? "profile" : "handles");
+      setUncertainName(
+        request.op === "human-profile-set"
+          ? null
+          : normalizeName(request.input.name).name,
+      );
+      setObservedHandle(null);
       setError(
         `${error instanceof Error ? error.message : "Unsupported change result."} The change is unconfirmed. Inspect settings before a new change.`,
       );
@@ -155,6 +183,7 @@ export function useIdentitySettings() {
     blocked,
     uncertain,
     inspected,
+    observedHandle,
     read,
     change,
     canBack: cursors.length > 1,
@@ -163,6 +192,8 @@ export function useIdentitySettings() {
     allowNewChange: () => {
       if (blocked || !inspected) return;
       setUncertain(null);
+      setUncertainName(null);
+      setObservedHandle(null);
       setError(null);
       setInspected(false);
     },

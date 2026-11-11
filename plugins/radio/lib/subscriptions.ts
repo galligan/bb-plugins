@@ -93,12 +93,15 @@ export class Subscriptions {
   list(context: TransmissionContext, input: unknown) {
     const {
       targetId: requested,
+      channelId,
       after,
       limit,
     } = parseProtocol(subscriptionListingSchema, input);
     requireAuthor(this.store.identities, context);
     const targetId = requested ?? context.sessionId ?? context.authorId;
     requireOwnTarget(this.store.identities, context, targetId);
+    if (channelId)
+      requireChannel(this.store.projects, channelId, context.scope);
     if (context.scope.projectIds.length > 100)
       throw new RadioError(
         "invalid_input",
@@ -111,9 +114,15 @@ export class Subscriptions {
       .prepare<unknown[], Row>(
         `SELECT s.seq AS cursor, s.target_id AS targetId, s.channel_id AS channelId, s.muted
       FROM subscriptions s JOIN channels c ON c.id = s.channel_id
-      WHERE s.target_id = ? AND c.project_id IN (${projects.map(() => "?").join(",")}) AND s.seq > ? ORDER BY s.seq LIMIT ?`,
+      WHERE s.target_id = ? AND c.project_id IN (${projects.map(() => "?").join(",")}) AND s.seq > ? ${channelId ? "AND s.channel_id = ?" : ""} ORDER BY s.seq LIMIT ?`,
       )
-      .all(targetId, ...projects, after, limit + 1);
+      .all(
+        targetId,
+        ...projects,
+        after,
+        ...(channelId ? [channelId] : []),
+        limit + 1,
+      );
     const items = rows.slice(0, limit).map((row) => this.decode(row));
     return {
       items,

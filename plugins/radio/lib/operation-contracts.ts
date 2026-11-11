@@ -71,6 +71,7 @@ export const operationSchema = z.discriminatedUnion("op", [
   operation("channel-rename", z.object({ id: idSchema, name }).strict()),
   operation("project-rename", z.object({ name }).strict()),
   operation("handles", page),
+  operation("handle-read", z.object({ name }).strict()),
   operation("handle-assign", handleMutation),
   operation("handle-rename", handleMutation),
   operation("handle-reclaim", z.object({ name, targetId: idSchema }).strict()),
@@ -95,5 +96,6 @@ export function operationIsRead(op: RadioOperation["op"]): boolean {
     "dispatch-list",
     "channels",
     "handles",
+    "handle-read",
   ].includes(op);
 }

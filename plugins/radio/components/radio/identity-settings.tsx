@@ -242,6 +242,24 @@ function Settings() {
             before choosing a new intent; repeating it could override another
             panel's changes.
           </p>
+          {settings.observedHandle ? (
+            <p className="text-sm break-words">
+              Affected name @{settings.observedHandle.name}:{" "}
+              {settings.observedHandle.handle ? (
+                <>
+                  last checked holder{" "}
+                  <code>{settings.observedHandle.handle.targetId}</code> (
+                  {settings.observedHandle.handle.isPrimary
+                    ? "primary"
+                    : "alias"}
+                  )
+                </>
+              ) : (
+                "unallocated at last exact lookup"
+              )}
+              .
+            </p>
+          ) : null}
           <label className="flex min-h-9 items-center gap-2">
             <input
               type="checkbox"

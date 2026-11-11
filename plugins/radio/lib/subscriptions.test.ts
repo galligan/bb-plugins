@@ -87,6 +87,21 @@ test("subscription ownership/project access is explicit and owners can withdraw 
         }),
       errorCode("not_found"),
     );
+    assert.throws(
+      () =>
+        f.store.subscriptions.list(f.workerContext, {
+          channelId: f.other.channelId,
+          limit: 1,
+        }),
+      errorCode("not_found"),
+    );
+    assert.deepEqual(
+      f.store.subscriptions.list(f.workerContext, {
+        channelId: f.project.channelId,
+        limit: 1,
+      }).items,
+      [],
+    );
     const otherSession = f.store.identities.registerThread(
       "thr_otherWorker",
       f.target.id,
