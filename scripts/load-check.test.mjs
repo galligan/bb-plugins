@@ -163,6 +163,16 @@ test("moves the plugin to the artifact, probes it, moves it back, and records ea
       "after-restore",
     ],
   );
+  // Every step is timed, and an observation says where the plugin was.
+  assert.ok(
+    f.receipt.steps.every(({ at }) => at === "2026-11-11T00:00:00.000Z"),
+  );
+  assert.deepEqual(
+    f.receipt.steps.flatMap(({ where }) =>
+      where === undefined ? [] : [where],
+    ),
+    ["artifact", "original"],
+  );
   assert.deepEqual(f.receipt.target, {
     origin: "http://127.0.0.1:26207",
     dataDir: f.dataDir,

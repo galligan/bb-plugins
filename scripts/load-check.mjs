@@ -275,10 +275,10 @@ export function loadCheck({
       if (uncertain && at === "original" && (steady += 1) <= LATE_POLLS) {
         continue;
       }
-      step(name, { at, observed: view(entry) });
+      step(name, { where: at, observed: view(entry) });
       return { at, running, entry, list };
     }
-    step(name, { at: null, observed: null });
+    step(name, { where: null, observed: null });
     return undefined;
   };
   const install = (name, directory) => {
