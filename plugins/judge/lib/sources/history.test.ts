@@ -311,16 +311,25 @@ test("history order, exclusive bounds and scan caps are validated even beyond th
   }
 });
 
-test("an abort-ignoring history read cannot start another page after the run deadline", async () => {
+test("an abort-ignoring history read cannot start another page after the run deadline", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let now = 0;
+  t.mock.method(performance, "now", () => now);
   const { sources, harness } = setup([]);
   try {
     let release: (rows: unknown[]) => void = () => {};
     let calls = 0;
-    harness.sdk.stub("threads.events.list", async () => {
+    let signal: AbortSignal | undefined;
+    harness.sdk.stub("threads.events.list", async (args: unknown) => {
       calls++;
-      return new Promise((resolve) => {
+      signal = (args as { signal: AbortSignal }).signal;
+      const pending = new Promise((resolve) => {
         release = resolve;
       });
+      // Expire only after the first read starts, independently of host load.
+      now = 21;
+      t.mock.timers.tick(21);
+      return pending;
     });
     const result = await sources.read(
       { from: "thread.recentUserMessages" },
@@ -331,12 +340,13 @@ test("an abort-ignoring history read cannot start another page after the run dea
       reason: "budget",
       code: "budget",
     });
+    assert.equal(signal?.aborted, true);
     release(
       Array.from({ length: 100 }, (_, n) =>
         request(200 - n, { initiator: "system" }),
       ),
     );
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setImmediate(resolve));
     assert.equal(calls, 1);
   } finally {
     sources.dispose();
