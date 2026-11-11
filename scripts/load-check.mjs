@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import {
@@ -59,6 +59,9 @@ const usage = [
 const COMMAND_TIMEOUT_MS = 180_000;
 const POLLS = 45;
 const POLL_MS = 2_000;
+// How many further polls must agree before an install whose command gave no
+// exit is taken as not having arrived.
+const LATE_POLLS = 5;
 const settledJobs = new Set(["succeeded", "failed", "cancelled"]);
 
 function packageName(directory) {
@@ -123,8 +126,28 @@ export function loadCheck({
     restoreArguments: ["plugin", "install", original, "--yes"],
     steps: [],
   };
-  const save = () =>
-    writeFileSync(options.receipt, `${JSON.stringify(receipt, null, 2)}\n`);
+  const text = () => `${JSON.stringify(receipt, null, 2)}\n`;
+  // Written whole and renamed, so a failed write leaves the last receipt.
+  const write = () => {
+    writeFileSync(`${options.receipt}.tmp`, text());
+    renameSync(`${options.receipt}.tmp`, options.receipt);
+  };
+  // Once an install may have been sent, a receipt that cannot be written must
+  // not stop the run: the restore matters more than the record.
+  let unsaved = false;
+  const save = () => {
+    try {
+      write();
+      unsaved = false;
+    } catch (error) {
+      if (!unsaved) {
+        log(
+          `load-check: could not write the receipt (${error.message}); it is printed when the run ends.`,
+        );
+      }
+      unsaved = true;
+    }
+  };
   const step = (name, detail) => {
     receipt.steps.push({ step: name, at: now(), ...detail });
     save();
@@ -134,6 +157,7 @@ export function loadCheck({
     receipt.exit = exit[outcome];
     receipt.finishedAt = now();
     save();
+    if (unsaved) log(text());
     log(`load-check: ${outcome}. ${message} Receipt: ${options.receipt}`);
     return exit[outcome];
   };
@@ -141,7 +165,7 @@ export function loadCheck({
 
   // Everything up to the first install can refuse without changing anything.
   try {
-    save();
+    write();
   } catch (error) {
     log(`load-check: cannot write ${options.receipt}: ${error.message}`);
     return exit.usage;
@@ -226,13 +250,20 @@ export function loadCheck({
   // An install command that times out or loses its connection may still have
   // been accepted: installs continue on the server. So the answer to "what
   // happened" always comes from here, never from the command's exit alone.
-  const observe = (name) => {
+  //
+  // `uncertain` is for a command that gave no exit. Its install can register
+  // after the queue first looks empty, so the original path is believed only
+  // once several polls in a row agree.
+  const observe = (name, uncertain = false) => {
+    let steady = 0;
     for (let attempt = 0; attempt < POLLS; attempt += 1) {
       if (attempt > 0) sleep(POLL_MS);
-      if (activeInstalls() !== 0) continue;
-      const list = plugins();
+      const list = activeInstalls() === 0 ? plugins() : undefined;
       const entry = list?.find(({ id }) => id === options.plugin);
-      if (entry === undefined) continue;
+      if (entry === undefined) {
+        steady = 0;
+        continue;
+      }
       const root = canonical(String(entry.rootDir), realpath);
       const at =
         root === artifact
@@ -241,6 +272,9 @@ export function loadCheck({
             ? "original"
             : "other";
       const running = entry.enabled === true && entry.status === "running";
+      if (uncertain && at === "original" && (steady += 1) <= LATE_POLLS) {
+        continue;
+      }
       step(name, { at, observed: view(entry) });
       return { at, running, entry, list };
     }
@@ -260,10 +294,17 @@ export function loadCheck({
   const describe = (sent) =>
     sent.error === null ? `exit ${sent.exit}` : `no exit: ${sent.error}`;
 
+  const noExit = (sent) => sent.error !== null || sent.exit === null;
+  const onArtifact = (seen) => {
+    moved = true;
+    receipt.loaded = view(seen.entry);
+    receipt.othersUnchanged = others(seen.list) === others(before);
+  };
   let moved = false;
+  let crashed = false;
   try {
     const sent = install("install", artifact);
-    const seen = observe("after-install");
+    const seen = observe("after-install", noExit(sent));
     if (seen === undefined) {
       receipt.primaryError = `After the install command (${describe(sent)}) the plugin's state could not be read.`;
       return finish(
@@ -277,6 +318,12 @@ export function loadCheck({
         seen.at === "original"
           ? `bb did not run ${options.plugin} from the artifact (install command: ${describe(sent)}).`
           : `After the install command ${options.plugin} runs from ${seen.entry.rootDir}, which is neither path. Something else changed it.`;
+      if (seen.at === "original" && noExit(sent)) {
+        return finish(
+          "unverified",
+          `${receipt.primaryError} The command gave no exit, so the install may still arrive: read \`plugin install-jobs\` and \`plugin list --json\` before relying on this state. No restore was sent.`,
+        );
+      }
       return seen.at === "original" && seen.running
         ? finish(
             "failed",
@@ -284,18 +331,22 @@ export function loadCheck({
           )
         : finish("unverified", `${receipt.primaryError} No restore was sent.`);
     }
-    moved = true;
-    receipt.loaded = view(seen.entry);
-    receipt.othersUnchanged = others(seen.list) === others(before);
+    onArtifact(seen);
     if (!seen.running) {
       receipt.primaryError = `${options.plugin} moved to the artifact but is ${seen.entry.enabled ? seen.entry.status : "disabled"}, not running.`;
     } else if (parsed.forwarded.length > 0) {
       const result = bb(parsed.forwarded);
       const output = result.stdout ?? "";
-      writeFileSync(`${options.receipt}.probe.out`, output);
+      let outputSaved = true;
+      try {
+        writeFileSync(`${options.receipt}.probe.out`, output);
+      } catch {
+        outputSaved = false;
+      }
       receipt.probe = {
         exit: result.status ?? null,
         error: result.error?.message ?? null,
+        outputSaved,
         stdoutBytes: Buffer.byteLength(output),
         stdoutSha256: createHash("sha256").update(output).digest("hex"),
       };
@@ -308,7 +359,17 @@ export function loadCheck({
     // An ordinary failure of this script. The restore below still runs if the
     // plugin was seen on the artifact.
     receipt.primaryError = `load-check failed: ${error?.message ?? error}`;
+    crashed = true;
   } finally {
+    if (crashed && !moved) {
+      // The install may have been sent before the failure. Find out.
+      try {
+        const seen = observe("after-error", true);
+        if (seen?.at === "artifact") onArtifact(seen);
+      } catch {
+        /* Unknown state: reported below as unverified. */
+      }
+    }
     if (moved) {
       try {
         const sent = install("restore", original);

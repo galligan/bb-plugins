@@ -72,7 +72,10 @@ function fixture(t, configure = () => {}) {
   const calls = [];
   const lines = [];
   const sleeps = [];
-  const receiptFile = path.join(base, "receipt.json");
+  const receiptDirectory = path.join(base, "receipts");
+  mkdirSync(receiptDirectory);
+  state.receiptDirectory = receiptDirectory;
+  const receiptFile = path.join(receiptDirectory, "receipt.json");
   const { plugin, url, probe } = state.args;
   const code = loadCheck({
     argv: [
@@ -303,13 +306,39 @@ test("an install whose delivery is uncertain is settled by observation, never by
   assert.equal(delivered.receipt.steps[1].error, "ETIMEDOUT");
   assert.equal(delivered.receipt.steps[1].exit, null);
 
-  // The command timed out and it was never accepted: one install, no restore.
+  // The command timed out and nothing shows it was accepted. It may still
+  // arrive, so this is not a clean failure: one install, no restore, exit 4.
   const dropped = fixture(t, (s) => {
     s.bb.install = () => ({ status: null, error: new Error("ETIMEDOUT") });
   });
-  assert.equal(dropped.code, exit.failed);
+  assert.equal(dropped.code, exit.unverified);
   assert.deepEqual(dropped.installs, [dropped.artifact]);
   assert.match(dropped.receipt.primaryError, /no exit: ETIMEDOUT/);
+  assert.match(dropped.output, /may still arrive/);
+  // It kept watching for a late arrival before giving up.
+  assert.deepEqual(dropped.sleeps, [2000, 2000, 2000, 2000, 2000]);
+
+  // The command timed out, the queue looked empty, and the install arrived a
+  // moment later: the watch catches it and the plugin is moved back.
+  const late = fixture(t, (s) => {
+    s.bb.install = (target) => {
+      if (target === s.artifact) {
+        s.onSleep = (count) => {
+          if (count === 2) s.bb.jobs = [{ id: "j1", state: "running" }];
+          if (count === 3) {
+            s.bb.jobs = [{ id: "j1", state: "succeeded" }];
+            s.bb.plugins[0] = s.entry("sample", s.artifact);
+          }
+        };
+        return { status: null, error: new Error("ETIMEDOUT") };
+      }
+      s.bb.plugins[0] = s.entry("sample", target);
+      return { status: 0, stdout: "" };
+    };
+  });
+  assert.equal(late.code, exit.passed, late.output);
+  assert.deepEqual(late.installs, [late.artifact, late.original]);
+  assert.equal(late.receipt.final.rootDir, late.original);
 
   // The state cannot be read afterwards: stop, and send nothing more.
   const blind = fixture(t, (s) => {
@@ -390,6 +419,50 @@ test("a plugin that moves but is not running, or a failed probe, fails and is st
   assert.deepEqual(probe.installs, [probe.artifact, probe.original]);
   assert.equal(probe.receipt.final.rootDir, probe.original);
   assert.match(probe.output, /original install is running again/);
+});
+
+test("a receipt that cannot be written, or a crash as the install is sent, still ends with the plugin moved back", (t) => {
+  const unwritable = fixture(t, (s) => {
+    const move = s.bb.install;
+    s.bb.install = (target) => {
+      // The receipt's directory goes away while the install runs.
+      if (target === s.artifact)
+        rmSync(s.receiptDirectory, { recursive: true });
+      return move(target);
+    };
+  });
+  assert.deepEqual(unwritable.installs, [
+    unwritable.artifact,
+    unwritable.original,
+  ]);
+  assert.equal(unwritable.bb.plugins[0].rootDir, unwritable.original);
+  assert.equal(unwritable.code, exit.passed);
+  assert.match(unwritable.output, /could not write the receipt/);
+  // The receipt is printed instead, so the record is not lost.
+  assert.match(unwritable.output, /"outcome": "passed"/);
+
+  const crashed = fixture(t, (s) => {
+    const move = s.bb.install;
+    s.bb.install = (target) => {
+      const result = move(target);
+      if (target === s.artifact) throw new Error("spawn EPIPE");
+      return result;
+    };
+  });
+  assert.deepEqual(crashed.installs, [crashed.artifact, crashed.original]);
+  assert.equal(crashed.code, exit.failed);
+  assert.match(crashed.receipt.primaryError, /load-check failed: spawn EPIPE/);
+  assert.equal(crashed.receipt.final.rootDir, crashed.original);
+
+  // A crash as the install is sent, with the plugin's state unreadable after.
+  const lost = fixture(t, (s) => {
+    s.bb.install = () => {
+      s.bb.listReadable = false;
+      throw new Error("spawn EPIPE");
+    };
+  });
+  assert.equal(lost.code, exit.unverified);
+  assert.deepEqual(lost.installs, [lost.artifact]);
 });
 
 test("a script error after the move still restores, and another plugin changing is noted", (t) => {

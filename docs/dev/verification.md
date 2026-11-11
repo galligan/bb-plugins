@@ -126,7 +126,7 @@ bun run load-check --url <server-url> --data-dir <path> [--daemon-port <port>] [
 This works only for a plugin that the instance already runs, enabled, from a local path. `bb plugin install <path>` over such an install is a move that bb supports: it keeps settings, secrets and schedules, and keeps the old install if the new checkout fails to start. [`scripts/load-check.mjs`](../../scripts/load-check.mjs) names the instance through the same checks as `bb-target`, then:
 
 1. Refuses, changing nothing, unless the plugin runs from `--original`, both directories hold the same package, and no plugin install is queued or running.
-2. Sends one install of `--artifact`, then reads the install queue and the plugin list to learn what happened. An install command that times out may still have been accepted, so the command's exit alone never decides, and no install is sent twice.
+2. Sends one install of `--artifact`, then reads the install queue and the plugin list to learn what happened. An install command that times out may still have been accepted, so the command's exit alone never decides, and no install is sent twice. If the command gave no exit and the plugin still runs from the original path after a short watch, the run ends with exit 4, not 1, because the install may still arrive.
 3. If the plugin runs from the artifact, runs the optional command after `--` once. That command must be read-only; its arguments are never printed or recorded, and its output is written beside the receipt.
 4. Sends one install of `--original` and checks that the plugin runs from there again.
 
@@ -137,7 +137,7 @@ This works only for a plugin that the instance already runs, enabled, from a loc
 | 3    | Refused before any install.                                                                                                      |
 | 4    | The final state is not verified as the original install: read the receipt and `plugin list --json` before sending anything else. |
 
-The receipt is JSON, rewritten after every step, with the baseline, what was observed on the artifact, the final state, and both the first failure and any restore failure. The restore runs after an ordinary failure of the script. It cannot run if the process is killed or the machine is lost between the two installs; the plugin then stays on the artifact, and the receipt's `restoreArguments` are the bb arguments that move it back.
+The receipt is JSON, rewritten after every step (and printed at the end if it could not be written), with the baseline, what was observed on the artifact, the final state, and both the first failure and any restore failure. The restore runs after an ordinary failure of the script. It cannot run if the process is killed or the machine is lost between the two installs; the plugin then stays on the artifact, and the receipt's `restoreArguments` are the bb arguments that move it back.
 
 A pass shows that bb registered the plugin from the artifact and reports it running. Only the probe exercises a host entry, and nothing here renders the app. A plugin installed from git or npm cannot be checked this way: bb refuses to replace that source in place, and removing the plugin first deletes its settings, secrets and schedules. The cases are covered with injected process execution in [`scripts/load-check.test.mjs`](../../scripts/load-check.test.mjs).
 
