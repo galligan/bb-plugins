@@ -1,8 +1,10 @@
 import { cliCommand, defineCli, type BbPluginApi } from "@get-bb/plugin-sdk";
+import { openStore } from "./lib/storage/store.ts";
 import { rpcContract } from "./lib/contracts.ts";
 import { developmentStatus, formatStatus } from "./lib/status.ts";
 
 export default function plugin(bb: BbPluginApi) {
+  openStore(bb.storage);
   bb.rpc.register(rpcContract, { status: () => developmentStatus() });
   bb.cli.register(
     defineCli({

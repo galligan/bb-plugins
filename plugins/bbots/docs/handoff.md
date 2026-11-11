@@ -6,14 +6,14 @@
 
 - Builder `thr_898bvuxcfi`, parent `thr_cc23h4keqr`, Codex gpt-6.1-sol/high.
 - Environment `env_i9zexe2j36`; existing exploration worktree preserved at `/Users/mg/.bb/plugins/environment-git-worktree/host-data/worktrees/thr_cc23h4keqr-1/bb-plugins`.
-- Implementation branch `feat/bbots/package-foundation`; original exploration and documentation branches retained. Never clean/reset this worktree.
+- Implementation branch `feat/bbots/revisioned-storage`; original exploration and documentation branches retained. Never clean/reset this worktree.
 - Dedicated tracker **BOTS**, stable ID `01M73NSQMGEYPWZ30WSR2CEYBP`; never BBP. Matt's “Ok go” and subsequent correction authorize routine implementation/review/merge without another go.
 
 ## First code slice
 
-BOTS-4 provides a headless independently buildable `bb-plugin-bbots` package, display Bots, ID bbots. `bb bot status` / `--json` and validated `status` RPC show the development boundary. Use explicit `bb plugin run bbots status` if the command alias collides. BB >=0.49.0, runtime SDK >=0.6.132, exact build SDK 0.6.132. No bot creation, storage or UI is claimed yet. No event handlers, schedules, agents, automatic maintenance, retry or continuity are registered. Automatic paths are visibly disabled.
+BOTS-4 provides a headless independently buildable `bb-plugin-bbots` package, display Bots, ID bbots. `bb bot status` / `--json` and validated `status` RPC show the development boundary. Use explicit `bb plugin run bbots status` if the command alias collides. BB >=0.49.0, runtime SDK >=0.6.132, exact build SDK 0.6.132. No public bot creation or UI is claimed yet. The next storage slice initializes SQLite, with profile plus unbound main identity created atomically, expected-base writes and exclusive initial thread binding; it makes no SDK thread calls. No event handlers, schedules, agents, automatic maintenance, retry or continuity are registered. Automatic paths are visibly disabled.
 
-Next: BOTS-5 revisioned SQLite storage and stable logical mappings, then BOTS-6 home/main creation and BOTS-7 session-bound soul/model guidance. Keep ownership authoritative before first provider construction; metadata is only a checked mirror. Add UI in BOTS-17 after these real capabilities, without replacing the sidebar.
+BOTS-4 merged in [PR #112](https://github.com/galligan/bb-plugins/pull/112) after fresh Devin No Issues, green CI, ready and exact-head merge checks. BOTS-5 now adds real SQLite profile/document revisions and stable logical mappings. Next is BOTS-6 home/main creation, then BOTS-7 session-bound soul/model guidance. Keep ownership authoritative before first provider construction; metadata is only a checked mirror. Add UI in BOTS-17 after these real capabilities, without replacing the sidebar.
 
 ## Controls and support
 
