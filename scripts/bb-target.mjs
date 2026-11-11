@@ -16,12 +16,17 @@ export const targetFlags = {
 };
 const usage = [
   "Usage: bun run bb-target --url <server-url> --data-dir <path>",
-  "         [--daemon-port <port>] [--cli <bb-entry>] -- <bb arguments>",
+  "         [--daemon-port <port>] [--cli <bb-entry>] [--thread <thread-id>]",
+  "         -- <bb arguments>",
   "",
   "Runs one bb command against the named BB instance, after checking that the",
   "instance at <server-url> reports <path> as its data directory. It refuses the",
   "default server port and the default data directory. It never starts, stops,",
   "installs, or retries anything.",
+  "",
+  "--thread runs the command as that thread, which a plugin command sees as its",
+  "caller. The instance must confirm it has the thread; the thread's own project",
+  "is used. Without it the command runs with no thread or project.",
 ].join("\n");
 
 /** The path as the filesystem names it, or resolved lexically if absent. */
@@ -62,6 +67,8 @@ export function parseFlags(argv, flags) {
  * variable is dropped, because inside a bb thread they point the CLI at the
  * instance that thread runs in.
  */
+const threadId = /^thr_[A-Za-z0-9]+$/;
+
 export function select(
   options,
   {
@@ -88,6 +95,10 @@ export function select(
       Number(options.daemonPort) > 65535)
   ) {
     log("bb-target: --daemon-port must be a port number.");
+    return { code: exit.usage };
+  }
+  if (options.thread !== undefined && !threadId.test(options.thread)) {
+    log("bb-target: --thread must be a thread id, such as thr_abc123.");
     return { code: exit.usage };
   }
   const port = url.port || (url.protocol === "https:" ? "443" : "80");
@@ -147,12 +158,44 @@ export function select(
     return { code: exit.refused };
   }
 
+  // The bb CLI tells a plugin command who called it from these two variables
+  // and nothing else. They are set only for a thread this instance has, with
+  // that thread's own project, and the lookup itself runs as nobody.
+  let caller = null;
+  if (options.thread !== undefined) {
+    const shown = run(
+      command,
+      [...prefix, "thread", "show", options.thread, "--json"],
+      { env: { ...selected }, encoding: "utf8" },
+    );
+    let found;
+    try {
+      found = JSON.parse(shown.stdout).thread;
+    } catch {
+      /* Unreachable, failed, or not a thread document. */
+    }
+    if (
+      shown.error ||
+      shown.status !== 0 ||
+      found?.id !== options.thread ||
+      typeof found.projectId !== "string"
+    ) {
+      log(
+        `bb-target: refused. ${url.origin} has no thread ${options.thread}; nothing was forwarded.`,
+      );
+      return { code: exit.refused };
+    }
+    caller = { threadId: found.id, projectId: found.projectId };
+    selected.BB_THREAD_ID = caller.threadId;
+    selected.BB_PROJECT_ID = caller.projectId;
+  }
   return {
     bb: (args, spawnOptions) =>
       run(command, [...prefix, ...args], { env: selected, ...spawnOptions }),
     command,
     origin: url.origin,
     dataDir,
+    caller,
   };
 }
 
@@ -161,7 +204,7 @@ export function select(
  * are never printed.
  */
 export function target({ argv, log = console.error, ...dependencies }) {
-  const parsed = parseFlags(argv, targetFlags);
+  const parsed = parseFlags(argv, { ...targetFlags, "--thread": "thread" });
   if (
     parsed === null ||
     !parsed.options.url ||
@@ -173,7 +216,9 @@ export function target({ argv, log = console.error, ...dependencies }) {
   }
   const instance = select(parsed.options, { ...dependencies, log });
   if ("code" in instance) return instance.code;
-  log(`bb-target: ${instance.origin} serves ${instance.dataDir}.`);
+  log(
+    `bb-target: ${instance.origin} serves ${instance.dataDir}${instance.caller ? `; running as thread ${instance.caller.threadId} in project ${instance.caller.projectId}` : ""}.`,
+  );
   const result = instance.bb(parsed.forwarded, { stdio: "inherit" });
   if (result.error) {
     log(
