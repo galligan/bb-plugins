@@ -170,17 +170,22 @@ function toolchainFinding(root, packages, latestOf, log) {
       `Repo Bun pin: the root \`packageManager\` is not one exact Bun version (${root.packageManager ?? "missing"}).`,
     );
   }
-  const pins = [
-    ...new Set(
-      packages
-        .map(
-          ({ manifest }) =>
-            manifest.devDependencies?.typescript ??
-            manifest.dependencies?.typescript,
-        )
-        .filter((pin) => pin !== undefined),
-    ),
-  ];
+  // Both sections are read: a second, different pin must not hide behind the first.
+  const declared = packages.map(({ directory, manifest }) => ({
+    directory,
+    pins: [
+      manifest.dependencies?.typescript,
+      manifest.devDependencies?.typescript,
+    ].filter((pin) => pin !== undefined),
+  }));
+  const bare = declared.filter(({ pins }) => pins.length === 0);
+  if (bare.length > 0) {
+    log(
+      `Repo TypeScript pin: ${bare.map(({ directory }) => directory).join(", ")} declares no \`typescript\` pin. Declare the same exact pin in every package.`,
+    );
+    return true;
+  }
+  const pins = [...new Set(declared.flatMap(({ pins }) => pins))];
   if (pins.length !== 1 || !exact.test(pins[0])) {
     log(
       `Repo TypeScript pin: ${pins.join(", ") || "missing"}. Use one exact pin in every package.`,

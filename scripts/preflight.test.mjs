@@ -346,6 +346,37 @@ test("a toolchain pin that is missing, a range, or split across packages is name
   assert.match(split.output, /Repo TypeScript pin: 7\.0\.2, 5\.9\.3\. Use one/);
 });
 
+test("a package without a TypeScript pin, or with two, is not hidden by the others", () => {
+  const sdk = { "@get-bb/plugin-sdk": "0.6.138" };
+  const missing = fixture({
+    packages: [
+      { directory: "plugins/a", manifest: pinned("0.6.138") },
+      {
+        directory: "plugins/bare",
+        manifest: { devDependencies: { ...sdk, typescript: undefined } },
+      },
+    ],
+  });
+  assert.equal(missing.code, exit.pin);
+  assert.match(
+    missing.output,
+    /Repo TypeScript pin: plugins\/bare declares no `typescript` pin/,
+  );
+  assert.doesNotMatch(missing.output, /Repo TypeScript pin: .*the npm latest/);
+
+  // The fixture pins 7.0.2 in devDependencies; this adds a second section.
+  const twice = fixture({
+    packages: [
+      {
+        directory: "plugins/a",
+        manifest: { dependencies: { ...sdk, typescript: "5.9.3" } },
+      },
+    ],
+  });
+  assert.equal(twice.code, exit.pin);
+  assert.match(twice.output, /Repo TypeScript pin: 5\.9\.3, 7\.0\.2\. Use one/);
+});
+
 test("a stale BB outranks a stale toolchain pin", () => {
   const f = fixture({
     app: { ...stable, latestVersion: "0.50.0", updateAvailable: true },
