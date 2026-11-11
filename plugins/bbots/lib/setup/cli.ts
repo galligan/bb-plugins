@@ -10,6 +10,8 @@ import type { createSetupService } from "./service.ts";
 import { developmentStatus, formatStatus } from "../status.ts";
 import { soulCommands } from "../soul/cli.ts";
 import type { SoulStore } from "../soul/store.ts";
+import { taskCommands } from "../tasks/cli.ts";
+import type { TaskSource } from "../tasks/source.ts";
 
 const json = {
   type: "boolean",
@@ -35,12 +37,14 @@ export function botCli(
   store: SetupStore,
   service: ReturnType<typeof createSetupService>,
   soul: SoulStore,
+  tasks: TaskSource,
 ) {
   return defineCli({
     name: "bot",
     summary: "Create and inspect persistent Bots",
     commands: {
-      ...soulCommands(soul, store),
+      ...soulCommands(soul, store, tasks),
+      ...taskCommands(tasks, store),
       status: cliCommand({
         summary: "Show development status and support limits",
         options: { json },

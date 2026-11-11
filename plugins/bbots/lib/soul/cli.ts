@@ -2,6 +2,7 @@ import { cliCommand, PluginCliError } from "@get-bb/plugin-sdk";
 import type { SoulStore } from "./store.ts";
 import type { SetupStore } from "../setup/storage.ts";
 import { defaultsSchema } from "./contracts.ts";
+import type { TaskSource } from "../tasks/source.ts";
 
 const bot = [
   { name: "botId", description: "Stable bot ID", required: true },
@@ -30,21 +31,32 @@ const reason = {
 function result(value: unknown) {
   return { exitCode: 0, stdout: JSON.stringify(value, null, 2) + "\n" };
 }
-export function soulCommands(soul: SoulStore, store: SetupStore) {
+export function soulCommands(
+  soul: SoulStore,
+  store: SetupStore,
+  tasks: TaskSource,
+) {
   return {
     brief: cliCommand({
       summary:
         "Pull bounded current identity, revision/defaults and feature availability; starts no turn",
       positionals: bot,
       options: { json },
-      run: ({ positionals }) => {
+      run: async ({ positionals }, ctx) => {
         const view = store.view(positionals.botId);
         const { current, ...state } = soul.show(view.bot.id);
+        const taskSource = await tasks.show(view.bot.id, ctx.signal);
         return result({
           ...view,
           soul: { ...state, currentRevision: current?.revision ?? null },
           execution: soul.defaults(view.bot.id),
-          unavailable: ["tasks", "memory", "commitments", "worker contracts"],
+          taskSource,
+          unavailable: [
+            ...(taskSource.availability === "available" ? [] : ["tasks"]),
+            "memory",
+            "commitments",
+            "worker contracts",
+          ],
         });
       },
     }),

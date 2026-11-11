@@ -5,7 +5,7 @@ description: Create and inspect persistent Bots, recover partial setup, pull cur
 
 # Bots
 
-Use `bb bot status` for supported features and `bb bot list` / `show <bot-id>` for identity, home, main and setup errors. Pull `bb bot brief <bot-id> --json` during ordinary turns when current state matters. It reports current revisions, future execution defaults and unavailable task/memory/contract features; those are not guaranteed-fresh injected instructions. If another plugin owns the alias, use `bb plugin run bbots ...`.
+Use `bb bot status` for supported features and `bb bot list` / `show <bot-id>` for identity, home, main and setup errors. Pull `bb bot brief <bot-id> --json` during ordinary turns when current state matters. It reports current revisions, future execution defaults, the recorded task source with live availability and remaining unavailable memory/contract features; those are not guaranteed-fresh injected instructions. If another plugin owns the alias, use `bb plugin run bbots ...`.
 
 `create --machine <host-id>` creates Bob; `--name` selects another name. It creates a persistent home outside repositories and starts one short setup acknowledgement. Retain an explicit `--request-id <uuid>` before scripted submission and reuse it only with identical options after uncertain delivery. `--association-mode none|all|selected` is responsibility scope; repeat `--project <id>` for selected projects. It does not move the main home or grant new permissions.
 
@@ -15,4 +15,6 @@ Use `rename <bot-id> --name <name> --revision <current>` for an explicit revisio
 
 Use `models show <bot-id>` for future conversation defaults. `models update` saves a complete revision-checked JSON document with `main`, `worker` and `fallback` choices. A null worker inherits main; an explicit worker object defines independent native choices, with omitted values inheriting BB policy. A fallback cannot set permissions and automatic fallback remains disabled. Saving starts no turn and does not mutate an existing main. Use BB's native controls for that conversation's execution choices; provider/model/reasoning availability is validated by BB when a new conversation is created. Main creation also accepts `--provider`, `--model`, `--reasoning` and `--permissions`; omission preserves BB defaults.
 
-Automatic maintenance, continuity, workers and fallback are disabled. Do not invent commands for memory, tasks or reporting before those features ship. Create no background work during the setup acknowledgement.
+Use `tasks show <bot-id>` to read task authority before choosing or changing work. `tasks select` and `tasks create` require an explicit source instruction, expected revision, author and reason. A configured tracker remains authoritative during an outage; do not create a replacement or switch to Markdown. If creation is uncertain, inspect the recorded intent and native Tasks board before explicit `tasks recover` with its confirmed stable ID. Prefix matching does not prove original identity after deletion/reuse; confirm the intended board independently.
+
+Automatic maintenance, continuity, workers and fallback are disabled. Do not invent commands for memory, commitments, Markdown tasks or reporting before those features ship. Create no background work during the setup acknowledgement.
