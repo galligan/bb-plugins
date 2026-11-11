@@ -2,6 +2,7 @@ import { cliCommand, PluginCliError } from "@get-bb/plugin-sdk";
 import type { SoulStore } from "./store.ts";
 import type { SetupStore } from "../setup/storage.ts";
 import { defaultsSchema } from "./contracts.ts";
+import type { WorkStore } from "../work/storage.ts";
 
 const bot = [
   { name: "botId", description: "Stable bot ID", required: true },
@@ -30,21 +31,33 @@ const reason = {
 function result(value: unknown) {
   return { exitCode: 0, stdout: JSON.stringify(value, null, 2) + "\n" };
 }
-export function soulCommands(soul: SoulStore, store: SetupStore) {
+export function soulCommands(
+  soul: SoulStore,
+  store: SetupStore,
+  work: WorkStore,
+) {
   return {
     brief: cliCommand({
       summary:
         "Pull bounded current identity, revision/defaults and feature availability; starts no turn",
       positionals: bot,
       options: { json },
-      run: ({ positionals }) => {
+      run: ({ positionals }, ctx) => {
         const view = store.view(positionals.botId);
+        const owner = ctx.threadId
+          ? store.conversations.ownerOfThread(ctx.threadId)
+          : null;
         const { current, ...state } = soul.show(view.bot.id);
         return result({
           ...view,
           soul: { ...state, currentRevision: current?.revision ?? null },
           execution: soul.defaults(view.bot.id),
-          unavailable: ["tasks", "memory", "commitments", "worker contracts"],
+          conversation: owner?.botId === view.bot.id ? owner : null,
+          contract:
+            owner?.botId === view.bot.id && owner.role === "worker"
+              ? work.agreement(owner.id)
+              : null,
+          unavailable: ["tasks", "memory", "commitments"],
         });
       },
     }),

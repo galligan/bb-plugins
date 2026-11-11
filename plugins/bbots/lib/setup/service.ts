@@ -16,6 +16,7 @@ export function createSetupService(
   signal: AbortSignal,
   execution: SoulStore["defaults"],
   changed: () => void,
+  finishWorkerTitles: (botId: string, signal: AbortSignal) => Promise<void>,
 ) {
   const host = bb.hosts.experimental_client({ contract: homeContract });
   const active = new Set<string>();
@@ -172,6 +173,7 @@ export function createSetupService(
         if (setup.phase === "owned" && thread.title === `@${view.bot.name}`)
           store.titleApplied(botId, view.bot.revision);
         await finishTitle(botId, operationSignal);
+        await finishWorkerTitles(botId, operationSignal);
         if (setup.phase === "owned") store.phase(botId, "owned", "ready");
       }
       store.fail(botId, null);

@@ -49,4 +49,12 @@ export const migrations = [
     revision INTEGER NOT NULL CHECK (revision > 0),
     supplied_at TEXT NOT NULL
   )`,
+  `CREATE TABLE worker_setup (
+    conversation_id TEXT PRIMARY KEY REFERENCES conversations(id),
+    request_id TEXT NOT NULL UNIQUE,
+    request_json TEXT NOT NULL,
+    phase TEXT NOT NULL CHECK (phase IN ('planned','spawning','bound')),
+    error TEXT,
+    title_revision INTEGER NOT NULL DEFAULT 0
+  )`,
 ];
