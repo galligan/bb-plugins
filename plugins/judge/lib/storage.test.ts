@@ -190,7 +190,7 @@ test("package imports only public SDK and declared runtime dependencies", async 
         /^zod$/,
         /^yaml$/,
         /^react(?:-dom)?(?:\/.*)?$/,
-        /^jsdom$/,
+        /^vitest(?:\/config)?$/,
         /^@testing-library\/react$/,
         /^@radix-ui\/react-(?:checkbox|select|slot)$/,
         /^class-variance-authority$/,

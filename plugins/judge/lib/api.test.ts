@@ -134,7 +134,7 @@ test("model setup, defaults and sanitized readiness share CLI/RPC services witho
     assert.equal(probe.status, "reachable");
     assert.equal(network, 1);
     assert.ok(
-      !JSON.stringify([ready, probe, harness.logEntries]).includes(
+      !JSON.stringify([ready, probe, harness.inspection.logEntries]).includes(
         "dummy-secret",
       ),
     );
@@ -188,9 +188,10 @@ test("explicit asks persist typed outages and success, enforce private-by-defaul
     );
     assert.equal(repository.listRuns().length, 3);
     assert.ok(
-      !JSON.stringify([repository.listRuns(), harness.logEntries]).includes(
-        "publicSynthetic",
-      ),
+      !JSON.stringify([
+        repository.listRuns(),
+        harness.inspection.logEntries,
+      ]).includes("publicSynthetic"),
     );
     assert.equal(api.models.list()[0]!.allowPrivate, false);
     assert.equal(calls, 1);

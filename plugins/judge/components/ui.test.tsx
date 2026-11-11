@@ -1,67 +1,13 @@
+// Judge's frontend through the SDK harness, under Vitest with jsdom. jsdom has
+// no layout engine: sizing and the compact drawer's placement stay live checks.
 import assert from "node:assert/strict";
-import { afterEach, test } from "node:test";
-import { JSDOM } from "jsdom";
-import { registerHooks } from "node:module";
-const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  url: "http://localhost",
-  pretendToBeVisual: true,
-});
-for (const [key, value] of Object.entries({
-  window: dom.window,
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  Element: dom.window.Element,
-  Node: dom.window.Node,
-  DocumentFragment: dom.window.DocumentFragment,
-  HTMLSelectElement: dom.window.HTMLSelectElement,
-  HTMLInputElement: dom.window.HTMLInputElement,
-  HTMLTextAreaElement: dom.window.HTMLTextAreaElement,
-  HTMLFormElement: dom.window.HTMLFormElement,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  Event: dom.window.Event,
-  CustomEvent: dom.window.CustomEvent,
-  requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window),
-  cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window),
-  // JSDOM does not perform layout; live host checks cover sizing. Radix's
-  // form-control observer still needs its browser interface for behavior tests.
-  ResizeObserver: class {
-    observe() {
-      /* No layout in JSDOM. */
-    }
-    unobserve() {
-      /* No layout in JSDOM. */
-    }
-    disconnect() {
-      /* No layout in JSDOM. */
-    }
-  },
-  MutationObserver: dom.window.MutationObserver,
-  IS_REACT_ACT_ENVIRONMENT: true,
-}))
-  Object.defineProperty(globalThis, key, {
-    value,
-    configurable: true,
-    writable: true,
-  });
-dom.window.HTMLElement.prototype.scrollIntoView = function () {};
-dom.window.HTMLElement.prototype.hasPointerCapture = function () {
-  return false;
-};
-const css = registerHooks({
-  load(url, context, next) {
-    return url.endsWith(".css")
-      ? { format: "module", source: "", shortCircuit: true }
-      : next(url, context);
-  },
-});
-const { loadPluginApp, renderSlot } =
-  await import("@get-bb/plugin-sdk/testing/app");
-const { fireEvent, waitFor, cleanup } = await import("@testing-library/react");
-const { VerdictInfo, useVerdictRows } = await import("./verdicts.tsx");
-const { ModelsSettings } = await import("./models-settings.tsx");
-const { TriggerSettings } = await import("./trigger-settings.tsx");
-const { CalibrationSettings } = await import("./policy-settings.tsx");
+import { afterEach, test } from "vitest";
+import { cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { loadPluginApp, renderSlot } from "@get-bb/plugin-sdk/testing/app";
+import { VerdictInfo, useVerdictRows } from "./verdicts.tsx";
+import { ModelsSettings } from "./models-settings.tsx";
+import { TriggerSettings } from "./trigger-settings.tsx";
+import { CalibrationSettings } from "./policy-settings.tsx";
 import type { ExperimentalThreadRowMetadataDataInput } from "@get-bb/plugin-sdk/app";
 afterEach(() => cleanup());
 const emptyRow = {
@@ -85,7 +31,6 @@ test("frontend registrations include settings, independent Info and optional row
   assert.equal(app.settingsSections.length, 1);
   assert.equal(app.threadInfoRows.length, 1);
   assert.equal(app.threadRowMetadata.length, 1);
-  css.deregister();
 });
 test("Info works without sidebar settings, shows sanitized status/model and clears on realtime/error", async () => {
   let value: unknown = { current: emptyRow, latest };
@@ -154,6 +99,8 @@ function Rows({ threads }: ExperimentalThreadRowMetadataDataInput) {
   const data = useVerdictRows({ threads });
   return <div>{Object.keys(data ?? {}).length} loaded</div>;
 }
+// The SDK has no sidebar-thread fixture, and the hook under test reads only
+// each thread's id, so these rows carry nothing else.
 const threads = Array.from({ length: 201 }, (_, i) => ({
   id: `thread${i}`,
 })) as unknown as ExperimentalThreadRowMetadataDataInput["threads"];

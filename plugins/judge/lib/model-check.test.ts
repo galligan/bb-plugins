@@ -131,7 +131,9 @@ test("cache invalidation failure blocks subsequent inference entry", async () =>
       /configuration_invalidation_failed/,
     );
     assert.equal(called, false);
-    assert.ok(!JSON.stringify(harness.logEntries).includes("private path"));
+    assert.ok(
+      !JSON.stringify(harness.inspection.logEntries).includes("private path"),
+    );
   } finally {
     await harness.lifecycle.dispose();
   }
