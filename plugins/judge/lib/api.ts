@@ -240,6 +240,11 @@ export function registerRpc(bb: BbPluginApi, api: JudgeApi): void {
       safe(() => api.runner.run(input, ctx.experimental_signal)),
     "models.list": (input) => safe(() => api.list(input)),
     "models.add": (input) => safe(() => api.models.save(input)),
+    "models.remove": (input) =>
+      safe(() => {
+        api.models.remove(input.id);
+        return { removed: true as const };
+      }),
     "models.default": (input) =>
       safe(() => {
         api.models.setDefault(input.id, input.private);
