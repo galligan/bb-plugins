@@ -15,6 +15,23 @@ export const ownershipSchema = z.record(
 );
 export type Ownership = z.infer<typeof ownershipSchema>;
 export const uiContract = defineRpcContract({
+  taskSource: {
+    input: z.strictObject({ botId: idSchema }),
+    output: z.strictObject({
+      kind: z.enum(["unconfigured", "tasks", "markdown"]),
+      availability: z.enum([
+        "unconfigured",
+        "available",
+        "unavailable",
+        "recovery-required",
+      ]),
+      boardId: idSchema.nullable(),
+      file: z
+        .strictObject({ hostId: idSchema, path: z.string().min(1).max(4096) })
+        .nullable(),
+    }),
+    tags: () => ["bots"],
+  },
   ownership: {
     input: z.strictObject({ keys: z.array(idSchema).max(200) }),
     output: ownershipSchema,

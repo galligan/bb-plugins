@@ -29,7 +29,12 @@ Use `report '<message>'` from the owned worker for its contract destination. Use
 
 These are explicit new communications. Native queue-if-active delivery can start a recipient turn when idle, including after Stop. A report does not authorize resuming a previously canceled assignment. Treat it as a new communication under current instructions. Return native acceptance/queue evidence; do not claim it proves reading, completion or a response. If delivery is uncertain, inspect native history and queue; do not blindly resend.
 
-Automatic maintenance, continuity and fallback remain disabled. Create no workers or other background work during the initial setup acknowledgement. Do not invent memory or task commands before those features ship.
+## Task source
+
 Use `tasks show <bot-id>` to read task authority before choosing or changing work. `tasks select` and `tasks create` require an explicit source instruction, expected revision, author and reason. A configured tracker remains authoritative during an outage; do not create a replacement or switch to Markdown. If creation is uncertain, inspect the recorded intent and native Tasks board before explicit `tasks recover` with its confirmed stable ID. Prefix matching does not prove original identity after deletion/reuse; confirm the intended board independently.
 
-Automatic maintenance, continuity and fallback remain disabled. Create no workers or other background work during the initial setup acknowledgement. Do not invent memory, commitments or Markdown task commands before those features ship.
+When Tasks is absent at the initial task-source choice, use `tasks markdown-init` with the expected source revision, author and reason. Inventory must confirm absence; disabled Tasks and RPC errors are not absence. Use `tasks markdown-resume` only to reconcile the same interrupted initialization. Do not overwrite an occupied file or choose another home.
+
+In Markdown mode, use `tasks read` and `tasks write --hash <current-hash> --markdown '<complete-file>'`. These operations route to the original home host, including from remote workers. Preserve the complete file; arbitrary Markdown has no inferred task counter. Read again after a stale write or uncertain receipt. Coordinate external editors; only Bots writers share its lock. A retained lock requires inspecting stopped owned work and the original host before manual recovery. Never remove a lock merely because the caller timed out.
+
+Automatic maintenance, continuity and fallback remain disabled. Create no workers or other background work during the initial setup acknowledgement. Do not invent commands for memory or commitments before those features ship.
