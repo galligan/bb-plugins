@@ -7,8 +7,8 @@ import { semver } from "bun";
 const SDK = "@get-bb/plugin-sdk";
 const exact = /^\d+\.\d+\.\d+$/;
 
-/** Exit codes: BB findings outrank SDK findings. */
-export const exit = { current: 0, bb: 1, sdk: 2 };
+/** Exit codes: a BB finding outranks a pin finding (SDK, Bun, TypeScript). */
+export const exit = { current: 0, bb: 1, pin: 2 };
 
 export function sdkPin(manifest) {
   return manifest.dependencies?.[SDK] ?? manifest.devDependencies?.[SDK];
@@ -17,6 +17,47 @@ export function sdkPin(manifest) {
 function capture(run, command, args) {
   const result = run(command, args, { encoding: "utf8" });
   return result.error || result.status !== 0 ? undefined : result.stdout;
+}
+
+/**
+ * Reads a package's `latest` version from npm: a stable release by convention,
+ * and anything else is treated as no answer. After one lookup fails the
+ * registry is not asked again, because each failure can take npm over a minute.
+ */
+function registry(run) {
+  let reachable = true;
+  return (name) => {
+    if (!reachable) return undefined;
+    const output = capture(run, "npm", ["view", name, "version"]);
+    if (output === undefined) reachable = false;
+    const version = output?.trim();
+    return version && exact.test(version) ? version : undefined;
+  };
+}
+
+/**
+ * Compares one exact pin with npm latest and returns whether it is behind.
+ * Only a lower pin is behind. A higher one means the registry answer lags.
+ */
+function behindLatest(latestOf, log, { label, name, pin, advice, current }) {
+  const latest = latestOf(name);
+  if (!latest) {
+    log(`${label}: ${pin}. npm latest was not checked.`);
+    return false;
+  }
+  const order = semver.order(pin, latest);
+  if (order < 0) {
+    log(`${label}: ${pin}; npm latest is ${latest}. ${advice(latest)}`);
+    return true;
+  }
+  if (order > 0) {
+    log(
+      `${label}: ${pin}, newer than the npm latest reported (${latest}). No pin is behind.`,
+    );
+  } else if (current) {
+    log(`${label}: ${pin}, ${current}.`);
+  }
+  return false;
 }
 
 function bbFinding(run, log) {
@@ -78,7 +119,7 @@ function bundledSdk(run, log, probe) {
   return version;
 }
 
-function sdkFinding(root, packages, run, log) {
+function sdkFinding(root, packages, latestOf, log) {
   const pin = sdkPin(root);
   if (!exact.test(pin ?? "")) {
     log(
@@ -97,33 +138,70 @@ function sdkFinding(root, packages, run, log) {
         : `Repo SDK pin: ${directory} pins ${own}; the root pins ${pin}. Use one exact pin in every package.`,
     );
   }
-  const latest = capture(run, "npm", ["view", SDK, "version"])?.trim();
-  if (!latest || !exact.test(latest)) {
-    log(`Repo SDK pin: ${pin}. npm latest was not checked.`);
-    return finding;
-  }
-  // Only a lower pin is behind. A higher one means the registry answer lags.
-  const order = semver.order(pin, latest);
-  if (order < 0) {
+  const behind = behindLatest(latestOf, log, {
+    label: "Repo SDK pin",
+    name: SDK,
+    pin,
+    advice: (latest) =>
+      `Set every ${SDK} pin to ${latest}, run \`bun install\`, then \`bun run verify\`.`,
+    current: finding ? undefined : "the npm latest, in every package",
+  });
+  return behind || finding;
+}
+
+// Bun is pinned once, in the root `packageManager`. TypeScript is pinned in
+// each package, and one exact pin is expected in all of them.
+function toolchainFinding(root, packages, latestOf, log) {
+  const move =
+    "then regenerate `bun.lock` and run `bun run verify`; see docs/dev/verification.md.";
+  const bun = /^bun@(\d+\.\d+\.\d+)$/.exec(root.packageManager ?? "")?.[1];
+  let finding = !bun;
+  if (bun) {
+    finding = behindLatest(latestOf, log, {
+      label: "Repo Bun pin",
+      name: "bun",
+      pin: bun,
+      advice: (latest) =>
+        `Set the root \`packageManager\` to \`bun@${latest}\`, ${move}`,
+      current: "the npm latest",
+    });
+  } else {
     log(
-      `Repo SDK pin: ${pin}; npm latest is ${latest}. Set every ${SDK} pin to ${latest}, run \`bun install\`, then \`bun run verify\`.`,
+      `Repo Bun pin: the root \`packageManager\` is not one exact Bun version (${root.packageManager ?? "missing"}).`,
+    );
+  }
+  const pins = [
+    ...new Set(
+      packages
+        .map(
+          ({ manifest }) =>
+            manifest.devDependencies?.typescript ??
+            manifest.dependencies?.typescript,
+        )
+        .filter((pin) => pin !== undefined),
+    ),
+  ];
+  if (pins.length !== 1 || !exact.test(pins[0])) {
+    log(
+      `Repo TypeScript pin: ${pins.join(", ") || "missing"}. Use one exact pin in every package.`,
     );
     return true;
   }
-  if (order > 0) {
-    log(
-      `Repo SDK pin: ${pin}, newer than the npm latest reported (${latest}). No pin is behind.`,
-    );
-  } else if (!finding) {
-    log(`Repo SDK pin: ${pin}, the npm latest, in every package.`);
-  }
-  return finding;
+  return (
+    behindLatest(latestOf, log, {
+      label: "Repo TypeScript pin",
+      name: "typescript",
+      pin: pins[0],
+      advice: (latest) => `Set every \`typescript\` pin to ${latest}, ${move}`,
+      current: "the npm latest",
+    }) || finding
+  );
 }
 
 /**
- * Report three separate facts: the installed BB against the latest stable
- * release, the SDK that BB bundles, and the repository's SDK pin against npm
- * latest. Reads only; never installs or edits anything.
+ * Report separate facts: the installed BB against the latest stable release,
+ * the SDK that BB bundles, and the repository's SDK, Bun and TypeScript pins
+ * against npm latest. Reads only; never installs or edits anything.
  *
  * `probe` is the absolute path and SDK pin of any package that depends on the SDK.
  */
@@ -136,7 +214,9 @@ export function preflight({
 }) {
   const bb = bbFinding(run, log);
   const bundled = bundledSdk(run, log, probe);
-  const sdk = sdkFinding(root, packages, run, log);
+  const latestOf = registry(run);
+  const sdk = sdkFinding(root, packages, latestOf, log);
+  const toolchain = toolchainFinding(root, packages, latestOf, log);
   const pin = sdkPin(root);
   if (bundled && pin && bundled !== pin) {
     log(
@@ -151,13 +231,17 @@ export function preflight({
     log(
       "Preflight: report the SDK pin. Continue unless the task needs the newer SDK.",
     );
-    return exit.sdk;
   }
-  return exit.current;
+  if (toolchain) {
+    log(
+      "Preflight: report the Bun or TypeScript pin. Continue; moving it is a change of its own.",
+    );
+  }
+  return sdk || toolchain ? exit.pin : exit.current;
 }
 
 /**
- * The packages whose SDK pins are checked: every `plugins/*` directory that has
+ * The packages whose pins are checked: every `plugins/*` directory that has
  * a `package.json`, and the scaffold. A directory without a manifest is not a
  * package: a removed plugin leaves one behind when its ignored `node_modules`
  * or `dist` outlive it in a checkout.

@@ -29,17 +29,33 @@ function fixture({
     { directory: "plugins/a", manifest: pinned("0.6.138") },
     { directory: "plugins/b", manifest: pinned("0.6.138", "dependencies") },
   ],
+  // The toolchain is current unless a test says otherwise.
+  packageManager = "bun@1.4.4",
+  typescript = "7.0.2",
+  registry = { bun: "1.4.4", typescript: "7.0.2" },
 } = {}) {
   const calls = [];
   const lines = [];
   const code = preflight({
-    root,
-    packages,
+    root: { packageManager, ...root },
+    packages: packages.map(({ directory, manifest }) => ({
+      directory,
+      manifest: {
+        ...manifest,
+        devDependencies: { typescript, ...manifest.devDependencies },
+      },
+    })),
     probe: { path: "/repo/plugins/a", pin: sdkPin(root) },
     log: (line) => lines.push(line),
     run: (command, args) => {
       calls.push([command, ...args]);
-      if (command === "npm") return npm;
+      if (command === "npm") {
+        if (args[1] === "@get-bb/plugin-sdk") return npm;
+        const answer = registry[args[1]];
+        return typeof answer === "string"
+          ? { status: 0, stdout: `${answer}\n` }
+          : answer;
+      }
       return args[0] === "updates" ? bb : types;
     },
   });
@@ -53,10 +69,14 @@ test("reports current when BB is the latest stable and every pin is npm latest",
     ["bb", "updates", "status", "--json"],
     ["bb", "plugin", "types", "--check", "/repo/plugins/a"],
     ["npm", "view", "@get-bb/plugin-sdk", "version"],
+    ["npm", "view", "bun", "version"],
+    ["npm", "view", "typescript", "version"],
   ]);
   assert.match(f.output, /BB installed: 0\.49\.0, the latest stable release/);
   assert.match(f.output, /BB bundled SDK: 0\.6\.132\./);
   assert.match(f.output, /Repo SDK pin: 0\.6\.138, the npm latest, in every/);
+  assert.match(f.output, /Repo Bun pin: 1\.4\.4, the npm latest\./);
+  assert.match(f.output, /Repo TypeScript pin: 7\.0\.2, the npm latest\./);
   assert.doesNotMatch(f.output, /Preflight:/);
 });
 
@@ -89,7 +109,7 @@ test("an SDK pin behind npm latest is reported without stopping work", () => {
     root: pinned("0.6.132"),
     packages: [{ directory: "plugins/a", manifest: pinned("0.6.132") }],
   });
-  assert.equal(f.code, exit.sdk);
+  assert.equal(f.code, exit.pin);
   assert.match(f.output, /Repo SDK pin: 0\.6\.132; npm latest is 0\.6\.138/);
   assert.match(f.output, /Continue unless the task needs the newer SDK/);
 });
@@ -101,7 +121,7 @@ test("a package pin that differs from the root is named", () => {
       { directory: "plugins/old", manifest: pinned("0.6.132", "dependencies") },
     ],
   });
-  assert.equal(f.code, exit.sdk);
+  assert.equal(f.code, exit.pin);
   assert.match(
     f.output,
     /plugins\/old pins 0\.6\.132; the root pins 0\.6\.138/,
@@ -117,18 +137,18 @@ test("a package with no SDK pin is named instead of passing as pinned", () => {
       { directory: "plugins/unpinned", manifest: {} },
     ],
   });
-  assert.equal(f.code, exit.sdk);
+  assert.equal(f.code, exit.pin);
   assert.match(f.output, /plugins\/unpinned has no @get-bb\/plugin-sdk pin/);
   assert.doesNotMatch(f.output, /the npm latest, in every/);
 
   const rootless = fixture({ root: {} });
-  assert.equal(rootless.code, exit.sdk);
+  assert.equal(rootless.code, exit.pin);
   assert.match(
     rootless.output,
     /the root has no exact @get-bb\/plugin-sdk pin \(missing\)/,
   );
   const ranged = fixture({ root: pinned("^0.6.138") });
-  assert.equal(ranged.code, exit.sdk);
+  assert.equal(ranged.code, exit.pin);
   assert.match(
     ranged.output,
     /no exact @get-bb\/plugin-sdk pin \(\^0\.6\.138\)/,
@@ -240,6 +260,125 @@ test("a pin ahead of the bundled SDK is a compatibility note, not a failure", ()
     assert.match(unknown.output, /BB bundled SDK: not checked\./);
     assert.doesNotMatch(unknown.output, /Note:/);
   }
+});
+
+test("a Bun or TypeScript pin behind npm latest is reported without stopping work", () => {
+  const bun = fixture({ registry: { bun: "1.4.5", typescript: "7.0.2" } });
+  assert.equal(bun.code, exit.pin);
+  assert.match(bun.output, /Repo Bun pin: 1\.4\.4; npm latest is 1\.4\.5/);
+  assert.match(bun.output, /`packageManager` to `bun@1\.4\.5`/);
+  assert.match(bun.output, /Repo TypeScript pin: 7\.0\.2, the npm latest\./);
+  assert.match(bun.output, /Preflight: report the Bun or TypeScript pin/);
+  assert.doesNotMatch(bun.output, /stop and tell the user/);
+  assert.doesNotMatch(bun.output, /needs the newer SDK/);
+
+  const compiler = fixture({ registry: { bun: "1.4.4", typescript: "7.0.3" } });
+  assert.equal(compiler.code, exit.pin);
+  assert.match(
+    compiler.output,
+    /Repo TypeScript pin: 7\.0\.2; npm latest is 7\.0\.3\. Set every `typescript` pin to 7\.0\.3/,
+  );
+
+  // 1.10.0 is newer than 1.4.4; a string comparison would say otherwise.
+  assert.equal(
+    fixture({ registry: { bun: "1.10.0", typescript: "7.0.2" } }).code,
+    exit.pin,
+  );
+
+  // Both kinds of pin behind: one exit code, both instructions.
+  const both = fixture({
+    root: pinned("0.6.132"),
+    registry: { bun: "1.4.5", typescript: "7.0.2" },
+  });
+  assert.equal(both.code, exit.pin);
+  assert.match(both.output, /needs the newer SDK/);
+  assert.match(both.output, /report the Bun or TypeScript pin/);
+});
+
+test("a prerelease or older registry answer never makes a toolchain pin stale", () => {
+  // A prerelease under the `latest` tag is not a stable release to chase.
+  const beta = fixture({
+    registry: { bun: "1.4.4", typescript: "7.1.0-beta" },
+  });
+  assert.equal(beta.code, exit.current);
+  assert.match(
+    beta.output,
+    /Repo TypeScript pin: 7\.0\.2\. npm latest was not checked/,
+  );
+  // A pin ahead of a lagging registry answer is not behind.
+  const ahead = fixture({ registry: { bun: "1.4.3", typescript: "7.0.2" } });
+  assert.equal(ahead.code, exit.current);
+  assert.match(
+    ahead.output,
+    /Repo Bun pin: 1\.4\.4, newer than the npm latest reported \(1\.4\.3\)/,
+  );
+});
+
+test("a toolchain pin that is missing, a range, or split across packages is named", () => {
+  for (const packageManager of [null, "bun@^1.4.4", "pnpm@9.0.0"]) {
+    const f = fixture({ packageManager });
+    assert.equal(f.code, exit.pin);
+    assert.match(f.output, /Repo Bun pin: the root `packageManager` is not/);
+    assert.doesNotMatch(f.output, /Repo Bun pin: .*the npm latest/);
+  }
+  const ranged = fixture({ typescript: "^7.0.2" });
+  assert.equal(ranged.code, exit.pin);
+  assert.match(
+    ranged.output,
+    /Repo TypeScript pin: \^7\.0\.2\. Use one exact pin in every package/,
+  );
+  const split = fixture({
+    packages: [
+      { directory: "plugins/a", manifest: pinned("0.6.138") },
+      {
+        directory: "plugins/old",
+        manifest: {
+          ...pinned("0.6.138"),
+          devDependencies: {
+            "@get-bb/plugin-sdk": "0.6.138",
+            typescript: "5.9.3",
+          },
+        },
+      },
+    ],
+  });
+  assert.equal(split.code, exit.pin);
+  assert.match(split.output, /Repo TypeScript pin: 7\.0\.2, 5\.9\.3\. Use one/);
+});
+
+test("a stale BB outranks a stale toolchain pin", () => {
+  const f = fixture({
+    app: { ...stable, latestVersion: "0.50.0", updateAvailable: true },
+    registry: { bun: "1.4.5", typescript: "7.0.2" },
+  });
+  assert.equal(f.code, exit.bb);
+  assert.match(f.output, /npm latest is 1\.4\.5/);
+});
+
+test("after one failed registry lookup the registry is not asked again", () => {
+  // A failed `npm view` can take over a minute to give up.
+  for (const npm of [
+    { error: new Error("spawn npm ENOENT") },
+    { status: 1, stdout: "" },
+  ]) {
+    const f = fixture({ npm });
+    assert.equal(f.code, exit.current);
+    assert.equal(f.calls.filter(([command]) => command === "npm").length, 1);
+    assert.match(
+      f.output,
+      /Repo Bun pin: 1\.4\.4\. npm latest was not checked/,
+    );
+    assert.match(
+      f.output,
+      /Repo TypeScript pin: 7\.0\.2\. npm latest was not checked/,
+    );
+  }
+  // An answer that is not a version came from a registry that did respond.
+  const garbled = fixture({ npm: { status: 0, stdout: "npm ERR! network\n" } });
+  assert.equal(
+    garbled.calls.filter(([command]) => command === "npm").length,
+    3,
+  );
 });
 
 test("reads the SDK pin from either dependency section", () => {

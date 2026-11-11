@@ -27,21 +27,23 @@ Use focused checks during iteration, such as `bun test scripts/autolabel.test.mj
 
 ## BB and SDK versions
 
-This repository tracks the latest stable BB and the latest `@get-bb/plugin-sdk` on npm, with one exact SDK pin in every package. Before plugin work, run:
+This repository tracks the latest stable BB, the latest `@get-bb/plugin-sdk` on npm with one exact pin in every package, and the latest stable Bun and TypeScript. Before plugin work, run:
 
 ```sh
 bun run preflight
 ```
 
-It reads three separate facts and changes nothing:
+It reads these facts and changes nothing:
 
-| Fact                                                                     | Source                           | When it is behind                                                                                                  |
-| ------------------------------------------------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Installed BB against the latest stable release                           | `bb updates status --json`       | Exit 1. Stop and tell the user; update with `bb updates app`. A development or nightly build counts as not stable. |
-| SDK that the installed BB bundles                                        | `bb plugin types --check`        | Informational; see below.                                                                                          |
-| Repository SDK pin against npm latest, and each package against the root | `package.json` files, `npm view` | Exit 2. Report it; continue unless the task needs the newer SDK.                                                   |
+| Fact                                                                         | Source                            | When it is behind                                                                                                  |
+| ---------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Installed BB against the latest stable release                               | `bb updates status --json`        | Exit 1. Stop and tell the user; update with `bb updates app`. A development or nightly build counts as not stable. |
+| SDK that the installed BB bundles                                            | `bb plugin types --check`         | Informational; see below.                                                                                          |
+| Repository SDK pin against npm latest, and each package against the root     | `package.json` files, `npm view`  | Exit 2. Report it; continue unless the task needs the newer SDK.                                                   |
+| Repository Bun pin against npm latest                                        | root `packageManager`, `npm view` | Exit 2. Report it and continue; moving it is a change of its own (see [repository checks](#repository-checks)).    |
+| Repository TypeScript pin against npm latest, one exact pin in every package | `package.json` files, `npm view`  | Exit 2. Report it and continue, as for Bun.                                                                        |
 
-A check that cannot run, such as no `bb` on `PATH` or npm unreachable, is reported as not checked and does not fail. [`.bb-env-setup.sh`](../../.bb-env-setup.sh) runs the command when BB creates a worktree and ignores its exit code, so a finding is recorded in the provisioning transcript without blocking the worktree. It is not part of `bun run verify` or CI: the SDK publishes alongside BB nightlies, often daily, and CI has no BB. This command is separate from the Bun and Node runtime preflight inside `bun run verify`.
+A check that cannot run, such as no `bb` on `PATH` or npm unreachable, is reported as not checked and does not fail. After one registry lookup fails, the remaining ones are skipped and reported the same way, because npm can take over a minute to give up on each. npm's `latest` tag is the stable release; an answer that is not a plain release version, such as a beta, is treated as not checked. [`.bb-env-setup.sh`](../../.bb-env-setup.sh) runs the command when BB creates a worktree and ignores its exit code, so a finding is recorded in the provisioning transcript without blocking the worktree. It is not part of `bun run verify` or CI: the SDK publishes alongside BB nightlies, often daily, and CI has no BB. This command is separate from the Bun and Node runtime preflight inside `bun run verify`.
 
 The pin is usually ahead of the bundled SDK, because stable BB ships less often than the SDK publishes. That gap is expected and is not a reason to lower the pin. It does mean npm latest alone proves nothing about the stable runtime: before relying on an API newer than the bundled SDK, check the current public contract and get harness or live evidence that the installed BB supports it. `bb plugin types` and `bb plugin new` on stable BB write the bundled version, not the repository pin. Inspect that diff and reconcile it deliberately; never accept a lower pin as a side effect.
 
