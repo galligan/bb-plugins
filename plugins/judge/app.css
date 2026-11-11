@@ -5,7 +5,7 @@
   overflow-wrap: anywhere;
 }
 /* Container queries follow the settings panel, including split panes. */
-.judge-ui {
+.judge-settings {
   container-type: inline-size;
   display: grid;
   gap: 1.5rem;

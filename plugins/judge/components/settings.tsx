@@ -3,7 +3,7 @@ import { ProjectSettings, CalibrationSettings } from "./policy-settings.tsx";
 import { TriggerSettings } from "./trigger-settings.tsx";
 export function JudgeSettings() {
   return (
-    <div className="judge-ui">
+    <div className="judge-ui judge-settings">
       <ModelsSettings />
       <DefaultSettings />
       <ProjectSettings />
