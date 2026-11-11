@@ -20,7 +20,7 @@ Run history is capped at 30 days and 10,000 entries, pruned during successful wr
 
 Use the repository's pinned Bun 1.3.14. Install dependencies once at the repository root with `bun install`. From this directory, run `bun run check` and `bun run build`. Builds use the package-local `bb-app@0.49.0` toolchain and public `@get-bb/plugin-sdk@0.6.138` declarations. No generated declarations or `dist/` files are committed. `skipLibCheck` skips dependency declaration internals; plugin source remains strictly checked.
 
-Before pushing, run the root formatting, lint, check, test, and build commands documented in [CONTRIBUTING.md](../../CONTRIBUTING.md). `bun run test` runs the deterministic Node suite; storage tests use the public SDK fake host with its real SQLite peer. No inference requests run in tests. The package also checks that its imports use the public SDK surface.
+Before pushing, run the root formatting, lint, check, test, and build commands documented in [CONTRIBUTING.md](../../CONTRIBUTING.md). `bun run test` runs the deterministic `lib/` suite with `node --test`, then the frontend suite in `components/` with Vitest and jsdom through the SDK's frontend harness. Storage tests use the public SDK fake host with its real SQLite peer. No inference requests run in tests. The package also checks that its imports use the public SDK surface.
 
 ## Transport implementation
 

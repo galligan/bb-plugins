@@ -21,7 +21,8 @@ test("native secret descriptors, inert factory and sanitized readiness require e
       "cloudflareApiToken",
       "customApiKey",
     ]) {
-      const descriptor = harness.registrations.settingsDescriptors[key];
+      const descriptor =
+        harness.inspection.registrations.settingsDescriptors[key];
       assert.equal(descriptor?.type, "string");
       assert.ok(descriptor && "secret" in descriptor && descriptor.secret);
     }
@@ -37,9 +38,11 @@ test("native secret descriptors, inert factory and sanitized readiness require e
     assert.equal(ready.status, "configured");
     assert.equal(ready.tested, false);
     assert.ok(
-      !JSON.stringify([ready, service.list(), harness.logEntries]).includes(
-        "dummy-credential",
-      ),
+      !JSON.stringify([
+        ready,
+        service.list(),
+        harness.inspection.logEntries,
+      ]).includes("dummy-credential"),
     );
     assert.equal(networkCalls, 0);
     await harness.behavior.setSettings({ typesafeApiKey: null });
@@ -53,7 +56,7 @@ test("native secret descriptors, inert factory and sanitized readiness require e
   try {
     await judge(factory.bb);
     assert.equal(networkCalls, 0);
-    assert.ok(factory.harness.registrations.cli);
+    assert.ok(factory.harness.inspection.registrations.cli);
   } finally {
     await factory.harness.lifecycle.dispose();
   }
@@ -220,7 +223,7 @@ test("rotation/removal/reload re-read settings and retire opaque fingerprints wi
         service.defaults(),
         first.identity,
         second.identity,
-        harness.logEntries,
+        harness.inspection.logEntries,
       ]).includes("dummy-"),
     );
   } finally {
