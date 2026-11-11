@@ -331,6 +331,15 @@ describe("Explicit acting identity and bounded attention", () => {
         call.method.startsWith("threads."),
       ),
     ).toBe(false);
+    fireEvent.change(slot.getByLabelText("Transmission"), {
+      target: { value: "Human draft content" },
+    });
+    expect(sessionStorage.length).toBe(1);
+    const saved = sessionStorage.getItem(sessionStorage.key(0)!)!;
+    expect(saved).toContain("Human draft content");
+    expect(saved).not.toContain("operator-test-secret");
+    expect(saved).not.toContain("operatorCredential");
+    expect(saved).not.toContain("asUser");
     fireEvent.click(slot.getByRole("button", { name: "Lock operator" }));
     await waitFor(() =>
       expect(
@@ -341,8 +350,9 @@ describe("Explicit acting identity and bounded attention", () => {
       slot.getByRole("combobox", { name: "Act as" }).textContent,
     ).toContain("Browse only");
     expect(localStorage.length).toBe(0);
-    expect(sessionStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(1);
     slot.lifecycle.unmount();
+    sessionStorage.clear();
   });
   it("explicit lock wins over a late operator-unlock response", async () => {
     let release!: () => void;
