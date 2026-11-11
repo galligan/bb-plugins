@@ -1,6 +1,12 @@
-import { z } from "zod";
+import {
+  subscriptionMutationSchema,
+  subscriptionListingSchema,
+} from "./subscription-contracts.ts";
+export {
+  subscriptionMutationSchema,
+  subscriptionListingSchema,
+} from "./subscription-contracts.ts";
 import type { Database } from "./contracts.ts";
-import { idSchema } from "./contracts.ts";
 import type { RadioStore } from "./storage.ts";
 import type { TransmissionContext } from "./transmission-contracts.ts";
 import type { AddressScope } from "./address-resolution.ts";
@@ -12,20 +18,6 @@ import {
 import { parseProtocol } from "./protocol-contracts.ts";
 import { RadioError } from "./errors.ts";
 
-export const subscriptionMutationSchema = z
-  .object({
-    channelId: idSchema,
-    targetId: idSchema.optional(),
-    kind: z.enum(["listen", "mute", "unlisten"]),
-  })
-  .strict();
-export const subscriptionListingSchema = z
-  .object({
-    targetId: idSchema.optional(),
-    after: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0),
-    limit: z.number().int().min(1).max(50).default(20),
-  })
-  .strict();
 export interface Subscription {
   cursor: number;
   targetId: string;

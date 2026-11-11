@@ -1,8 +1,11 @@
-import { defineRpcContract } from "@get-bb/plugin-sdk";
+import type { PluginRpcContract } from "@get-bb/plugin-sdk";
 import { z } from "zod";
-import { localContextSchema } from "./local-context.ts";
-import { operationSchema } from "./operation-contracts.ts";
-import { operationIsRead } from "./operations.ts";
+import { localContextSchema } from "./local-context-contract.ts";
+import {
+  operationSchema,
+  operationIsRead,
+  type RadioOperation,
+} from "./operation-contracts.ts";
 
 const sample = z
   .object({ sampleCount: z.number().int().min(0).max(1), hasMore: z.boolean() })
@@ -36,12 +39,13 @@ export const resultSchema = z.discriminatedUnion("ok", [
     .strict(),
 ]);
 export type SurfaceResult = z.infer<typeof resultSchema>;
-export const rpcContract = defineRpcContract({
+export const rpcContract = {
   call: {
     input: z
       .object({ context: localContextSchema, request: operationSchema })
       .strict(),
     output: resultSchema,
-    tags: ({ request }) => (operationIsRead(request.op) ? ["radio"] : []),
+    tags: ({ request }: { request: RadioOperation }) =>
+      operationIsRead(request.op) ? ["radio"] : [],
   },
-});
+} satisfies PluginRpcContract;

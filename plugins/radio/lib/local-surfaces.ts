@@ -1,3 +1,4 @@
+import { registerBrowse } from "./browse-service.ts";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import type { RadioStore } from "./storage.ts";
@@ -22,6 +23,7 @@ export function registerLocalSurfaces(bb: BbPluginApi, store: RadioStore) {
     },
   );
   registerCli(bb, service);
+  registerBrowse(bb, store);
   bb.agents.registerTool({
     name: "radio_call",
     description:
