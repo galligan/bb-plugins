@@ -15,7 +15,7 @@
   },
   "bb": {
     "name": "Radio [Experimental]",
-    "description": "Short durable transmissions, dispatches, explicit receipts and commitments through local CLI, RPC and native tools.",
+    "description": "Durable transmissions, dispatches, receipts and commitments through local tools and explicitly enabled trusted-test HTTP.",
     "branding": {
       "icon": "Radio"
     },

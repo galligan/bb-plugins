@@ -48,7 +48,7 @@ export const sendSchema = z
     message: "Choose exactly one canonical channelId or readable ch path.",
   });
 
-/** All fields come from authenticated adapter context, never claimed body metadata. */
+/** Adapters establish canonical authority separately from claimed body metadata. */
 export interface TransmissionContext {
   caller: TrustedCaller;
   authorId: string;

@@ -1,12 +1,11 @@
 import { z } from "zod";
 import type { BbPluginApi, PluginAgentToolContext } from "@get-bb/plugin-sdk";
 import type { RadioStore } from "./storage.ts";
-import type { TransmissionContext } from "./transmission-contracts.ts";
 import { LocalContexts } from "./local-context.ts";
-import { RadioOperations, operationIsRead } from "./operations.ts";
-import { operationSchema } from "./operation-contracts.ts";
-import { RadioError } from "./errors.ts";
+import { RadioOperations } from "./operations.ts";
 import type { SurfaceResult } from "./surface-contract.ts";
+import { executeSurface, surfaceFailure } from "./surface-result.ts";
+export { surfaceFailure } from "./surface-result.ts";
 
 export class LocalRadioService {
   private contexts: LocalContexts;
@@ -37,9 +36,11 @@ export class LocalRadioService {
     signal?: AbortSignal,
   ): Promise<SurfaceResult> {
     try {
-      return this.execute(
+      return executeSurface(
+        this.operations,
         await this.contexts.resolve(context, signal),
         request,
+        this.invalidate,
         signal,
       );
     } catch (error) {
@@ -52,64 +53,15 @@ export class LocalRadioService {
     request: unknown,
   ): Promise<SurfaceResult> {
     try {
-      return this.execute(
+      return executeSurface(
+        this.operations,
         await this.contexts.native(context),
         request,
+        this.invalidate,
         context.signal,
       );
     } catch (error) {
       return surfaceFailure(error);
     }
   }
-
-  private execute(
-    context: TransmissionContext,
-    input: unknown,
-    signal?: AbortSignal,
-  ): SurfaceResult {
-    const request = operationSchema.safeParse(input);
-    if (!request.success)
-      throw new RadioError(
-        "invalid_input",
-        "Invalid Radio operation; use the declared input schema.",
-      );
-    const data = this.operations.execute(context, request.data, signal);
-    if (!operationIsRead(request.data.op)) this.invalidate();
-    // Domain results are plain bounded JSON. A read-only hint does not record receipt.
-    return {
-      ok: true,
-      data: z.json().parse(data),
-      attention: this.operations.hint(context),
-    };
-  }
-}
-
-export function surfaceFailure(error: unknown): SurfaceResult {
-  if (error instanceof RadioError)
-    return {
-      ok: false,
-      error: {
-        code: error.code,
-        message: error.message,
-        choices: error.choices,
-      },
-    };
-  if (error instanceof Error && error.name === "AbortError")
-    return {
-      ok: false,
-      error: {
-        code: "aborted",
-        message: "Radio request cancelled.",
-        choices: [],
-      },
-    };
-  return {
-    ok: false,
-    error: {
-      code: "internal_error",
-      message:
-        "Radio operation failed; no success or delivery evidence is implied. Retry writes only with their original key and input.",
-      choices: [],
-    },
-  };
 }
