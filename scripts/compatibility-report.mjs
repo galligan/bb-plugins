@@ -157,12 +157,13 @@ export async function buildReport(root) {
       );
     const selection = { selected: 0, ignored: 0 };
     const tests = [];
-    for (const source of sourceFiles(path.join(root, directory))) {
-      if (/\.test\.[cm]?[jt]sx?$/.test(source))
-        tests.push({
-          file: path.relative(path.join(root, directory), source),
-          text: readFileSync(source, "utf8"),
-        });
+    const files = [];
+    const base = path.join(root, directory);
+    for (const source of sourceFiles(base)) {
+      const relative = path.relative(base, source).split(path.sep).join("/");
+      files.push(relative);
+      if (/\.test\.[cm]?[jt]sx?$/.test(relative))
+        tests.push({ file: relative, text: readFileSync(source, "utf8") });
       const info = await getFileInfo(source, {
         ignorePath: path.join(root, ".prettierignore"),
         withNodeModules: false,
@@ -178,7 +179,13 @@ export async function buildReport(root) {
       configuration,
       selection,
     );
-    const harness = harnessCoverage(pluginManifest, tests);
+    const vitestConfig = path.join(base, "vitest.config.ts");
+    const harness = harnessCoverage(
+      pluginManifest,
+      tests,
+      files,
+      existsSync(vitestConfig) ? readFileSync(vitestConfig, "utf8") : undefined,
+    );
     plugins.push({
       ...described,
       harness: harness.coverage,

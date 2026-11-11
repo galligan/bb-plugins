@@ -14,11 +14,22 @@ The human output is for inspection; `--json` emits schema version 1 with stable 
 
 ## Harness coverage and tooling drift
 
-`harness` answers one question per plugin: can its entry files be verified without a live BB? For each entry the manifest declares under `bb.server`, `bb.host`, and `bb.app`, it is `covered` when a `*.test.*` file both imports the matching harness (`@get-bb/plugin-sdk/testing`, `/testing/host`, `/testing/app`) and references that entry file, `missing` when none does, and `not-applicable` when the manifest declares no such entry. `importScan` is `covered` when a test calls `experimental_scanPublicSdkOnly`. Each `missing` value adds a diagnostic naming the entry and the harness.
+`harness` answers one question per plugin: can its entry files be verified without a live BB? For each entry the manifest declares under `bb.server`, `bb.host`, and `bb.app`, the value is:
 
-This is a static text signal read from test sources. It runs nothing and does not judge assertions, so `covered` means a harness test exists, not that the behavior is tested well. Fixtures and non-test files do not count. See [choose the test boundary](verification.md#choose-the-test-boundary) for what each harness can and cannot verify.
+| Value            | Meaning                                                                                                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `covered`        | A `*.test.*` file that the package's `test` script runs imports the matching harness (`@get-bb/plugin-sdk/testing`, `/testing/host`, `/testing/app`) and that entry file |
+| `unselected`     | Such a test exists, but the package's `test` script does not run it                                                                                                      |
+| `missing`        | No such test exists                                                                                                                                                      |
+| `not-applicable` | The manifest declares no such entry                                                                                                                                      |
 
-The top-level `toolingDrift` list names shared test tooling (`better-sqlite3`, React, React DOM, Testing Library, jsdom, and Vitest) that packages pin to more than one version. SDK pins are checked by [`bun run preflight`](verification.md#bb-and-sdk-versions), not here. Both fields are additive to schema version 1.
+`importScan` uses the same values for a test that calls `experimental_scanPublicSdkOnly`. Each `missing` or `unselected` value adds a diagnostic naming the entry, the harness, and the unselected file.
+
+An import counts only when it resolves, relative to the test file, to the exact entry path in the manifest. An extensionless or `.js`-style specifier counts when it names no other real file and no other file shares the entry's stem. Test selection is read from the repository's command forms only: quoted `node --test` globs, and `vitest run` with the literal `include` globs in `vitest.config.ts`, or Vitest's default when there are none. A new runner form needs a reviewed change to [`harness.mjs`](../../scripts/compatibility/harness.mjs).
+
+This is a static text signal read from sources. It runs nothing and does not judge assertions, so `covered` means a selected harness test loads the entry, not that the behavior is tested well. Fixtures and non-test files do not count. See [choose the test boundary](verification.md#choose-the-test-boundary) for what each harness can and cannot verify.
+
+The top-level `toolingDrift` list names shared test tooling (`better-sqlite3`, React, React DOM, Testing Library, jsdom, and Vitest) pinned to more than one version, across packages or across one package's two dependency sections. SDK pins are checked by [`bun run preflight`](verification.md#bb-and-sdk-versions), not here. Both fields are additive to schema version 1.
 
 ## Meaning of coverage
 
