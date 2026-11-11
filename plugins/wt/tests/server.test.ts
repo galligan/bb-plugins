@@ -37,7 +37,8 @@ test("provider resolve receives project branch settings; absent or unreadable ro
   });
   t.after(() => harness.lifecycle.dispose());
   await wtPlugin(bb);
-  const provider = harness.registrations.environmentProviders.get("wt");
+  const provider =
+    harness.inspection.registrations.environmentProviders.get("wt");
   assert.ok(provider);
   const context: Parameters<typeof provider.create>[0] = {
     thread: makeThreadResponse({ projectId: "p" }),
@@ -76,7 +77,7 @@ test("provider resolve receives project branch settings; absent or unreadable ro
     "global/fix-login-bug-thr_1",
   ]);
   assert.equal(
-    harness.logEntries.filter((log) => log.level === "warn").length,
+    harness.inspection.logEntries.filter((log) => log.level === "warn").length,
     1,
   );
 });
@@ -187,7 +188,8 @@ test("script-only settings survive branch resets and are passed to host resolve"
     typeof settings === "object" && settings !== null && "stored" in settings,
   );
   assert.ok(settings.stored !== null);
-  const provider = harness.registrations.environmentProviders.get("wt");
+  const provider =
+    harness.inspection.registrations.environmentProviders.get("wt");
   assert.ok(provider);
   await provider.create({
     thread: makeThreadResponse({ projectId: "p" }),

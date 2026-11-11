@@ -128,7 +128,7 @@ Open **Worktrees** in bb's navigation (`/plugins/wt/worktrees`) to see Worktree+
 
 ```sh
 bun install          # once, at the repository root
-bun run test         # unit and git-fixture tests (node --test)
+bun run test         # node --test suites, then the Vitest frontend suite
 bun run check        # tsc
 bun run build        # bb plugin build
 bb plugin install .  # install this checkout into the running bb
@@ -136,10 +136,11 @@ bb plugin install .  # install this checkout into the running bb
 
 The root dev dependency on `@get-bb/plugin-sdk` also supplies `bb-app`’s offline build shim. Keep it aligned with Worktree+’s SDK pin: the CLI resolves its ambient SDK, which Bun may otherwise hoist from another plugin. To verify the published CLI independently of a running app, use `env -u BB_CLI bun run --cwd plugins/wt build` from the root.
 
-Check panel and settings behavior in a harness test before going live; see [choose the test boundary](../../docs/dev/verification.md#choose-the-test-boundary). The browser scripts below cover layout and host integration, which a harness test cannot show.
+Check panel, removal, and settings behavior in the harness tests, not a running bb; see [choose the test boundary](../../docs/dev/verification.md#choose-the-test-boundary). `bun run test` runs both suites:
 
-For live UI regression checks, first create a disposable Worktree+ fixture whose path key starts with `bbp25-ui-qa-`. Run `bb browser-automation run SESSION --script-file ABSOLUTE_PATH_TO_plugins/wt/tests/bb-ui.browser.js --script-host HOST` against the local app on port 38886. The script checks compact project and branch selection, Escape/focus return, the native header, and confirmation cancellation on that fixture. It changes unsaved drafts and the remembered project selection; it never saves settings or requests removal. Remove your disposable fixture afterward through the normal fail-closed path.
+| Suite                                 | Runner            | Covers                                                                                                                                                                                                 |
+| ------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `lib/**/*.test.ts`, `tests/*.test.ts` | `node --test`     | Library logic against temporary repositories; the real `server.ts` and `host.ts` under the SDK backend and host-entry harnesses; the public-SDK import scan                                            |
+| `tests/*.test.tsx`                    | Vitest with jsdom | The real `app.tsx` under the SDK frontend harness: registrations, panel states, row badges, collapse and attention, thread links, removal confirmation, project settings, and the "Branch from:" input |
 
-The current panel regression is `tests/tidy-panel.browser.js`; it covers the collapsible/icon-action layout added after the earlier `bb-ui.browser.js` check. It needs a disposable planned Worktree+ record to exercise attention-driven reopening, and restores the browser collapse preferences it changes. Run it through the same browser-automation command above. It never requests removal or saves settings.
-
-`tests/archived-thread.browser.js` supplies a read-only overview response fixture in its own browser page to verify that the first archived thread keeps its visible and accessible marker. It changes no server thread state.
+`tests/layout.browser.js` is the one live check, for what jsdom cannot show: the host's single title bar, compact overflow, touch target size, and the compact Select drawer. It is read-only and never names an instance. Open the page `wt-layout` in a browser-automation session on the BB you mean to check, then run `bb browser-automation run SESSION --script-file ABSOLUTE_PATH_TO_plugins/wt/tests/layout.browser.js --script-host HOST`. Use an isolated instance, not the one you work in. The script was consolidated from three earlier scripts and has not been run since.
