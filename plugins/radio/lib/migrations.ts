@@ -185,4 +185,9 @@ export const MIGRATIONS = [
   ) STRICT`,
   `CREATE INDEX subscription_channel ON subscriptions(channel_id, muted, target_id)`,
   `ALTER TABLE transmissions ADD COLUMN audiences_json TEXT NOT NULL DEFAULT '[]'`,
+  `ALTER TABLE transmissions ADD COLUMN reply_for_id TEXT REFERENCES participants(id)`,
+  `CREATE INDEX reply_coverage ON transmissions(reply_to_id, reply_for_id)`,
+  `CREATE INDEX response_target_kind ON response_events(tx_id, target_id, kind)`,
+  `CREATE INDEX recipient_target ON transmission_recipients(target_id, tx_id)`,
+  `CREATE INDEX participant_actor ON participants(actor_id)`,
 ];

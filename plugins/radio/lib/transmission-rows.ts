@@ -29,7 +29,7 @@ export function readTransmission(
     .prepare<[string], Row>(
       `SELECT seq AS cursor, id, author_id AS authorId,
     session_id AS sessionId, channel_id AS channelId, body, created_at AS createdAt,
-    reply_to_id AS replyToId, refs_json AS refsJson, tags_json AS tagsJson, tokens_json AS tokensJson,
+    reply_to_id AS replyToId, reply_for_id AS replyForId, refs_json AS refsJson, tags_json AS tagsJson, tokens_json AS tokensJson,
     request_mode AS requestMode, require_ack AS requireAck, expect_reply AS expectReply, audiences_json AS audiencesJson
     FROM transmissions WHERE id = ?`,
     )

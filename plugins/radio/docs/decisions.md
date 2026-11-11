@@ -46,7 +46,7 @@ Matt approved the identity/addressing layer on 2026-11-10, including these defau
 
 ## Initial transmission defaults
 
-Under Matt's continuing implementation authorization, the first internal transmission layer uses immutable txs, a 400-code-point body budget without inline exemptions, 2000 raw UTF-16 units, 16 refs, 100 direct recipients and 50-item maximum scans. Replies use explicit audiences only and stay in their parent channel. Project scope is the channel/history access boundary; direct recipients express attention, not private-message ACLs. Source request replay precedes mutable address resolution. Channel broadcasts wait for the subscription layer's atomic listener snapshot. These are initial implementation choices; broader reply routing, audience coverage and delivery policy remain open below.
+Under Matt's continuing implementation authorization, the first internal transmission layer uses immutable txs, a 400-code-point body budget without inline exemptions, 2000 raw UTF-16 units, 16 refs, 100 direct recipients and 50-item maximum scans. Replies use explicit audiences only and stay in their parent channel. Project scope is the channel/history access boundary; direct recipients express attention, not private-message ACLs. Source request replay precedes mutable address resolution. Channel broadcasts now use the atomic listener snapshot described below. These are initial implementation choices; broader reply routing, audience coverage and delivery policy remain open below.
 
 ## Initial dispatch defaults
 
@@ -62,27 +62,27 @@ The initial commitment contract allows independent discussion commitments per ca
 
 The implemented rule is exact-channel selection: parent/main/subchannel relationships do not imply listener inclusion. Internal subscriptions are explicit and default to the invoking session; actor-wide listening requires explicit selection. Automatic project-main listening remains a proposed later registration default. Listen validates ownership/project scope; mute/unlisten can withdraw an owned binding after access loss. Credential adapters must invalidate eligibility on revocation. No listening operation grants wake authority.
 
-Tx acceptance snapshots unmuted channel listeners in its existing immediate transaction. Canonical target IDs deduplicate across direct/channel overlaps; distinct sessions of one actor remain distinct. Per-channel eligible counts (including zero) are frozen separately from the global unique recipient list. A 100-recipient overflow rejects the full send. Muting or leaving never changes historical audiences, direct mentions, required responses or commitments. Matt explicitly resolved mixed actor/session coverage as one recipient at a time; an answer satisfies only the canonical recipient it is sent for. Attention digest and explicit ambiguous-reply selection follow in the next layer.
+Tx acceptance snapshots unmuted channel listeners in its existing immediate transaction. Canonical target IDs deduplicate across direct/channel overlaps; distinct sessions of one actor remain distinct. Per-channel eligible counts (including zero) are frozen separately from the global unique recipient list. A 100-recipient overflow rejects the full send. Muting or leaving never changes historical audiences, direct mentions, required responses or commitments. Matt explicitly resolved mixed actor/session coverage as one recipient at a time; an answer satisfies only the canonical recipient it is sent for. The attention digest and explicit ambiguous-reply selection implement that rule. Discovery is invoking-actor/exact-session scoped, while required responses/open work remain visible across owned sessions; recent cutoffs never hide obligations. Each group has an independent bounded cursor and page counts with hasMore, never implied global totals or receipt evidence.
 
 ## Unresolved product decisions
 
-| Decision                     | Why it matters / recommendation                                                                                         |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Response coverage            | Whether wilco/done satisfy required ack and whether an answer implies ack; keep evidence distinct even if UI groups it  |
-| Audience expansion           | Exact parent/subchannel inclusion, dormant subscribers and mixed actor/session targets; show explicit resolved audience |
-| Actor delivery               | Which of several sessions receives an actor-addressed tx; bot routing should choose rather than broadcasting silently   |
-| Reply routing                | Author-only, all original recipients or explicit audience; avoid accidental re-broadcasts                               |
-| Transfer and waiver          | How session-specific obligations move after handoff, deletion or abandonment; require explicit dispositions             |
-| Handle lifecycle             | Manual allocation, rename aliases and explicit human reclaim are approved above; automated naming remains deferred      |
-| Address parsing              | Grammar and literal-region defaults are approved above; exact edge cases follow the identity/addressing implementation  |
-| External credentials         | Trusted shared token versus individually scoped/revocable principals                                                    |
-| Receipt evidence             | Adapter-specific guarantee, confirmation operation and how unknown outcomes appear                                      |
-| Dispatch governance          | Editing authority, revision limits, attachment support, export and audited removal                                      |
-| Global channels              | Whether needed in the first release; project channels suffice initially                                                 |
-| Cross-station address syntax | `::` is illustrative only; preserve unambiguous local syntax                                                            |
-| Station trust                | Pairing, channel scopes, actor equivalence, listener privacy, retry/retention policy                                    |
-| Bot integration              | Ownership of shared identity registry, msg/report behavior and independent operation without bot plugin                 |
-| Delivery defaults            | Quiet versus live steering/listening; on-duty execution belongs to bot policy                                           |
+| Decision                     | Why it matters / recommendation                                                                                             |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Response coverage extensions | Initial rules keep ack, reply coverage and commitments independent; combined operations or UI grouping need explicit policy |
+| Audience extensions          | Initial selection is exact-channel; hierarchical inclusion and dormant-listener filtering remain future policy choices      |
+| Actor delivery               | Which of several sessions receives an actor-addressed tx; bot routing should choose rather than broadcasting silently       |
+| Reply routing extensions     | Internal replies use explicit audiences and the same channel; public preselection and cross-channel routing remain separate |
+| Transfer and waiver          | How session-specific obligations move after handoff, deletion or abandonment; require explicit dispositions                 |
+| Handle lifecycle             | Manual allocation, rename aliases and explicit human reclaim are approved above; automated naming remains deferred          |
+| Address parsing              | Grammar and literal-region defaults are approved above; exact edge cases follow the identity/addressing implementation      |
+| External credentials         | Trusted shared token versus individually scoped/revocable principals                                                        |
+| Receipt evidence             | Adapter-specific guarantee, confirmation operation and how unknown outcomes appear                                          |
+| Dispatch governance          | Editing authority, revision limits, attachment support, export and audited removal                                          |
+| Global channels              | Whether needed in the first release; project channels suffice initially                                                     |
+| Cross-station address syntax | `::` is illustrative only; preserve unambiguous local syntax                                                                |
+| Station trust                | Pairing, channel scopes, actor equivalence, listener privacy, retry/retention policy                                        |
+| Bot integration              | Ownership of shared identity registry, msg/report behavior and independent operation without bot plugin                     |
+| Delivery defaults            | Quiet versus live steering/listening; on-duty execution belongs to bot policy                                               |
 
 ## Delivery stages
 
