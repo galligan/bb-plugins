@@ -27,7 +27,7 @@ function fixture({
   return { code, calls, output: lines.join("\n") };
 }
 
-test("runs existing gates in order using the preflight runtimes and reports exclusions", () => {
+test("runs existing gates in order using the preflight runtimes", () => {
   const f = fixture();
   assert.equal(f.code, 0);
   assert.deepEqual(
@@ -41,7 +41,6 @@ test("runs existing gates in order using the preflight runtimes and reports excl
   assert.match(f.output, /Bun: 1.3.14 \(\/bun\/bin\/bun\)/);
   assert.match(f.output, /Node: 24.1.0 \(\/node\/bin\/node\)/);
   assert.match(f.output, /build: passed/);
-  assert.match(f.output, /Excluded: Linear/);
 });
 
 for (const [name, options] of Object.entries({

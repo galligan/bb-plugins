@@ -3,10 +3,10 @@ export const configuration = {
   workspaces: ["plugins/*"],
   scripts: {
     "format:check": "prettier . --check",
-    lint: "oxlint plugins scripts --ignore-pattern 'plugins/linear/**' --deny-warnings",
-    check: "bun --filter '!bb-plugin-linear' check",
-    test: "bun --filter '!bb-plugin-linear' test && bun test ./scripts/*.test.mjs",
-    build: "bun --filter '!bb-plugin-linear' build",
+    lint: "oxlint plugins scripts --ignore-pattern 'plugins/excluded/**' --deny-warnings",
+    check: "bun --filter '!bb-plugin-excluded' check",
+    test: "bun --filter '!bb-plugin-excluded' test && bun test ./scripts/*.test.mjs",
+    build: "bun --filter '!bb-plugin-excluded' build",
   },
 };
 
@@ -30,8 +30,8 @@ export const runtimeDependency = {
   engines: { bb: ">=0.49", bbPluginSdk: ">=0.6.132" },
 };
 
-export const linear = {
+export const excludedPlugin = {
   ...oldPlugin,
-  name: "bb-plugin-linear",
+  name: "bb-plugin-excluded",
   devDependencies: { "bb-app": "0.36.0" },
 };

@@ -14,7 +14,7 @@ This repository contains independently versioned plugins for [bb](https://github
 
 - Use Bun; the pinned version is in the root `package.json`.
 - Run `bun install` once at the repository root.
-- Run `bun run format:check`, `bun run lint`, `bun run check`, `bun run test`, and `bun run build` before pushing. Linear is excluded from these root checks; a green root run does not verify Linear. See [verification](docs/dev/verification.md) for package checks and CI parity.
+- Run `bun run format:check`, `bun run lint`, `bun run check`, `bun run test`, and `bun run build` before pushing. See [verification](docs/dev/verification.md) for package checks and CI parity.
 - Verify plugin behavior in tests before starting BB. Load the real `server.ts`, `host.ts`, and `app.tsx` through the public `@get-bb/plugin-sdk/testing` harnesses. Use a live BB only for what the harness cannot reproduce, on an isolated instance and never the user's active one. See [choose the test boundary](docs/dev/verification.md#choose-the-test-boundary).
 - Before adding or migrating an SDK call, inspect the affected package's SDK pin and the current public contract. Use the available `bb-plugin-authoring` skill for the relevant surface. Do not copy deprecated calls from an older plugin as the pattern for new work.
 - Run checkout-specific filesystem and process operations on the environment's host, not the bb server. See [plugin patterns](docs/dev/plugin-patterns.md).

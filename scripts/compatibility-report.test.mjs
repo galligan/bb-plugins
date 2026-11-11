@@ -18,7 +18,7 @@ import {
   configuration,
   oldPlugin,
   runtimeDependency,
-  linear,
+  excludedPlugin,
 } from "./compatibility/fixtures.mjs";
 
 const describe = (manifest, config = configuration) =>
@@ -82,10 +82,10 @@ test("missing metadata and ranged pins remain unknown with actionable diagnostic
 });
 
 test("root filters and package scripts determine selection rather than plugin identity", () => {
-  const excluded = describe(linear);
+  const excluded = describe(excludedPlugin);
   for (const gate of ["check", "test", "build", "lint"])
     assert.equal(excluded.coverage[gate].status, "excluded");
-  const included = describe(linear, {
+  const included = describe(excludedPlugin, {
     ...configuration,
     scripts: {
       ...configuration.scripts,
@@ -129,8 +129,8 @@ test("report reads actual manifests, ignore rules and policy without writes or e
       JSON.stringify({ ...configuration, packageManager: "bun@1.3.14" }),
     );
     put(".node-version", "24\n");
-    put(".prettierignore", "plugins/linear/\nplugins/old/package.json\n");
-    put("plugins/linear/package.json", JSON.stringify(linear));
+    put(".prettierignore", "plugins/excluded/\nplugins/old/package.json\n");
+    put("plugins/excluded/package.json", JSON.stringify(excludedPlugin));
     put("plugins/old/package.json", JSON.stringify(oldPlugin));
     put("plugins/old/server.ts", "export const untouched = true;\n");
     put("plugins/runtime/package.json", JSON.stringify(runtimeDependency));
@@ -138,7 +138,7 @@ test("report reads actual manifests, ignore rules and policy without writes or e
     const report = await buildReport(root);
     assert.deepEqual(
       report.plugins.map(({ name }) => name),
-      ["bb-plugin-linear", "bb-plugin-old", "bb-plugin-runtime"],
+      ["bb-plugin-excluded", "bb-plugin-old", "bb-plugin-runtime"],
     );
     for (const coverage of Object.values(report.plugins[0].coverage))
       assert.equal(coverage.status, "excluded");

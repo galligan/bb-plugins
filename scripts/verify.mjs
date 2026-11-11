@@ -32,9 +32,6 @@ export function verify({
   const summary = (code) => {
     log("\nVerification summary:");
     for (const [gate, state] of states) log(`  ${gate}: ${state}`);
-    log(
-      "Excluded: Linear (format, lint, check, test, build). Run its package gates separately.",
-    );
     return code;
   };
   const expectedBun = /^bun@(\d+\.\d+\.\d+)$/.exec(packageManager)?.[1];

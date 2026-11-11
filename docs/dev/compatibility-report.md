@@ -18,7 +18,7 @@ The human output is for inspection; `--json` emits schema version 1 with stable 
 
 The adapters recognize the repository's current Bun workspace filter commands, bounded repository-test suffix, Oxlint command with an optional whole-directory ignore, and `prettier . --check`. They intentionally do not interpret arbitrary shell commands. Formatting selection uses Prettier's own ignore/parser discovery on package source files; dependencies, `.git`, generated `dist` trees, and symlinks are omitted from that inventory. Individual ignored files do not imply that a whole package is excluded. Lint participation describes package selection, not individual rule or file coverage. Root gate selection is distinct from whether a CI workflow actually invokes those gates. This tool does not parse CI job graphs or claim CI execution evidence.
 
-Linear's exclusion is derived from the current configuration, not hard-coded into the report. Changing the filter/ignore configuration changes the assessment. Root checks do not substitute for Linear's package checks. Other packages can also be excluded or lack scripts; inspect every reported diagnostic.
+Exclusion is derived from the current configuration, not hard-coded into the report. Changing the filter/ignore configuration changes the assessment. No package is excluded today; a package can still lack a script, so inspect every reported diagnostic.
 
 ## Updating compatibility evidence
 
