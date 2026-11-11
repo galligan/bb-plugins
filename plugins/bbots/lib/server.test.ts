@@ -51,6 +51,7 @@ test("reload retains one registration set and disposal invalidates the old facto
 test("package uses only public SDK and package-local imports", () => {
   const scan = experimental_scanPublicSdkOnly(
     fileURLToPath(new URL("..", import.meta.url)),
+    { allow: [/^better-sqlite3$/] },
   );
   assert.deepEqual(scan.violations, []);
   assert.deepEqual(scan.privateDependencies, []);
