@@ -397,7 +397,10 @@ test("Git projections refuse excessive file counts, bytes and characters without
   }
 });
 
-test("Git RPC participates in deadline/caller/disposal and never dispatches after pre-abort", async () => {
+test("Git RPC participates in deadline/caller/disposal and never dispatches after pre-abort", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let now = 0;
+  t.mock.method(performance, "now", () => now);
   const h = setup();
   const controller = new AbortController();
   try {
@@ -412,6 +415,9 @@ test("Git RPC participates in deadline/caller/disposal and never dispatches afte
     let observed: AbortSignal | undefined;
     h.harness.sdk.stub("plugins.callRpc", async (...args: unknown[]) => {
       observed = (args[0] as { signal: AbortSignal }).signal;
+      // Exercise an in-flight expiry, independent of the host's scheduling.
+      now = 16;
+      t.mock.timers.tick(16);
       return new Promise(() => {});
     });
     const budget = await h.sources.read(def, {
@@ -420,6 +426,7 @@ test("Git RPC participates in deadline/caller/disposal and never dispatches afte
     });
     assert.equal(budget.status === "unavailable" && budget.reason, "budget");
     assert.equal(observed?.aborted, true);
+    assert.equal(h.harness.inspection.sdk.callsTo("plugins.callRpc").length, 1);
     const pending = h.sources.read(def, { environmentId: "env" });
     await new Promise((resolve) => setImmediate(resolve));
     h.sources.dispose();
@@ -429,6 +436,7 @@ test("Git RPC participates in deadline/caller/disposal and never dispatches afte
       "cancelled",
     );
     assert.equal(observed?.aborted, true);
+    assert.equal(h.harness.inspection.sdk.callsTo("plugins.callRpc").length, 2);
   } finally {
     await h.close();
   }

@@ -75,6 +75,10 @@ export const rpcContract = defineRpcContract({
     }),
   },
   "models.add": { input: modelConfigSchema, output: modelConfigSchema },
+  "models.remove": {
+    input: z.strictObject({ id: idSchema }),
+    output: z.strictObject({ removed: z.literal(true) }),
+  },
   "models.default": {
     input: z.strictObject({
       id: idSchema.nullable(),

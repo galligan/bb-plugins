@@ -226,6 +226,17 @@ export function registerCli(bb: BbPluginApi, api: JudgeApi): void {
               }),
             ),
         }),
+        "models remove": cliCommand({
+          summary:
+            "Remove a model and clear its defaults; never invokes inference",
+          positionals: [id],
+          options: { json },
+          run: (input) =>
+            output(input.options.json, () => {
+              api.models.remove(input.positionals.id);
+              return { removed: true };
+            }),
+        }),
         "models default": cliCommand({
           summary: "Choose an explicit global or private default",
           positionals: [id],

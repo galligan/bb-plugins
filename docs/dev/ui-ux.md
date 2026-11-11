@@ -72,6 +72,8 @@ Distinguish first load, empty results, filtering with no matches, missing config
 
 Keep already loaded content visible during background refresh and retain form input when saving fails. Disable duplicate submissions while a mutation is pending, with progress close to the initiating action. Do not add automatic retries for writes that may already have succeeded. For plugin-owned data, use the public query/mutation and invalidation contracts supported by the SDK pin before introducing custom polling or a parallel cache. Hidden panel tabs can remain mounted; pause work that exists solely to feed an invisible tab.
 
+`experimental_useTabVisible()` answers that for a panel tab only. It is false everywhere else, including a nav panel, so reads gated on it there never start and the page stays on its loading state. On a nav panel, pause on the browser document's visibility instead, as [Radio's hook](../../plugins/radio/components/radio/use-radio-visible.ts) and [Worktree+'s panel](../../plugins/wt/components/worktrees-panel.tsx) do. The test harness answers the hook with `true` unless a test says otherwise, which hides the mistake: render a nav panel with `tabVisible: false`, as [Radio's reader test](../../plugins/radio/tests/reader-panel.test.tsx) does.
+
 Read BB-owned state through public host hooks and `useSdk()`. Use plugin RPC for secrets, plugin storage, and host work. Do not recreate provider catalogs, permissions policy, thread lifecycle state, or sidebar status from heuristics when BB already exposes the decision.
 
 ## Accessibility and compact layouts

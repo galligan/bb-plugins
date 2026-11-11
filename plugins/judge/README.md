@@ -56,6 +56,8 @@ Ad hoc state is private unless that individual ask declares `--not-private`. Thi
 
 RPC methods are `ask`, `models.list`, `models.add`, `models.default`, `models.check`, `log`, and `runs.get`. Inputs and outputs use strict runtime schemas and the same services as the CLI. `ask` accepts `{state,questions,model?,notPrivate?,threadId?,projectId?}`. `models.check` accepts `{id,probe?}`. Management accepts no credentials; use the BB settings GUI. CLI disconnect, RPC disconnect and plugin disposal propagate cancellation to transports. Expected provider failures produce typed unavailable steps; malformed definitions/arguments are validation errors. Persistence failure returns an operational error without a successful logged verdict.
 
+`models remove <id>` (RPC `models.remove` with `{id}`) removes only that configuration, clears global/private defaults that reference it, and invalidates cache/calibration. Removing an absent ID succeeds. It never deletes credentials or invokes inference.
+
 `models list` accepts `--limit 1..100` and `--after <next-id>`. `log` accepts `--set`, `--thread`, `-n/--limit 1..100`, and `--before '<next cursor JSON>'`; equal-timestamp records use run ID as a tie-breaker. Log pages return bounded summaries without reading step answers. `runs.get` RPC `{id}` returns a single complete stored verdict or null. Ad hoc verdicts retain the requested/resolved model identities and actual returned `providerModel`, with no invented saved-set identity, no calibration claim and no request state/credentials in storage. Answers themselves may be sensitive.
 
 ## Global question-set definitions
