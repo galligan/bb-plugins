@@ -31,6 +31,8 @@ import { recordsContract } from "./lib/ui/records-contracts.ts";
 import { createRecords } from "./lib/ui/records.ts";
 import { commitmentUiContract } from "./lib/ui/commitment-contracts.ts";
 import { createCommitmentInspector } from "./lib/ui/commitments.ts";
+import { checkpointUiContract } from "./lib/ui/checkpoint-contracts.ts";
+import { createCheckpointAction } from "./lib/ui/checkpoint-create.ts";
 import {
   createWorkerOverview,
   workerOverviewContract,
@@ -93,6 +95,12 @@ export default function plugin(bb: BbPluginApi) {
     changed,
     workers.finishTitles,
   );
+  const checkpointCreate = createCheckpointAction(
+    bb.storage,
+    store,
+    checkpoints,
+    changed,
+  );
   registerAdmission(
     bb,
     store,
@@ -110,6 +118,7 @@ export default function plugin(bb: BbPluginApi) {
       ...workerOverviewContract,
       ...recordsContract,
       ...commitmentUiContract,
+      ...checkpointUiContract,
     }),
     {
       status: () => developmentStatus(),
@@ -148,6 +157,11 @@ export default function plugin(bb: BbPluginApi) {
       },
       botCommitment: (input, ctx) =>
         commitmentInspector.inspect(input, ctx.experimental_signal),
+      botCheckpointCreate: (input, ctx) => {
+        lifecycle.signal.throwIfAborted();
+        ctx.experimental_signal.throwIfAborted();
+        return checkpointCreate(input);
+      },
       taskSource: async ({ botId }, ctx) => {
         const state = await tasks.show(botId, ctx.experimental_signal);
         const source = state.source;
