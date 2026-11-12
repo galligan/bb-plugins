@@ -27,6 +27,8 @@ import { openContinuity } from "./lib/continuity/store.ts";
 import { continuityCommands } from "./lib/continuity/cli.ts";
 import { taskSettingsContract } from "./lib/tasks/settings-contracts.ts";
 import { createTaskSettings } from "./lib/tasks/settings.ts";
+import { recordsContract } from "./lib/ui/records-contracts.ts";
+import { createRecords } from "./lib/ui/records.ts";
 import {
   createWorkerOverview,
   workerOverviewContract,
@@ -42,6 +44,7 @@ export default function plugin(bb: BbPluginApi) {
   const soul = openSoul(bb.storage, store, changed);
   const memory = openMemory(bb.storage, store, changed);
   const checkpoints = openCheckpoints(bb.storage, store, soul);
+  const records = createRecords(bb.storage, store, memory, checkpoints);
   const work = openWork(bb.storage, store);
   const workerOverview = createWorkerOverview(bb.storage, store, work);
   const routing = createRouting(bb, store, work);
@@ -96,6 +99,7 @@ export default function plugin(bb: BbPluginApi) {
       ...uiContract,
       ...taskSettingsContract,
       ...workerOverviewContract,
+      ...recordsContract,
     }),
     {
       status: () => developmentStatus(),
@@ -117,6 +121,16 @@ export default function plugin(bb: BbPluginApi) {
         lifecycle.signal.throwIfAborted();
         ctx.experimental_signal.throwIfAborted();
         return workerOverview(input);
+      },
+      botRecords: (input, ctx) => {
+        lifecycle.signal.throwIfAborted();
+        ctx.experimental_signal.throwIfAborted();
+        return records.index(input);
+      },
+      botMemory: (input, ctx) => {
+        lifecycle.signal.throwIfAborted();
+        ctx.experimental_signal.throwIfAborted();
+        return records.note(input);
       },
       taskSource: async ({ botId }, ctx) => {
         const state = await tasks.show(botId, ctx.experimental_signal);

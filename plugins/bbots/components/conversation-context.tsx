@@ -1,28 +1,17 @@
 import {
   useComposer,
   useBbNavigate,
-  experimental_useRpcKeyedQuery as useRpcKeyedQuery,
   experimental_DetailRow as DetailRow,
   experimental_ThreadContextCardRow as ThreadContextCardRow,
   type ExperimentalThreadInfoProps,
 } from "@get-bb/plugin-sdk/app";
-import { uiContract } from "../lib/ui/contracts.ts";
-import { usePageVisible } from "../lib/ui/use-page-visible.ts";
+import { useConversationOwner } from "../lib/ui/use-owner.ts";
 import { ResourceActionButton } from "./ui/resource/row.tsx";
 import { COARSE_POINTER_HEADER_ICON_BUTTON_CLASS } from "./ui/coarse-pointer-sizing.ts";
 
 function useOwner(threadId: string | null) {
-  const visible = usePageVisible();
-  const query = useRpcKeyedQuery({
-    contract: uiContract,
-    method: "ownership",
-    keys: threadId ? [threadId] : [],
-    enabled: visible && threadId !== null,
-  });
-  // Never use a previous scope's owner or expose a stale action after a failed read.
-  return visible && threadId && !query.error
-    ? (query.data?.[threadId] ?? null)
-    : null;
+  const { owner, visible } = useConversationOwner(threadId);
+  return visible ? owner : null;
 }
 
 export function BotComposerSettings() {

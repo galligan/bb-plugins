@@ -10,6 +10,8 @@ BOTS-9's independent task-source slice starts from reviewed integration main `c4
 
 **Current direction:** implementation is released. Matt corrected the approach: handle what is possible inside the plugin and do not ask maintainers to change BB as a prerequisite. BOTS-3 is a feature-specific evidence/support matrix; BOTS-18 is deferred/non-blocking. Proceed through BOTS-4 → minimal storage → identity/home/main → models/SOUL → minimal create/open UI. Independent Tasks and other UI work do not wait for upstream agreement or a release containing the prototype.
 
+Worker overview source merged in PR169 as `67a67ef`. The next independent BOTS-14 slice registers a fixed native Bot records tab plus Info action for owned main/workers, reusing BB tab chrome and Markdown rather than a second chat shell. Read-only server methods derive the bot from SQLite thread ownership and reuse existing exclusion-aware memory/index/detail and checkpoint-header stores. Heavy reads require actual tab and document visibility; the matching known owner retains tab placement during backgrounding/error recovery while content refuses an ownership failure. Search drafts, per-index cursors, late scope changes and suppressed/full-note states are harness boundaries; actual native placement/focus/theme/sidebar independence remain unaccepted. No writes, model runs or transcript reads; explicit checkpoint/record commands stay separate. Dev HOLD, enabled human `28ca744` and immutable `876e930` stay unchanged; this and subsequent source require a new exact reviewed runtime packet before any deployment.
+
 ## Ownership and environment
 
 - Builder `thr_898bvuxcfi`, parent `thr_cc23h4keqr`, Codex gpt-6.1-sol/high.
