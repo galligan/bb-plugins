@@ -11,6 +11,7 @@ import { EmptyStatePanel } from "./ui/empty-state.tsx";
 import { Button } from "./ui/button.tsx";
 import type { Machine } from "./bots-panel.tsx";
 import { TaskSource } from "./task-source.tsx";
+import { WorkerOverview } from "./workers/overview.tsx";
 
 export function BotDetail({
   botId,
@@ -94,6 +95,7 @@ export function BotDetail({
           <SettingsGroup title="Task source">
             <TaskSource botId={view.bot.id} />
           </SettingsGroup>
+          <WorkerOverview key={view.bot.id} botId={view.bot.id} />
           <details
             className="text-xs text-muted-foreground"
             open={Boolean(error) || view.setup.phase !== "ready" || !online}
