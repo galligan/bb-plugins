@@ -42,7 +42,8 @@ test("registers an additive panel and owned-only header without replacing naviga
   expect(app.threadActions).toHaveLength(1);
   expect(app.experimentalSidebarNavigations).toHaveLength(0);
   expect(app.threadLists).toHaveLength(0);
-  expect(app.composerCustomizations).toHaveLength(0);
+  expect(app.composerCustomizations).toHaveLength(1);
+  expect(app.composerCustomizations[0]!.scopes).toEqual(["thread"]);
   const action = app.threadActions[0]!;
   expect(action.placement).toBe("header");
   function Header() {

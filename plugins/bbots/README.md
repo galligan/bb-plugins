@@ -131,3 +131,5 @@ The focused suite uses real SQLite, independent connections for stale-write test
 - [Minimum supported runtime](docs/support-boundary.md): existing manifest gates, distinct SDK/runtime floors and upgrade/rollback requirements.
 
 The dedicated BB Tasks project is **Bots**, prefix **BOTS**, stable project ID `01M73NSQMGEYPWZ30WSR2CEYBP`. It is intentionally not linked in place of the repository's existing BBP tracker. Tasks are the source of implementation intent; keep them and these documents aligned as constraints are verified.
+
+The native conversation exploration adds an owned-only **Bot settings** composer action and identity/role entry in native Info (plus the host-selected context card). These use the public host surfaces and SQLite ownership, with no model-control removal, draft/attachment edits, execution changes or provider wake. Runtime placement remains pending separately coordinated acceptance; see [the experiment boundary](docs/native-conversation-experiments.md).

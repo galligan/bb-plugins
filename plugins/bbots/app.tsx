@@ -5,6 +5,11 @@ import {
 import { BotsPanel } from "./components/bots-panel.tsx";
 import { BotsHeader, useBotsTitle } from "./components/bots-header.tsx";
 import { BotsSettings } from "./components/bot-settings.tsx";
+import {
+  BotComposerSettings,
+  BotInfoRow,
+  BotContextCardRow,
+} from "./components/conversation-context.tsx";
 import { uiContract, type Ownership } from "./lib/ui/contracts.ts";
 
 export default definePluginApp((app) => {
@@ -18,6 +23,21 @@ export default definePluginApp((app) => {
     experimental_usePageTitle: useBotsTitle,
   });
   app.slots.settingsSection({ id: "bots", component: BotsSettings });
+  app.composer.customize({
+    id: "bot-settings",
+    scopes: ["thread"],
+    actions: [{ id: "settings", component: BotComposerSettings }],
+  });
+  app.slots.experimental_threadInfoRow({
+    id: "bot-identity",
+    group: "1_thread",
+    component: BotInfoRow,
+  });
+  app.slots.experimental_threadContextCardRow({
+    id: "bot-identity",
+    group: "1_thread",
+    component: BotContextCardRow,
+  });
   app.slots.experimental_threadAction<Ownership | undefined>({
     id: "identity",
     title: "Bot identity",
