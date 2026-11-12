@@ -85,13 +85,17 @@ export function provenance(storage: PluginStorage, store: SetupStore) {
       botId: string,
       input: Pick<RecordBody, "sources" | "parents" | "basis">,
       self?: string,
+      parentRevisions: "current" | "historical" = "current",
     ) {
       const sources = new Set(input.sources.map(originKey));
       for (const parent of input.parents) {
         if (parent.id === self)
           throw new Error("A record cannot derive from itself.");
         const name = documentName(parent.id);
-        const doc = store.documents.get(botId, name);
+        const doc =
+          parentRevisions === "historical"
+            ? store.documents.revision(botId, name, parent.revision)
+            : store.documents.get(botId, name);
         if (!doc || excluded(botId, name))
           throw new Error(
             "A provenance parent is missing or excluded for this bot.",
@@ -100,10 +104,12 @@ export function provenance(storage: PluginStorage, store: SetupStore) {
           throw new Error(
             "A provenance parent changed. Read it before capturing a result.",
           );
-        if (
-          recordSchema.parse(JSON.parse(doc.markdown)).basis === "inference" &&
-          input.basis === "fact"
-        )
+        const record = recordSchema.parse(JSON.parse(doc.markdown));
+        if (`mem_${record.requestId}` !== parent.id)
+          throw new Error(
+            "Provenance parent identity differs from its record.",
+          );
+        if (record.basis === "inference" && input.basis === "fact")
           throw new Error("Derived inference cannot silently become fact.");
         const known = db
           .prepare(

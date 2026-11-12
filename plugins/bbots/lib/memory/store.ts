@@ -16,6 +16,7 @@ import {
 } from "./contracts.ts";
 import { provenance, eligibleSql } from "./provenance.ts";
 import { captureProgress } from "./capture.ts";
+import { restoreKnowledge } from "./restore.ts";
 
 const limits = {
   historyRetained: true,
@@ -293,6 +294,14 @@ export function openMemory(
       nextCursor: rows.length > limit ? (items.at(-1)?.id ?? null) : null,
     };
   }
-  return { create, correct, forget, show, search, progress: progress.read };
+  return {
+    create,
+    correct,
+    forget,
+    restore: restoreKnowledge(storage, store),
+    show,
+    search,
+    progress: progress.read,
+  };
 }
 export type MemoryStore = ReturnType<typeof openMemory>;
