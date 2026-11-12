@@ -46,6 +46,41 @@ export function provenance(storage: PluginStorage, store: SetupStore) {
   }
   return {
     excluded,
+    coversExcluded(
+      botId: string,
+      streamId: string,
+      from: number,
+      through: number,
+    ) {
+      // Only a gap wholly covered by retained exclusions may be consumed.
+      // Iterate ordered intervals instead of expanding individual sequences.
+      const json =
+        "CASE WHEN substr(key,1,12)='bbots-range:' THEN substr(key,13) ELSE 'null' END";
+      const rows = db
+        .prepare(
+          `
+        SELECT json_extract(${json},'$.from') AS first,
+          json_extract(${json},'$.through') AS last
+        FROM memory_exclusions WHERE bot_id=? AND kind='source'
+          AND substr(key,1,12)='bbots-range:'
+          AND json_extract(${json},'$.streamId')=?
+          AND json_extract(${json},'$.from')<=?
+          AND json_extract(${json},'$.through')>=?
+        ORDER BY first,last
+      `,
+        )
+        .iterate(botId, streamId, through, from) as Iterable<{
+        first: number;
+        last: number;
+      }>;
+      let next = from;
+      for (const row of rows) {
+        if (row.first > next) return false;
+        if (row.last >= through) return true;
+        next = Math.max(next, row.last + 1);
+      }
+      return false;
+    },
     resolve(
       botId: string,
       input: Pick<RecordBody, "sources" | "parents" | "basis">,

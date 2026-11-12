@@ -30,7 +30,7 @@ export function openMemory(
 ) {
   const db = storage.database(),
     sources = provenance(storage, store),
-    progress = captureProgress(store);
+    progress = captureProgress(store, sources.coversExcluded);
   function document(botId: string, id: string) {
     store.get(botId);
     const doc = store.documents.get(botId, documentName(id));

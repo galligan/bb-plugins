@@ -9,8 +9,22 @@ const progressSchema = z.strictObject({
   kind: captureKind,
   through: z.number().int().positive(),
   recordId: z.string(),
+  excludedBefore: z
+    .strictObject({
+      from: z.number().int().positive(),
+      through: z.number().int().positive(),
+    })
+    .optional(),
 });
-export function captureProgress(store: SetupStore) {
+export function captureProgress(
+  store: SetupStore,
+  coversExcluded: (
+    botId: string,
+    streamId: string,
+    from: number,
+    through: number,
+  ) => boolean,
+) {
   function name(stream: string, kind: string) {
     return `CAPTURE:${createHash("sha256")
       .update(JSON.stringify([stream, kind]))
@@ -32,6 +46,9 @@ export function captureProgress(store: SetupStore) {
       revision: doc?.revision ?? 0,
       through: found?.through ?? 0,
       recordId: found?.recordId ?? null,
+      ...(found?.excludedBefore
+        ? { excludedBefore: found.excludedBefore }
+        : {}),
     };
   }
   return {
@@ -39,12 +56,15 @@ export function captureProgress(store: SetupStore) {
     advance(input: Exclude<Creation, { kind: "knowledge" }>, recordId: string) {
       const { boundary, kind, botId } = input;
       const current = read(botId, boundary.streamId, kind);
+      const next = current.through + 1;
       if (
         current.revision !== boundary.expectedRevision ||
-        boundary.from !== current.through + 1
+        boundary.from < next ||
+        (boundary.from > next &&
+          !coversExcluded(botId, boundary.streamId, next, boundary.from - 1))
       )
         throw new Error(
-          "Capture boundary changed or skips unprocessed input. Read progress first.",
+          "Capture boundary changed or skips unprocessed input. Read progress first; only gaps fully covered by known exclusions may be crossed.",
         );
       store.documents.write({
         botId,
@@ -55,6 +75,9 @@ export function captureProgress(store: SetupStore) {
           kind,
           through: boundary.through,
           recordId,
+          ...(boundary.from > next
+            ? { excludedBefore: { from: next, through: boundary.from - 1 } }
+            : {}),
         }),
         author: input.author,
         reason: input.reason,
