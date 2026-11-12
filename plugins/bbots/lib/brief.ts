@@ -3,6 +3,7 @@ import type { SoulStore } from "./soul/store.ts";
 import type { WorkStore } from "./work/storage.ts";
 import type { TaskSource } from "./tasks/source.ts";
 import type { Commitments } from "./commitments/service.ts";
+import type { MemoryStore } from "./memory/store.ts";
 
 export function createBrief(
   store: SetupStore,
@@ -10,6 +11,7 @@ export function createBrief(
   work: WorkStore,
   tasks: TaskSource,
   commitments: Commitments,
+  memory: MemoryStore,
 ) {
   return async (botId: string, threadId?: string, signal?: AbortSignal) => {
     const view = store.view(botId);
@@ -41,10 +43,25 @@ export function createBrief(
         }),
       ),
       commitmentsNextCursor: obligations.nextCursor,
-      unavailable: [
-        ...(taskSource.availability === "available" ? [] : ["tasks"]),
-        "memory",
-      ],
+      memory: {
+        knowledge: memory
+          .search(botId, { limit: 3 })
+          .items.map(({ excerpt, sources, ...item }) => ({
+            ...item,
+            excerpt: excerpt.slice(0, 256),
+            sources: sources.slice(0, 1),
+          })),
+        captures: (["state", "decision", "summary"] as const).flatMap((kind) =>
+          memory
+            .search(botId, { kind, limit: 1 })
+            .items.map(({ excerpt, sources, ...item }) => ({
+              ...item,
+              excerpt: excerpt.slice(0, 256),
+              sources: sources.slice(0, 1),
+            })),
+        ),
+      },
+      unavailable: taskSource.availability === "available" ? [] : ["tasks"],
     };
   };
 }

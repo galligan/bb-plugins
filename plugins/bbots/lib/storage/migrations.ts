@@ -1,4 +1,5 @@
 import { setupMigrations } from "../setup/migrations.ts";
+import { memoryMigrations } from "../memory/provenance.ts";
 
 // Append only: the public host hashes every indexed statement.
 export const migrations = [
@@ -57,4 +58,5 @@ export const migrations = [
     error TEXT,
     title_revision INTEGER NOT NULL DEFAULT 0
   )`,
+  ...memoryMigrations,
 ];

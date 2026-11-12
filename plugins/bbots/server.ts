@@ -18,6 +18,8 @@ import { createTaskSource } from "./lib/tasks/source.ts";
 import { openCommitments } from "./lib/commitments/store.ts";
 import { createCommitments } from "./lib/commitments/service.ts";
 import { createBrief } from "./lib/brief.ts";
+import { openMemory } from "./lib/memory/store.ts";
+import { memoryCommands } from "./lib/memory/cli.ts";
 
 export default function plugin(bb: BbPluginApi) {
   const store = openSetup(bb.storage);
@@ -27,6 +29,7 @@ export default function plugin(bb: BbPluginApi) {
     if (!lifecycle.signal.aborted) bb.rpc.experimental_invalidate(["bots"]);
   };
   const soul = openSoul(bb.storage, store, changed);
+  const memory = openMemory(bb.storage, store, changed);
   const work = openWork(bb.storage, store);
   const routing = createRouting(bb, store, work);
   const workers = createWorkService(
@@ -118,7 +121,8 @@ export default function plugin(bb: BbPluginApi) {
       workers: workCommands(store, work, workers, routing, changed),
       tasks,
       commitments,
-      brief: createBrief(store, soul, work, tasks, commitments),
+      brief: createBrief(store, soul, work, tasks, commitments, memory),
+      memory: memoryCommands(memory, store, lifecycle.signal),
     }),
   );
 }
