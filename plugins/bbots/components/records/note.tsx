@@ -4,7 +4,8 @@ import {
 } from "@get-bb/plugin-sdk/app";
 import { recordsContract } from "../../lib/ui/records-contracts.ts";
 import { Button } from "../ui/button.tsx";
-import type { Ref } from "react";
+import { useImperativeHandle, useRef, useState, type Ref } from "react";
+import { MemoryForget } from "./memory-forget.tsx";
 
 export function MemoryNote({
   threadId,
@@ -21,6 +22,9 @@ export function MemoryNote({
   back(): void;
   backRef?: Ref<HTMLButtonElement>;
 }) {
+  const backButton = useRef<HTMLButtonElement>(null);
+  useImperativeHandle(backRef, () => backButton.current!, []);
+  const [forgotten, setForgotten] = useState(false);
   const query = useRpcQuery({
     contract: recordsContract,
     method: "botMemory",
@@ -28,13 +32,19 @@ export function MemoryNote({
     enabled: active,
   });
   const state =
-    query.data?.threadId === threadId && query.data.botId === botId
+    query.data?.threadId === threadId &&
+    query.data.botId === botId &&
+    (query.data.availability === "available"
+      ? query.data.note.id === id
+      : query.data.id === id)
       ? query.data
       : undefined;
+  const readError = Boolean(query.error) || Boolean(query.data && !state);
+  const suppressed = forgotten || state?.availability === "suppressed";
   return (
     <div className="space-y-3 text-sm">
       <Button
-        ref={backRef}
+        ref={backButton}
         type="button"
         variant="outline"
         size="sm"
@@ -44,7 +54,7 @@ export function MemoryNote({
         Back to memory list
       </Button>
       {query.isLoading && <p role="status">Reading memory…</p>}
-      {query.error && (
+      {readError && (
         <div role="alert">
           <p>Could not read this memory. Its current content is unknown.</p>
           <Button
@@ -58,13 +68,13 @@ export function MemoryNote({
           </Button>
         </div>
       )}
-      {!query.error && state?.availability === "suppressed" && (
+      {suppressed && (
         <p role="status">
           This memory is excluded from new retrieval. Retained history and
           previous live context are not erased by this view.
         </p>
       )}
-      {!query.error && state?.availability === "available" && (
+      {!suppressed && !readError && state?.availability === "available" && (
         <article className="min-w-0 space-y-3 break-words">
           <h2 className="text-sm font-semibold">{state.note.topic}</h2>
           <p className="text-xs text-muted-foreground">
@@ -95,6 +105,24 @@ export function MemoryNote({
           </details>
         </article>
       )}
+      <MemoryForget
+        threadId={threadId}
+        botId={botId}
+        id={id}
+        revision={
+          !readError && state?.availability === "available"
+            ? state.note.revision
+            : null
+        }
+        active={active}
+        readable={!readError && !query.isFetching}
+        suppressed={suppressed}
+        read={() => query.refetch()}
+        confirmed={(returnFocus) => {
+          setForgotten(true);
+          if (returnFocus) backButton.current?.focus();
+        }}
+      />
     </div>
   );
 }
