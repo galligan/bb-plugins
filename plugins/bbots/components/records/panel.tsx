@@ -35,7 +35,7 @@ export function BotRecordsInfo({ threadId }: ExperimentalThreadInfoProps) {
           size="sm"
           onClick={() => setDeclined(!panel.openTab({ tab: recordsTab }))}
         >
-          Inspect memories and checkpoints
+          Inspect bot records
         </Button>
         {declined && (
           <p role="status" className="mt-1 text-xs text-muted-foreground">

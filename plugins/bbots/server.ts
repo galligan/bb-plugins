@@ -29,6 +29,8 @@ import { taskSettingsContract } from "./lib/tasks/settings-contracts.ts";
 import { createTaskSettings } from "./lib/tasks/settings.ts";
 import { recordsContract } from "./lib/ui/records-contracts.ts";
 import { createRecords } from "./lib/ui/records.ts";
+import { commitmentUiContract } from "./lib/ui/commitment-contracts.ts";
+import { createCommitmentInspector } from "./lib/ui/commitments.ts";
 import {
   createWorkerOverview,
   workerOverviewContract,
@@ -66,6 +68,13 @@ export default function plugin(bb: BbPluginApi) {
     tasks,
     lifecycle.signal,
   );
+  const commitmentInspector = createCommitmentInspector(
+    bb.storage,
+    store,
+    commitmentRecords,
+    commitments,
+    lifecycle.signal,
+  );
   const continuity = openContinuity(bb, {
     store,
     memory,
@@ -100,6 +109,7 @@ export default function plugin(bb: BbPluginApi) {
       ...taskSettingsContract,
       ...workerOverviewContract,
       ...recordsContract,
+      ...commitmentUiContract,
     }),
     {
       status: () => developmentStatus(),
@@ -132,6 +142,12 @@ export default function plugin(bb: BbPluginApi) {
         ctx.experimental_signal.throwIfAborted();
         return records.note(input);
       },
+      botCommitments: (input, ctx) => {
+        ctx.experimental_signal.throwIfAborted();
+        return commitmentInspector.list(input);
+      },
+      botCommitment: (input, ctx) =>
+        commitmentInspector.inspect(input, ctx.experimental_signal),
       taskSource: async ({ botId }, ctx) => {
         const state = await tasks.show(botId, ctx.experimental_signal);
         const source = state.source;

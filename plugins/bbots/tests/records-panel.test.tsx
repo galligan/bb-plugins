@@ -12,6 +12,7 @@ import {
   recordsFixture,
   recordOwner,
   recordIndex,
+  emptyCommitments,
 } from "./records-fixture.test.ts";
 
 function visibility(visible: boolean) {
@@ -52,7 +53,7 @@ test.each([true, false])(
     );
     await userEvent.click(
       await slot.findByRole("button", {
-        name: "Inspect memories and checkpoints",
+        name: "Inspect bot records",
       }),
     );
     expect(slot.inspection.experimental_panelCalls).toEqual([
@@ -120,6 +121,7 @@ test("backgrounding retains the matching native tab identity while heavy reads s
           return { thr_owned: recordOwner };
         },
         botRecords: () => recordIndex,
+        botCommitments: () => emptyCommitments,
       },
     },
   );
@@ -161,6 +163,7 @@ test("an ownership-read failure keeps the known tab available for recovery but r
           return { thr_owned: recordOwner };
         },
         botRecords: () => recordIndex,
+        botCommitments: () => emptyCommitments,
       },
     },
   );
