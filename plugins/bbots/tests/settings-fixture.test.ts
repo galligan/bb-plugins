@@ -53,6 +53,15 @@ export async function settingsFixture(
       show: () => view,
       soulShow: () => savedSoul,
       defaultsShow: () => savedDefaults,
+      taskSettings: () => ({
+        botId: view.bot.id,
+        revision: 0,
+        kind: "unconfigured",
+        availability: "unconfigured",
+        board: null,
+        file: null,
+        catalog: { status: "available", boards: [], hasMore: false },
+      }),
       ...rpc,
     },
     sdk: {
