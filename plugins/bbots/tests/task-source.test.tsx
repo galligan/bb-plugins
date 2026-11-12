@@ -44,6 +44,23 @@ async function render(taskSource: () => unknown) {
   );
 }
 
+test("a source changed during a read offers an explicit retry without opening an unverified destination", async () => {
+  const slot = await render(() => ({
+    kind: "tasks",
+    availability: "changed-during-read",
+    boardId: "tracker_new",
+    file: null,
+  }));
+  await slot.findByText(
+    "Task authority changed during this read. Read the current source again.",
+  );
+  expect(slot.queryByRole("button", { name: "Open Tasks board" })).toBeNull();
+  expect(slot.queryByRole("link", { name: "Open tasks.md" })).toBeNull();
+  expect(
+    slot.getByRole("button", { name: "Retry task source read" }),
+  ).toBeTruthy();
+});
+
 test("actual nav entry opens the Markdown source with its explicit host, not the selected workspace", async () => {
   const slot = await render(() => ({
     kind: "markdown",

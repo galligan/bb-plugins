@@ -2,6 +2,7 @@ import { cliCommand } from "@get-bb/plugin-sdk";
 import type { SetupStore } from "../setup/storage.ts";
 import type { TaskSource } from "./source.ts";
 import { markdownCommands } from "./markdown-cli.ts";
+import { migrationCommands } from "./migration-cli.ts";
 
 const bot = [
   { name: "botId", description: "Stable bot ID", required: true },
@@ -46,6 +47,7 @@ export function taskCommands(source: TaskSource, store: SetupStore) {
   }
   return {
     ...markdownCommands(source, store),
+    ...migrationCommands(source.migration, store),
     "tasks show": cliCommand({
       summary:
         "Read the stable task authority and live availability; no fallback or provider turn",

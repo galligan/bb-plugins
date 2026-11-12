@@ -18,15 +18,18 @@ export function TaskSource({ botId }: { botId: string }) {
   });
   const source = query.data;
   const unavailable = query.error || source?.availability === "unavailable";
+  const changed = source?.availability === "changed-during-read";
   return (
     <div className="space-y-2 text-sm" aria-label="Task source">
       {query.isLoading && <p role="status">Reading task source…</p>}
-      {unavailable && (
+      {(unavailable || changed) && (
         <>
           <p role="status">
-            {source?.kind === "markdown"
-              ? "The task file is unavailable. Reconnect its machine or restore the original file."
-              : "The task source is unavailable. Restore Tasks or its configured board."}
+            {changed
+              ? "Task authority changed during this read. Read the current source again."
+              : source?.kind === "markdown"
+                ? "The task file is unavailable. Reconnect its machine or restore the original file."
+                : "The task source is unavailable. Restore Tasks or its configured board."}
           </p>
           <Button
             type="button"
