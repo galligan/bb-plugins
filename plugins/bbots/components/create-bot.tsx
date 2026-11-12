@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import {
   useBbNavigate,
   experimental_useRpcQuery as useRpcQuery,
@@ -8,6 +8,15 @@ import {
 import { createSchema, managementContract } from "../lib/setup/contracts.ts";
 import { uiContract } from "../lib/ui/contracts.ts";
 import { Button } from "./ui/button.tsx";
+import { Input } from "./ui/input.tsx";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select.tsx";
+import { SettingsGroup, SettingRow } from "./settings/layout.tsx";
 import type { Machine } from "./bots-panel.tsx";
 import { ExecutionChoice, type Choice } from "./execution-choice.tsx";
 
@@ -30,6 +39,7 @@ export function CreateBot({
   unavailable: boolean;
 }) {
   const navigate = useBbNavigate();
+  const formId = useId();
   const create = useRpcMutation({
     contract: managementContract,
     method: "create",
@@ -44,6 +54,7 @@ export function CreateBot({
   const [name, setName] = useState("Bob");
   const [hostId, setHostId] = useState("");
   const [homeBase, setHomeBase] = useState("");
+  const [advanced, setAdvanced] = useState(false);
   const [choice, setChoice] = useState<Choice | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,8 +124,11 @@ export function CreateBot({
   }
   if (pending)
     return (
-      <section className="space-y-3" aria-label="Pending bot creation">
-        <h2 className="font-semibold">
+      <section
+        className="space-y-3 rounded-lg border border-border bg-card p-4"
+        aria-label="Pending bot creation"
+      >
+        <h2 className="text-sm font-semibold">
           {create.isPending
             ? "Creating your collaborator…"
             : "Check the creation request"}
@@ -166,84 +180,114 @@ export function CreateBot({
   return (
     <form
       onSubmit={(event) => void submit(event)}
-      className="space-y-3"
+      className="space-y-6"
       aria-label="Create a bot"
     >
-      <h2 className="font-semibold">Create a collaborator</h2>
-      <label className="block">
-        Name
-        <input
-          className="mt-1 block h-9 w-full rounded-md border border-input bg-background px-3 text-foreground"
-          value={name}
-          maxLength={128}
-          required
-          onChange={(event) => setName(event.target.value)}
-        />
-      </label>
-      <label className="block">
-        Machine
-        <select
-          className="mt-1 block h-9 w-full rounded-md border border-input bg-background px-3 text-foreground"
-          value={hostId}
-          required
-          disabled={unavailable}
-          onChange={(event) => {
-            setHostId(event.target.value);
-            setChoice(null);
-            setChoosing(false);
-          }}
+      <SettingsGroup
+        title="Collaborator"
+        description="Create Bob, or choose another name. Its home and conversation persist independently of the selected sidebar."
+      >
+        <SettingRow label="Name" htmlFor={`${formId}-name`}>
+          <Input
+            id={`${formId}-name`}
+            value={name}
+            maxLength={128}
+            required
+            onChange={(event) => setName(event.target.value)}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Machine"
+          htmlFor={`${formId}-machine`}
+          description="The machine that keeps this bot's persistent home."
         >
-          <option value="">Choose a connected machine</option>
-          {machines.map((machine) => (
-            <option
-              key={machine.id}
-              value={machine.id}
-              disabled={machine.status !== "connected"}
-            >
-              {machine.name}
-              {machine.status !== "connected" ? " · Offline" : ""}
-            </option>
-          ))}
-        </select>
-      </label>
-      {!unavailable &&
-        !machines.some((machine) => machine.status === "connected") && (
-          <p role="status">Connect a machine, then refresh to create a bot.</p>
-        )}
-      <label className="block">
-        Home base (optional)
-        <input
-          className="mt-1 block h-9 w-full rounded-md border border-input bg-background px-3 text-foreground"
-          value={homeBase}
-          placeholder="~/.bb-bots on the selected machine"
-          onChange={(event) => setHomeBase(event.target.value)}
-        />
-      </label>
-      <p className="text-sm text-muted-foreground">
-        Leave the home base empty for the default. A custom base must be an
-        absolute path outside repositories and BB data. The bot has no project
-        associations initially; the CLI can choose all or selected projects.
-      </p>
+          <Select
+            value={hostId}
+            required
+            disabled={unavailable}
+            onValueChange={(value) => {
+              setHostId(value);
+              setChoice(null);
+              setChoosing(false);
+            }}
+          >
+            <SelectTrigger id={`${formId}-machine`}>
+              <SelectValue placeholder="Choose a connected machine" />
+            </SelectTrigger>
+            <SelectContent>
+              {machines.map((machine) => (
+                <SelectItem
+                  key={machine.id}
+                  value={machine.id}
+                  disabled={machine.status !== "connected"}
+                >
+                  {machine.name}
+                  {machine.status !== "connected" ? " · Offline" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+        {!unavailable &&
+          !machines.some((machine) => machine.status === "connected") && (
+            <p role="status" className="text-xs text-muted-foreground">
+              Connect a machine, then refresh to create a bot.
+            </p>
+          )}
+      </SettingsGroup>
       {hostId && (
-        <ExecutionChoice
-          key={hostId}
-          hostId={hostId}
-          onChoosing={setChoosing}
-          onChange={setChoice}
-        />
+        <SettingsGroup
+          title="Execution"
+          description="Use BB defaults or choose native model and permission controls for the new conversation."
+        >
+          <ExecutionChoice
+            key={hostId}
+            hostId={hostId}
+            initial={choice ?? undefined}
+            onChoosing={setChoosing}
+            onChange={setChoice}
+          />
+        </SettingsGroup>
       )}
-      <p className="text-sm text-muted-foreground">
+      <details
+        className="text-xs text-muted-foreground"
+        open={advanced}
+        onToggle={(event) => setAdvanced(event.currentTarget.open)}
+      >
+        <summary className="cursor-pointer">Advanced</summary>
+        <div className="mt-3">
+          <SettingRow
+            label="Home base (optional)"
+            htmlFor={`${formId}-home`}
+            description="Leave empty for the default. A custom base must be an absolute path outside repositories and BB data."
+          >
+            <Input
+              id={`${formId}-home`}
+              value={homeBase}
+              placeholder="~/.bb-bots on the selected machine"
+              onChange={(event) => setHomeBase(event.target.value)}
+            />
+          </SettingRow>
+        </div>
+        <p className="mt-2 leading-5">
+          No project associations initially; the CLI can choose all or selected
+          projects.
+        </p>
+      </details>
+      <p className="text-xs leading-5 text-muted-foreground">
         Create starts one short setup acknowledgement, then waits for you.
         Automatic workers, maintenance and fallback are off.
       </p>
       {error && (
-        <p role="alert" className="text-destructive">
+        <p role="alert" className="text-xs text-destructive">
           {error}
         </p>
       )}
-      <Button type="submit" disabled={disabled || create.isPending}>
-        Create bot
-      </Button>
+      <div className="flex justify-end">
+        <Button type="submit" size="sm" disabled={disabled || create.isPending}>
+          Create bot
+        </Button>
+      </div>
     </form>
   );
 }

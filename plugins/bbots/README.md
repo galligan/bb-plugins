@@ -2,7 +2,7 @@
 
 Persistent collaborators for BB, independent of the selected sidebar. The first default collaborator is Bob, with a main conversation named `@Bob`.
 
-**Development preview:** `bb-plugin-bbots` (plugin ID `bbots`, display Bots) implements an additive create/open panel, persistent homes, revisioned identity/SOUL, future execution defaults, named native main conversations and explicit CLI-owned workers with reporting contracts. Automated continuity, maintenance and model fallback are not enabled. BOTS-6 creation and BOTS-17 create/open UI passed bounded shared Dev checks; BOTS-8 workers and native reporting also passed the bounded Dev check below. Task-source/file features remain offline previews pending their own acceptance. Do not install it into a production instance as part of development.
+**Development preview:** `bb-plugin-bbots` (plugin ID `bbots`, display Bots) implements an additive create/open panel, persistent homes, revisioned identity/SOUL, future execution defaults, named native main conversations and explicit CLI-owned workers with reporting contracts. Automated continuity, maintenance and model fallback are not enabled. BOTS-6 creation and the original BOTS-17 create/open behavior passed bounded shared Dev checks; Matt subsequently reopened BOTS-17 for design alignment and missing settings. The correction below remains an offline preview awaiting its own reviewed runtime/visual acceptance; BOTS-8 workers and native reporting also passed the bounded Dev check below. Task-source/file features remain offline previews pending their own acceptance. Do not install it into a production instance as part of development.
 
 The package uses the repository's published SDK pin, with BB >=0.49.0 / runtime SDK >=0.6.132 manifest minima. The build pin is not the installed runtime SDK. Preflight reports the installed stable BB separately; new behavior must be checked on the actual target. BOTS-3 tracks affected feature limits; BOTS-18 stays deferred/non-blocking. No custom production core is required.
 
@@ -31,6 +31,16 @@ Creation records SQLite intent before native side effects. The first ordinary di
 A small revisioned starter SOUL is created and supplied at configuration resolution so the first session has standing guidance. Soul text is not a live home file; session guidance is bounded to 16,000 characters. No idle/failed listener, schedule or automatic wake is registered.
 
 Run package `bun run check`, `bun run test` and `bun run build`, then the repository verification before pushing. The real `server.ts` and `host.ts` are loaded through public SDK harnesses; provider timing, native Stop/queues, real routing and retirement require the separately scheduled Dev slot.
+
+## Bots UI and settings
+
+The convention-alignment correction uses BB's host header for page titles/actions and distinct collection, create, overview and settings routes. Registry controls supply inputs, selection, overlays and row styling; no sidebar replacement or second app shell is registered. Optional home-base configuration lives under Advanced at creation; an established home's path is a recovery fact, not a relocation control.
+
+Open **Settings → Bots** to select a collaborator, or use **Bot settings** in its overview header. These are per-bot settings: identity name, deliberate SOUL editing and future main/worker execution defaults. The host owns global plugin enable/disable; Bots adds no additional global options. Name changes use the existing identity revision; SOUL/default saves retain attributable revisions and reject stale bases. Failed or unconfirmed writes retain the draft and offer an explicit discard/read path. Settings changes start no provider turn or session refresh.
+
+Execution settings use native model/reasoning/tier/permission controls routed to the recorded home host. Main omissions use BB policy; a null worker inherits main. Existing conversations keep their native current-thread controls. A stored fallback preference is preserved, but automatic fallback remains disabled. SOUL shows the current saved and last supplied revisions separately, with applied revision unknown. Loading existing choices only resolves their display; it does not save newly resolved defaults.
+
+Matt's feedback was a shipped design defect, not an optional polish item. The original functional checks do not establish visual acceptance of this correction. The tested `28ca744` human-trial artifact stays unchanged until a reviewed exact update and separate coordinated acceptance; no main-instance installation is authorized.
 
 ## Soul and execution defaults
 
@@ -113,6 +123,7 @@ The focused suite uses real SQLite, independent connections for stale-write test
 - [Decisions and research](docs/decisions.md): conversation decisions, superseded proposals, reference evidence, and unknowns.
 - [Review dispositions](docs/review.md): Fable findings and the resulting corrections.
 - [Builder handoff](docs/handoff.md): ownership, release status, environment and next steps.
+- [Native conversation experiments](docs/native-conversation-experiments.md): bounded composer/status/Info investigation and additive prototype plan; no permanent removal of native model controls.
 - [Public capability verification](docs/capabilities.md): current declarations, bounded runtime evidence and open support gates.
 - [Capability follow-up](docs/capability-followup.md): queue/Stop regressions, native board routing and unmanaged home archive/restart evidence.
 - [Native continuity admission gate](docs/sdk-continuity-gates.md): historical reproduction and deferred core prototype, outside the plugin development dependencies.

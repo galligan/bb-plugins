@@ -1,10 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useSdk,
   experimental_ProviderModelPicker as ProviderModelPicker,
   experimental_PermissionModePicker as PermissionModePicker,
   type ExperimentalProviderModelPickerValue,
 } from "@get-bb/plugin-sdk/app";
+
+import type { ExecutionDefaults } from "../lib/soul/contracts.ts";
+import { Checkbox } from "./ui/checkbox.tsx";
+import { Button } from "./ui/button.tsx";
 
 export type Choice = ExperimentalProviderModelPickerValue & {
   permissionMode: "accept-edits" | "auto" | "full";
@@ -13,13 +17,21 @@ export function ExecutionChoice({
   hostId,
   onChoosing,
   onChange,
+  initial,
+  label = "Choose a model and permissions",
 }: {
   hostId: string;
   onChoosing(value: boolean): void;
   onChange(value: Choice | null): void;
+  initial?: ExecutionDefaults["main"];
+  label?: string;
 }) {
   const sdk = useSdk();
-  const [custom, setCustom] = useState(false);
+  const [seed, setSeed] = useState(initial);
+  const initializeRequested = useRef(false);
+  const [custom, setCustom] = useState(
+    initial !== undefined && Object.keys(initial).length > 0,
+  );
   const [choice, setChoice] = useState<Choice | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<
@@ -40,7 +52,9 @@ export function ExecutionChoice({
         signal,
       });
       for (const provider of providers
-        .filter((p) => p.available)
+        .filter(
+          (p) => p.available && (!seed?.providerId || p.id === seed.providerId),
+        )
         .slice(0, 16)) {
         signal.throwIfAborted();
         let options;
@@ -54,8 +68,9 @@ export function ExecutionChoice({
           signal.throwIfAborted();
           continue;
         }
-        const model =
-          options.models.find((m) => m.isDefault) ?? options.models[0];
+        const model = seed?.model
+          ? options.models.find((m) => m.model === seed.model)
+          : (options.models.find((m) => m.isDefault) ?? options.models[0]);
         const modes = ["accept-edits", "auto", "full"] as const;
         const allowed = Object.fromEntries(
           providers.map((p) => [
@@ -67,25 +82,38 @@ export function ExecutionChoice({
             ),
           ]),
         );
-        const permissionMode = modes.find(
-          (mode, rank) =>
-            rank <= modes.indexOf(options.permissionCeiling) &&
-            provider.capabilities.permissionModes.includes(mode),
-        );
-        if (!model || options.modelLoadError || !permissionMode) continue;
+        const permissionMode =
+          seed?.permissionMode ??
+          modes.find(
+            (mode, rank) =>
+              rank <= modes.indexOf(options.permissionCeiling) &&
+              provider.capabilities.permissionModes.includes(mode),
+          );
+        if (
+          !model ||
+          options.modelLoadError ||
+          !permissionMode ||
+          !allowed[provider.id]?.includes(permissionMode)
+        )
+          continue;
         const next = {
           providerId: provider.id,
           model: model.model,
-          reasoningLevel: model.defaultReasoningEffort,
+          reasoningLevel: seed?.reasoningLevel ?? model.defaultReasoningEffort,
           permissionMode,
           ...(provider.capabilities.supportsServiceTier
-            ? { serviceTier: "default" }
+            ? { serviceTier: seed?.serviceTier ?? "default" }
             : {}),
         };
         if (!controller.signal.aborted) {
           setPermissions(allowed);
           setChoice(next);
-          onChange(next);
+          // Loading an existing setting only resolves its display. A picker
+          // interaction or explicit reset is required to change persisted defaults.
+          if (initializeRequested.current) {
+            initializeRequested.current = false;
+            onChange(next);
+          }
         }
         return;
       }
@@ -97,21 +125,22 @@ export function ExecutionChoice({
         );
     });
     return () => controller.abort();
-  }, [sdk, hostId, custom, onChange]);
+  }, [sdk, hostId, custom, onChange, seed]);
   return (
     <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">Execution choices</legend>
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
+      <legend className="sr-only">Execution choices</legend>
+      <label className="flex items-center gap-2 text-sm">
+        <Checkbox
           checked={custom}
-          onChange={(event) => {
-            setCustom(event.target.checked);
-            onChoosing(event.target.checked);
+          onCheckedChange={(checked) => {
+            const value = checked === true;
+            initializeRequested.current = value;
+            setCustom(value);
+            onChoosing(value);
             onChange(null);
           }}
         />
-        Choose a model and permissions
+        {label}
       </label>
       {!custom && (
         <p className="text-sm text-muted-foreground">Uses BB defaults.</p>
@@ -120,9 +149,30 @@ export function ExecutionChoice({
         <p role="status">Loading native execution choices…</p>
       )}
       {error && (
-        <p role="alert" className="text-destructive">
-          {error}
-        </p>
+        <div className="space-y-2">
+          <p role="alert" className="text-destructive">
+            {error}
+          </p>
+          {seed !== undefined && (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Your saved choice is retained. Load available replacements, then
+                select one explicitly before saving.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  initializeRequested.current = false;
+                  setSeed(undefined);
+                }}
+              >
+                Choose available replacement
+              </Button>
+            </>
+          )}
+        </div>
       )}
       {custom && choice && (
         <div className="flex flex-wrap gap-2">

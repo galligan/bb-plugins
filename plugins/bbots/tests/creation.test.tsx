@@ -2,6 +2,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { cleanup, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { chooseMachine } from "./native-controls.ts";
 import { loadPluginApp, renderSlot } from "@get-bb/plugin-sdk/testing/app";
 import { view } from "./fixture.ts";
 import { makeHostResponse } from "@get-bb/plugin-sdk/testing";
@@ -46,8 +47,7 @@ test("creation retains an idempotency key before one write and preserves BB exec
       sdk: { hosts: { list: async () => [machine] } },
     },
   );
-  await slot.findByRole("option", { name: "Fixture machine" });
-  await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
+  await chooseMachine(slot);
   await userEvent.click(slot.getByRole("button", { name: "Create bot" }));
   await slot.findByText("Creating your collaborator…");
   expect(inputs).toHaveLength(1);
@@ -85,8 +85,7 @@ test("uncertain creation never replays and its key survives remount for read-onl
       sdk: { hosts: { list: async () => [machine] } },
     },
   );
-  await slot.findByRole("option", { name: "Fixture machine" });
-  await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
+  await chooseMachine(slot);
   await userEvent.click(slot.getByRole("button", { name: "Create bot" }));
   await slot.findByText(
     "Creation delivery is unconfirmed. Check the recorded request before creating another bot; no automatic retry was sent.",
@@ -142,8 +141,8 @@ test("relative home input is rejected before a creation intent is sent", async (
       sdk: { hosts: { list: async () => [machine] } },
     },
   );
-  await slot.findByRole("option", { name: "Fixture machine" });
-  await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
+  await chooseMachine(slot);
+  await userEvent.click(slot.getByText("Advanced"));
   await userEvent.type(
     slot.getByLabelText("Home base (optional)"),
     "relative/home",
@@ -174,8 +173,7 @@ test("unavailable receipt storage prevents sending a creation request", async ()
       sdk: { hosts: { list: async () => [machine] } },
     },
   );
-  await slot.findByRole("option", { name: "Fixture machine" });
-  await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
+  await chooseMachine(slot);
   vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
     throw new Error("Unavailable storage");
   });
@@ -207,8 +205,8 @@ test("a known pre-intent host refusal returns to the retained form without an un
       sdk: { hosts: { list: async () => [machine] } },
     },
   );
-  await slot.findByRole("option", { name: "Fixture machine" });
-  await userEvent.selectOptions(slot.getByLabelText("Machine"), "host_test");
+  await chooseMachine(slot);
+  await userEvent.click(slot.getByText("Advanced"));
   await userEvent.type(slot.getByLabelText("Home base (optional)"), "C:\\bots");
   await userEvent.click(slot.getByRole("button", { name: "Create bot" }));
   await slot.findByText(
@@ -217,6 +215,13 @@ test("a known pre-intent host refusal returns to the retained form without an un
   expect(
     (slot.getByLabelText("Home base (optional)") as HTMLInputElement).value,
   ).toBe("C:\\bots");
+  expect(
+    (
+      slot
+        .getByLabelText("Home base (optional)")
+        .closest("details") as HTMLDetailsElement
+    ).open,
+  ).toBe(true);
   expect(slot.queryByText("Check the creation request")).toBeNull();
   expect(sessionStorage.getItem("bbots.pendingCreation")).toBeNull();
   slot.lifecycle.unmount();

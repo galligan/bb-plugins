@@ -10,7 +10,10 @@
     "jsx": "react-jsx",
     "types": ["node"],
     "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["./*"]
+    }
   },
   "include": [
     "server.ts",
