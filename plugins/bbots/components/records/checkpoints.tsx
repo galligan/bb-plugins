@@ -16,6 +16,8 @@ export function CheckpointIndex({
   active,
   draft,
   onDraftChange,
+  inspect,
+  inspectRef,
 }: {
   page?: Page;
   pending: boolean;
@@ -27,6 +29,8 @@ export function CheckpointIndex({
   active: boolean;
   draft: { name: string; reason: string };
   onDraftChange(value: { name: string; reason: string }): void;
+  inspect(id: string): void;
+  inspectRef(id: string, node: HTMLButtonElement | null): void;
 }) {
   return (
     <SettingsGroup
@@ -60,6 +64,18 @@ export function CheckpointIndex({
                 <dd className="break-all">{checkpoint.id}</dd>
               </div>
             </dl>
+            <Button
+              ref={(node) => inspectRef(checkpoint.id, node)}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              disabled={!active || pending}
+              aria-label={`Inspect checkpoint ${checkpoint.name}`}
+              onClick={() => inspect(checkpoint.id)}
+            >
+              Inspect checkpoint
+            </Button>
           </details>
         ))}
       </div>

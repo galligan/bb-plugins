@@ -34,6 +34,10 @@ import { createCommitmentInspector } from "./lib/ui/commitments.ts";
 import { checkpointUiContract } from "./lib/ui/checkpoint-contracts.ts";
 import { createCheckpointAction } from "./lib/ui/checkpoint-create.ts";
 import {
+  checkpointInspectContract,
+  createCheckpointInspector,
+} from "./lib/ui/checkpoint-inspect.ts";
+import {
   memoryForgetContract,
   createMemoryForget,
 } from "./lib/ui/memory-forget.ts";
@@ -53,6 +57,11 @@ export default function plugin(bb: BbPluginApi) {
   const memory = openMemory(bb.storage, store, changed);
   const memoryForget = createMemoryForget(bb.storage, store, memory);
   const checkpoints = openCheckpoints(bb.storage, store, soul);
+  const checkpointInspector = createCheckpointInspector(
+    bb.storage,
+    store,
+    checkpoints,
+  );
   const records = createRecords(bb.storage, store, memory, checkpoints);
   const work = openWork(bb.storage, store);
   const workerOverview = createWorkerOverview(bb.storage, store, work);
@@ -124,6 +133,7 @@ export default function plugin(bb: BbPluginApi) {
       ...recordsContract,
       ...commitmentUiContract,
       ...checkpointUiContract,
+      ...checkpointInspectContract,
       ...memoryForgetContract,
     }),
     {
@@ -156,6 +166,11 @@ export default function plugin(bb: BbPluginApi) {
         lifecycle.signal.throwIfAborted();
         ctx.experimental_signal.throwIfAborted();
         return records.note(input);
+      },
+      botCheckpoint: (input, ctx) => {
+        lifecycle.signal.throwIfAborted();
+        ctx.experimental_signal.throwIfAborted();
+        return checkpointInspector(input);
       },
       botMemoryForget: (input, ctx) => {
         lifecycle.signal.throwIfAborted();
