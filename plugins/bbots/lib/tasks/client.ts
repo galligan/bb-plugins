@@ -3,7 +3,7 @@ import { z } from "zod";
 
 // Consumer schemas for Tasks 0.1.2's public RPC. Keep independent of its source.
 export const prefixSchema = z.string().regex(/^[A-Z][A-Z0-9]{0,9}$/);
-const boardSchema = z.object({
+export const boardSchema = z.object({
   id: z.string().min(1).max(128),
   name: z.string().min(1).max(512),
   prefix: prefixSchema,

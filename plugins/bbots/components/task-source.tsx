@@ -6,22 +6,55 @@ import {
 import { uiContract } from "../lib/ui/contracts.ts";
 import { usePageVisible } from "../lib/ui/use-page-visible.ts";
 import { Button } from "./ui/button.tsx";
+import type { z } from "zod";
+
+type Source = z.infer<typeof uiContract.taskSource.output>;
 
 export function TaskSource({ botId }: { botId: string }) {
   const visible = usePageVisible();
-  const navigate = useBbNavigate();
   const query = useRpcQuery({
     contract: uiContract,
     method: "taskSource",
     input: { botId },
     enabled: visible,
   });
-  const source = query.data;
-  const unavailable = query.error || source?.availability === "unavailable";
+  return (
+    <TaskSourceSummary
+      botId={botId}
+      source={query.data}
+      loading={query.isLoading}
+      readError={Boolean(query.error)}
+      visible={visible}
+      retry={() => void query.refetch()}
+    />
+  );
+}
+
+export function TaskSourceSummary({
+  botId,
+  source,
+  boardName,
+  loading,
+  readError,
+  visible,
+  retry,
+  configure = true,
+}: {
+  botId: string;
+  source?: Source;
+  boardName?: string | null;
+  loading: boolean;
+  readError: boolean;
+  visible: boolean;
+  retry(): void;
+  configure?: boolean;
+}) {
+  const navigate = useBbNavigate();
+  const unavailable = readError || source?.availability === "unavailable";
   const changed = source?.availability === "changed-during-read";
   return (
     <div className="space-y-2 text-sm" aria-label="Task source">
-      {query.isLoading && <p role="status">Reading task source…</p>}
+      {loading && <p role="status">Reading task source…</p>}
       {(unavailable || changed) && (
         <>
           <p role="status">
@@ -35,14 +68,29 @@ export function TaskSource({ botId }: { botId: string }) {
             type="button"
             variant="outline"
             disabled={!visible}
-            onClick={() => void query.refetch()}
+            onClick={retry}
           >
             Retry task source read
           </Button>
         </>
       )}
       {source?.availability === "unconfigured" && (
-        <p>Task source not configured.</p>
+        <>
+          <p>Task source not configured.</p>
+          {configure && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!visible}
+              onClick={() =>
+                navigate.toPluginPanel("bots", { subPath: `${botId}/settings` })
+              }
+            >
+              Set up task source
+            </Button>
+          )}
+        </>
       )}
       {source?.availability === "recovery-required" && (
         <p role="status">
@@ -50,7 +98,7 @@ export function TaskSource({ botId }: { botId: string }) {
           and finish its recorded setup.
         </p>
       )}
-      {source?.availability === "available" && source.file && (
+      {!readError && source?.availability === "available" && source.file && (
         <FileLink
           target={{
             kind: "host",
@@ -62,18 +110,13 @@ export function TaskSource({ botId }: { botId: string }) {
           Open tasks.md
         </FileLink>
       )}
-      {source?.availability === "available" && source.boardId && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() =>
-            navigate.toPluginPanel("tasks", {
-              subPath: `${encodeURIComponent(source.boardId!)}?view=board`,
-            })
-          }
-        >
-          Open Tasks board
-        </Button>
+      {!readError && source?.availability === "available" && source.boardId && (
+        <p>
+          {boardName
+            ? `Tasks board: ${boardName}.`
+            : "A Tasks board is configured."}{" "}
+          Open Tasks in BB to view its work.
+        </p>
       )}
     </div>
   );

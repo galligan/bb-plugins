@@ -8,6 +8,7 @@ import { usePageVisible } from "../lib/ui/use-page-visible.ts";
 import { IdentitySettings } from "./settings/identity.tsx";
 import { SoulSettings } from "./settings/soul.tsx";
 import { DefaultSettings } from "./settings/defaults.tsx";
+import { TaskSettings } from "./settings/tasks.tsx";
 import { Button } from "./ui/button.tsx";
 import { Skeleton } from "./ui/skeleton.tsx";
 import {
@@ -66,6 +67,7 @@ export function BotSettings({ botId }: { botId: string }) {
             hostId={query.data.setup.request.hostId}
           />
           <SoulSettings key={`soul:${botId}`} botId={botId} />
+          <TaskSettings key={`tasks:${botId}`} botId={botId} />
           <SettingsGroup
             title="Conversation"
             description="Use the native conversation controls to change its current model and permissions."

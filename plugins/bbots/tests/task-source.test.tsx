@@ -85,21 +85,16 @@ test("actual nav entry opens the Markdown source with its explicit host, not the
   expect(slot.queryByText(/tasks? (count|total)/i)).toBeNull();
 });
 
-test("configured Tasks opens its stable board through native navigation without project binding", async () => {
+test("configured Tasks gives native navigation guidance instead of routing to another plugin through a Bots-only API", async () => {
   const slot = await render(() => ({
     kind: "tasks",
     availability: "available",
     boardId: "tracker_original",
     file: null,
   }));
-  await userEvent.click(
-    await slot.findByRole("button", { name: "Open Tasks board" }),
-  );
-  expect(slot.inspection.navigateCalls).toContainEqual({
-    method: "toPluginPanel",
-    path: "tasks",
-    options: { subPath: "tracker_original?view=board" },
-  });
+  await slot.findByText(/Open Tasks in BB to view its work/);
+  expect(slot.queryByRole("button", { name: "Open Tasks board" })).toBeNull();
+  expect(slot.inspection.navigateCalls).toHaveLength(0);
   expect(
     slot.inspection.sdkCalls.filter((call) =>
       call.method.startsWith("projects."),
@@ -135,11 +130,33 @@ test("new task-source reads pause when the document hides and resume without rel
       file: null,
     };
   });
-  await slot.findByRole("button", { name: "Open Tasks board" });
+  await slot.findByText(/Open Tasks in BB to view its work/);
   const before = reads;
   visibility(false);
   await slot.behavior.experimental_invalidateRpc(["bots"]);
   expect(reads).toBe(before);
   visibility(true);
   await waitFor(() => expect(reads).toBeGreaterThan(before));
+});
+
+test("an unconfigured source opens this bot's own settings without creating authority or work", async () => {
+  const slot = await render(() => ({
+    kind: "unconfigured",
+    availability: "unconfigured",
+    boardId: null,
+    file: null,
+  }));
+  await userEvent.click(
+    await slot.findByRole("button", { name: "Set up task source" }),
+  );
+  expect(slot.inspection.navigateCalls).toEqual([
+    {
+      method: "toPluginPanel",
+      path: "bots",
+      options: { subPath: "bot_test/settings" },
+    },
+  ]);
+  expect(
+    slot.inspection.rpcCalls.some((call) => call.method === "taskBoardSelect"),
+  ).toBe(false);
 });

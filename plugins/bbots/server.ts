@@ -25,6 +25,8 @@ import { checkpointCommands } from "./lib/checkpoints/cli.ts";
 import { createRestore } from "./lib/checkpoints/restore.ts";
 import { openContinuity } from "./lib/continuity/store.ts";
 import { continuityCommands } from "./lib/continuity/cli.ts";
+import { taskSettingsContract } from "./lib/tasks/settings-contracts.ts";
+import { createTaskSettings } from "./lib/tasks/settings.ts";
 
 export default function plugin(bb: BbPluginApi) {
   const store = openSetup(bb.storage);
@@ -48,6 +50,7 @@ export default function plugin(bb: BbPluginApi) {
     changed,
   );
   const tasks = createTaskSource(bb, store, lifecycle.signal, changed);
+  const taskSettings = createTaskSettings(bb, tasks, lifecycle.signal);
   const commitmentRecords = openCommitments(bb.storage, store, changed);
   const commitments = createCommitments(
     bb,
@@ -86,6 +89,7 @@ export default function plugin(bb: BbPluginApi) {
       ...managementContract,
       ...soulContract,
       ...uiContract,
+      ...taskSettingsContract,
     }),
     {
       status: () => developmentStatus(),
@@ -99,6 +103,10 @@ export default function plugin(bb: BbPluginApi) {
       soulUpdate: (input) => soul.update(input),
       defaultsShow: ({ botId }) => soul.defaults(botId),
       defaultsUpdate: (input) => soul.updateDefaults(input),
+      taskSettings: (input, ctx) =>
+        taskSettings.read(input, ctx.experimental_signal),
+      taskBoardSelect: (input, ctx) =>
+        taskSettings.select(input, ctx.experimental_signal),
       taskSource: async ({ botId }, ctx) => {
         const state = await tasks.show(botId, ctx.experimental_signal);
         const source = state.source;
