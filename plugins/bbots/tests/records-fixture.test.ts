@@ -13,6 +13,13 @@ export const recordOwner = {
 };
 export const noteId = "mem_00000000-0000-4000-8000-000000000001";
 export const checkpointId = "chk_00000000-0000-4000-8000-000000000001";
+export const emptyCommitments = {
+  threadId: "thr_owned",
+  botId: "bot_test",
+  name: "Bob",
+  records: [],
+  nextCursor: null,
+};
 export const recordIndex = recordsContract.botRecords.output.parse({
   threadId: "thr_owned",
   botId: "bot_test",
@@ -83,6 +90,7 @@ export async function recordsFixture(options: RenderSlotOptions = {}) {
           ),
         botRecords: () => recordIndex,
         botMemory: () => fullNote,
+        botCommitments: () => emptyCommitments,
         ...options.rpc,
       },
     },

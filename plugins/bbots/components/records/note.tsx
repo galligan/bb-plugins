@@ -4,6 +4,7 @@ import {
 } from "@get-bb/plugin-sdk/app";
 import { recordsContract } from "../../lib/ui/records-contracts.ts";
 import { Button } from "../ui/button.tsx";
+import type { Ref } from "react";
 
 export function MemoryNote({
   threadId,
@@ -11,12 +12,14 @@ export function MemoryNote({
   id,
   active,
   back,
+  backRef,
 }: {
   threadId: string;
   botId: string;
   id: string;
   active: boolean;
   back(): void;
+  backRef?: Ref<HTMLButtonElement>;
 }) {
   const query = useRpcQuery({
     contract: recordsContract,
@@ -31,6 +34,7 @@ export function MemoryNote({
   return (
     <div className="space-y-3 text-sm">
       <Button
+        ref={backRef}
         type="button"
         variant="outline"
         size="sm"

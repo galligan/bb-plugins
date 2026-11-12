@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test } from "vitest";
-import { cleanup, waitFor } from "@testing-library/react";
+import { act, cleanup, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   recordsFixture,
@@ -11,17 +11,31 @@ import {
 } from "./records-fixture.test.ts";
 import { recordsContract } from "../lib/ui/records-contracts.ts";
 
-afterEach(cleanup);
+function visibility(visible: boolean) {
+  act(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: visible ? "visible" : "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}
+afterEach(() => {
+  cleanup();
+  visibility(true);
+});
 
 test("the native tab reads bounded memory/checkpoint entries and a selected full note through the public Markdown renderer", async () => {
   const { slot } = await recordsFixture();
   await slot.findByText("A bounded excerpt.");
   expect(slot.getByText("Before edits")).toBeTruthy();
   expect(slot.getByText(/Revision 2 · Inference/)).toBeTruthy();
-  await userEvent.click(
-    slot.getByRole("button", { name: "Read full memory Keep evidence" }),
-  );
+  slot.getByRole("button", { name: "Read full memory Keep evidence" }).focus();
+  await userEvent.keyboard("{Enter}");
   const markdown = await slot.findByTestId("bb-markdown");
+  expect(document.activeElement).toBe(
+    slot.getByRole("button", { name: "Back to memory list" }),
+  );
   expect(markdown.textContent).toBe(
     "# Full evidence\n\nA retained note body beyond the excerpt.",
   );
@@ -38,10 +52,10 @@ test("the native tab reads bounded memory/checkpoint entries and a selected full
       /Relative file links use this conversation's native context/,
     ),
   ).toBeTruthy();
-  await userEvent.click(
-    slot.getByRole("button", { name: "Back to memory list" }),
-  );
+  slot.getByRole("button", { name: "Back to memory list" }).focus();
+  await userEvent.keyboard("{Enter}");
   await slot.findByText("A bounded excerpt.");
+  expect(document.activeElement).toBe(slot.getByRole("searchbox"));
   expect(slot.inspection.sdkCalls).toHaveLength(0);
   expect(slot.inspection.navigateCalls).toHaveLength(0);
   expect(
@@ -49,6 +63,26 @@ test("the native tab reads bounded memory/checkpoint entries and a selected full
       /create|update|restore|forget|send|resume/i.test(call.method),
     ),
   ).toBe(false);
+});
+
+test("returning from a hidden selected memory does not take focus from the host", async () => {
+  const { slot } = await recordsFixture();
+  await userEvent.click(
+    await slot.findByRole("button", { name: "Read full memory Keep evidence" }),
+  );
+  await slot.findByTestId("bb-markdown");
+  visibility(false);
+  const hostButton = document.createElement("button");
+  hostButton.textContent = "Host navigation";
+  document.body.append(hostButton);
+  try {
+    hostButton.focus();
+    visibility(true);
+    await slot.findByRole("button", { name: "Back to memory list" });
+    expect(document.activeElement).toBe(hostButton);
+  } finally {
+    hostButton.remove();
+  }
 });
 
 test("search typing retains focus/draft without making a request until explicit search, and no-match is distinct from empty", async () => {

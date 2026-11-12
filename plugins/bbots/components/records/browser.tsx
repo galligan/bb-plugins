@@ -1,4 +1,11 @@
-import { useId, useState, type FormEvent } from "react";
+import {
+  useId,
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  type FormEvent,
+} from "react";
 import { experimental_useRpcQuery as useRpcQuery } from "@get-bb/plugin-sdk/app";
 import { recordsContract } from "../../lib/ui/records-contracts.ts";
 import { kind as memoryKind } from "../../lib/memory/contracts.ts";
@@ -18,6 +25,7 @@ import {
 } from "../ui/select.tsx";
 import { MemoryNote } from "./note.tsx";
 import { CheckpointIndex } from "./checkpoints.tsx";
+import { CommitmentIndex } from "./commitments.tsx";
 
 const kinds = [
   ["knowledge", "Knowledge"],
@@ -45,6 +53,26 @@ export function RecordsBrowser({
   const [memoryAfter, setMemoryAfter] = useState<string>(),
     [checkpointAfter, setCheckpointAfter] = useState<string>();
   const [selected, setSelected] = useState<string | null>(null);
+  const focusDetail = useRef(false),
+    focusSearch = useRef(false);
+  const detailRef = useCallback((node: HTMLButtonElement | null) => {
+    if (node && focusDetail.current) {
+      focusDetail.current = false;
+      node.focus();
+    }
+  }, []);
+  const searchRef = useCallback((node: HTMLInputElement | null) => {
+    if (node && focusSearch.current) {
+      focusSearch.current = false;
+      node.focus();
+    }
+  }, []);
+  useEffect(() => {
+    if (!active) {
+      focusDetail.current = false;
+      focusSearch.current = false;
+    }
+  }, [active]);
   const query = useRpcQuery({
     contract: recordsContract,
     method: "botRecords",
@@ -83,7 +111,11 @@ export function RecordsBrowser({
         botId={botId}
         id={selected}
         active={active}
-        back={() => setSelected(null)}
+        backRef={detailRef}
+        back={() => {
+          focusSearch.current = true;
+          setSelected(null);
+        }}
       />
     );
   return (
@@ -122,6 +154,7 @@ export function RecordsBrowser({
           </SettingRow>
           <SettingRow label="Search memory" htmlFor={searchId}>
             <Input
+              ref={searchRef}
               id={searchId}
               type="search"
               value={draft}
@@ -186,7 +219,10 @@ export function RecordsBrowser({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setSelected(note.id)}
+                onClick={() => {
+                  focusDetail.current = true;
+                  setSelected(note.id);
+                }}
                 aria-label={`Read full memory ${note.topic}`}
               >
                 Read full memory
@@ -219,6 +255,7 @@ export function RecordsBrowser({
           )}
         </div>
       </SettingsGroup>
+      <CommitmentIndex threadId={threadId} botId={botId} active={active} />
       <CheckpointIndex
         page={state?.checkpoints}
         pending={query.isFetching}
