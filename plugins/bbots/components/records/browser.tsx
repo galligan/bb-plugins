@@ -53,6 +53,10 @@ export function RecordsBrowser({
   const [memoryAfter, setMemoryAfter] = useState<string>(),
     [checkpointAfter, setCheckpointAfter] = useState<string>();
   const [selected, setSelected] = useState<string | null>(null);
+  const [checkpointDraft, setCheckpointDraft] = useState({
+    name: "",
+    reason: "",
+  });
   const focusDetail = useRef(false),
     focusSearch = useRef(false);
   const detailRef = useCallback((node: HTMLButtonElement | null) => {
@@ -257,6 +261,11 @@ export function RecordsBrowser({
       </SettingsGroup>
       <CommitmentIndex threadId={threadId} botId={botId} active={active} />
       <CheckpointIndex
+        threadId={threadId}
+        botId={botId}
+        active={active && Boolean(state)}
+        draft={checkpointDraft}
+        onDraftChange={setCheckpointDraft}
         page={state?.checkpoints}
         pending={query.isFetching}
         hasPrevious={Boolean(checkpointAfter)}

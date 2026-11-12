@@ -2,6 +2,7 @@ import type { z } from "zod";
 import type { recordsContract } from "../../lib/ui/records-contracts.ts";
 import { SettingsGroup } from "../settings/layout.tsx";
 import { Button } from "../ui/button.tsx";
+import { CheckpointCreate } from "./checkpoint-create.tsx";
 
 type Page = z.infer<typeof recordsContract.botRecords.output>["checkpoints"];
 export function CheckpointIndex({
@@ -10,12 +11,22 @@ export function CheckpointIndex({
   hasPrevious,
   first,
   more,
+  threadId,
+  botId,
+  active,
+  draft,
+  onDraftChange,
 }: {
   page?: Page;
   pending: boolean;
   hasPrevious: boolean;
   first(): void;
   more(cursor: string): void;
+  threadId: string;
+  botId: string;
+  active: boolean;
+  draft: { name: string; reason: string };
+  onDraftChange(value: { name: string; reason: string }): void;
 }) {
   return (
     <SettingsGroup
@@ -76,6 +87,13 @@ export function CheckpointIndex({
           </Button>
         )}
       </div>
+      <CheckpointCreate
+        threadId={threadId}
+        botId={botId}
+        active={active && !pending}
+        draft={draft}
+        onDraftChange={onDraftChange}
+      />
     </SettingsGroup>
   );
 }
