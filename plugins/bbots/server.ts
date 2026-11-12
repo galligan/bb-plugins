@@ -20,6 +20,8 @@ import { createCommitments } from "./lib/commitments/service.ts";
 import { createBrief } from "./lib/brief.ts";
 import { openMemory } from "./lib/memory/store.ts";
 import { memoryCommands } from "./lib/memory/cli.ts";
+import { openCheckpoints } from "./lib/checkpoints/store.ts";
+import { checkpointCommands } from "./lib/checkpoints/cli.ts";
 
 export default function plugin(bb: BbPluginApi) {
   const store = openSetup(bb.storage);
@@ -123,6 +125,11 @@ export default function plugin(bb: BbPluginApi) {
       commitments,
       brief: createBrief(store, soul, work, tasks, commitments, memory),
       memory: memoryCommands(memory, store, lifecycle.signal),
+      checkpoints: checkpointCommands(
+        openCheckpoints(bb.storage, store, soul),
+        store,
+        lifecycle.signal,
+      ),
     }),
   );
 }

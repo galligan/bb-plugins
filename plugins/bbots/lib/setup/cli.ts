@@ -17,6 +17,7 @@ import { commitmentCommands } from "../commitments/cli.ts";
 import type { Commitments } from "../commitments/service.ts";
 import type { Brief } from "../brief.ts";
 import type { memoryCommands } from "../memory/cli.ts";
+import type { checkpointCommands } from "../checkpoints/cli.ts";
 
 const json = {
   type: "boolean",
@@ -48,12 +49,14 @@ export function botCli(
     commitments,
     brief,
     memory,
+    checkpoints,
   }: {
     workers: ReturnType<typeof workCommands>;
     tasks: TaskSource;
     commitments: Commitments;
     brief: Brief;
     memory: ReturnType<typeof memoryCommands>;
+    checkpoints: ReturnType<typeof checkpointCommands>;
   },
 ) {
   return defineCli({
@@ -65,6 +68,7 @@ export function botCli(
       ...taskCommands(tasks, store),
       ...commitmentCommands(commitments, store),
       ...memory,
+      ...checkpoints,
       brief: cliCommand({
         summary:
           "Read bounded current identity, contract, task authority and commitments; starts no turn",

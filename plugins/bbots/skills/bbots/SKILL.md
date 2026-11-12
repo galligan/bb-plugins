@@ -55,6 +55,12 @@ Use `memory forget <bot-id> <mem-id> --revision <current> --author <identity>` p
 
 Before continuity or substantive handoff, capture recent state/decisions/summary in the current authorized turn. Read `capture progress <bot-id> --kind state|decision|summary --stream <source-id>`, inspect the original source window, then call `capture` with the ordinary content fields, matching kind/stream, retained UUID, `--revision <progress-revision>`, `--from <first-unprocessed>` and `--through <last-processed>`. Start at1 for revision0; thereafter continue from the previous boundary. The record and progress are atomic. Retain the UUID after uncertain delivery; identical replay never rewinds later progress. This captures evidence without sending a prompt, authorizing follow-up work or enabling idle maintenance.
 
+## Checkpoints and export
+
+Create a named checkpoint only under an explicit checkpoint instruction or approval: `checkpoint create <bot-id> --name '<label>' --request-id <retained-uuid> --author <identity> --reason '<instruction>'`. It pins display identity, SOUL, future execution defaults and eligible durable knowledge; it does not freeze tasks, commitments, capture progress, sessions or actions. After an uncertain receipt, reuse identical options to recover the same selection rather than creating another checkpoint.
+
+Use `checkpoint list` / `show` for bounded metadata. Export with `checkpoint export <bot-id> <chk-id> --format json|markdown`, following `--after <nextCursor>` until null and retaining all pages. Current exclusions filter old selections; never recover omitted text from old revisions. Inspect user-authored content before sharing an export. Restore/import/purge are unavailable in this slice; a portable export is not a database backup or authority to replay work, alter a live session or replace a home.
+
 ## Commitments
 
 When the user or current assignment creates an obligation, record it with `commitment add <bot-id> --what '<what is owed>' --author <identity> --reason '<instruction>'`. Add supporting references with repeated `--evidence`. The logical owner defaults to the calling owned conversation; use `--owner <logical-id>` only for a deliberate same-bot assignment. Retain `--request-id <uuid>` before scripted submission. After uncertain delivery, inspect that record; reuse the UUID only with identical content and attribution.
