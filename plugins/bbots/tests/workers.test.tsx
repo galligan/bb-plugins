@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test } from "vitest";
-import { act, cleanup, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   workersFixture,
@@ -39,7 +39,7 @@ test("actual Bots navigation uses mapped worker IDs with native title/status and
       attachmentCount: 1,
     },
   });
-  const open = await slot.findByRole("button", {
+  const open = await slot.findByRole("link", {
     name: "Open worker → @Bob Renamed task",
   });
   expect(slot.getByText("Thread working")).toBeTruthy();
@@ -230,12 +230,12 @@ test("hidden worker view pauses its reads and unmounts native rows; showing it r
       },
     },
   });
-  await slot.findByRole("button", { name: "Open worker → @Bob Renamed task" });
+  await slot.findByRole("link", { name: "Open worker → @Bob Renamed task" });
   const before = reads;
   visibility(false);
   await slot.behavior.experimental_invalidateRpc(["bots"]);
   expect(reads).toBe(before);
-  expect(slot.queryByRole("button", { name: /^Open worker / })).toBeNull();
+  expect(slot.queryByRole("link", { name: /^Open worker / })).toBeNull();
   expect(
     slot.getByRole("button", { name: "Refresh workers" }).matches(":disabled"),
   ).toBe(true);
@@ -255,4 +255,55 @@ test("a failed native cache keeps durable worker ownership visible without claim
       "Native thread status is unavailable. Worker ownership is still recorded.",
     ),
   ).toBeTruthy();
+});
+
+test("cached worker, parent and report destinations retain public host addresses and modifier-click behavior", async () => {
+  const slot = await workersFixture({
+    sidebarThreads: {
+      threads: [
+        nativeThread("thr_worker", { href: "/host-supplied/worker" }),
+        nativeThread("thr_parent", { href: "/host-supplied/parent" }),
+        nativeThread("thr_owned", { href: "/host-supplied/report" }),
+      ],
+    },
+  });
+  const open = await slot.findByRole("link", {
+    name: "Open worker → @Bob Renamed task",
+  });
+  expect(open.getAttribute("href")).toBe("/host-supplied/worker");
+  await userEvent.click(slot.getByText("Relationships and setup"));
+  const parent = slot.getByRole("link", {
+    name: "Open requested parent for Investigate",
+  });
+  const report = slot.getByRole("link", {
+    name: "Open report destination for Investigate",
+  });
+  expect(parent.getAttribute("href")).toBe("/host-supplied/parent");
+  expect(report.getAttribute("href")).toBe("/host-supplied/report");
+  for (const link of [open, parent, report]) {
+    for (const modifier of ["ctrlKey", "metaKey", "shiftKey", "altKey"]) {
+      let preventedByComponent: boolean | undefined;
+      // Observe the component's decision before suppressing jsdom navigation.
+      // This establishes default handling, not a real new-tab/window pass.
+      document.addEventListener(
+        "click",
+        (event) => {
+          preventedByComponent = event.defaultPrevented;
+          event.preventDefault();
+        },
+        { once: true },
+      );
+      fireEvent.click(link, { [modifier]: true });
+      expect(preventedByComponent).toBe(false);
+    }
+  }
+  expect(slot.inspection.navigateCalls).toHaveLength(0);
+  await userEvent.click(open);
+  await userEvent.click(parent);
+  await userEvent.click(report);
+  expect(slot.inspection.navigateCalls).toEqual([
+    { method: "toThread", threadId: "thr_worker" },
+    { method: "toThread", threadId: "thr_parent" },
+    { method: "toThread", threadId: "thr_owned" },
+  ]);
 });

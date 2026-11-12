@@ -1,5 +1,6 @@
 import {
   ThreadTitle,
+  UrlLink,
   useBbNavigate,
   useSidebarThreadDraft,
   useSidebarThreadRowStatus,
@@ -22,16 +23,46 @@ export function WorkerRow({
 }) {
   const navigate = useBbNavigate();
   function destination(threadId: string, fallback: string, label: string) {
+    const href = lookup.get(threadId)?.href;
+    if (href)
+      return (
+        <Button
+          asChild
+          variant="link"
+          size="sm"
+          className="h-auto max-w-full justify-start whitespace-normal p-0 text-left"
+        >
+          <UrlLink
+            href={href}
+            aria-label={label}
+            onClick={(event) => {
+              if (
+                event.defaultPrevented ||
+                event.button !== 0 ||
+                event.altKey ||
+                event.ctrlKey ||
+                event.metaKey ||
+                event.shiftKey
+              )
+                return;
+              event.preventDefault();
+              navigate.toThread(threadId);
+            }}
+          >
+            <ThreadTitle threadId={threadId} />
+          </UrlLink>
+        </Button>
+      );
     return (
       <Button
         type="button"
-        variant="link"
+        variant="outline"
         size="sm"
         className="h-auto max-w-full justify-start whitespace-normal p-0 text-left"
         aria-label={label}
         onClick={() => navigate.toThread(threadId)}
       >
-        {lookup.has(threadId) ? <ThreadTitle threadId={threadId} /> : fallback}
+        {fallback}
       </Button>
     );
   }
@@ -153,6 +184,7 @@ function BoundWorker({
           : "Not in the active BB view; current activity is unknown."
       }
       openLabel={`Open worker ${title}`}
+      openHref={native?.href}
       onOpen={() => navigate.toThread(threadId)}
     />
   );
