@@ -26,6 +26,7 @@ import {
 import { MemoryNote } from "./note.tsx";
 import { CheckpointIndex } from "./checkpoints.tsx";
 import { CommitmentIndex } from "./commitments.tsx";
+import { CheckpointDetail } from "./checkpoint-detail.tsx";
 
 const kinds = [
   ["knowledge", "Knowledge"],
@@ -52,13 +53,18 @@ export function RecordsBrowser({
   const [kind, setKind] = useState<(typeof kinds)[number][0]>("knowledge");
   const [memoryAfter, setMemoryAfter] = useState<string>(),
     [checkpointAfter, setCheckpointAfter] = useState<string>();
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<{
+    kind: "memory" | "checkpoint";
+    id: string;
+    after?: string;
+  } | null>(null);
   const [checkpointDraft, setCheckpointDraft] = useState({
     name: "",
     reason: "",
   });
   const focusDetail = useRef(false),
     focusSearch = useRef(false);
+  const focusCheckpoint = useRef<string | null>(null);
   const detailRef = useCallback((node: HTMLButtonElement | null) => {
     if (node && focusDetail.current) {
       focusDetail.current = false;
@@ -68,6 +74,7 @@ export function RecordsBrowser({
   const searchRef = useCallback((node: HTMLInputElement | null) => {
     if (node && focusSearch.current) {
       focusSearch.current = false;
+      focusCheckpoint.current = null;
       node.focus();
     }
   }, []);
@@ -75,6 +82,7 @@ export function RecordsBrowser({
     if (!active) {
       focusDetail.current = false;
       focusSearch.current = false;
+      focusCheckpoint.current = null;
     }
   }, [active]);
   const query = useRpcQuery({
@@ -107,13 +115,30 @@ export function RecordsBrowser({
         Record reads pause while this tab is hidden.
       </p>
     );
+  if (selected?.kind === "checkpoint")
+    return (
+      <CheckpointDetail
+        key={selected.id}
+        threadId={threadId}
+        botId={botId}
+        id={selected.id}
+        after={selected.after}
+        active={active}
+        backRef={detailRef}
+        page={(after) => setSelected({ ...selected, after })}
+        back={() => {
+          focusCheckpoint.current = selected.id;
+          setSelected(null);
+        }}
+      />
+    );
   if (selected)
     return (
       <MemoryNote
-        key={selected}
+        key={selected.id}
         threadId={threadId}
         botId={botId}
-        id={selected}
+        id={selected.id}
         active={active}
         backRef={detailRef}
         back={() => {
@@ -125,8 +150,8 @@ export function RecordsBrowser({
   return (
     <div className="min-w-0 space-y-6 text-sm text-foreground">
       <p className="text-xs text-muted-foreground">
-        @{name}'s retained records. This view inspects existing data; changes
-        and checkpoint operations remain explicit Bots commands.
+        @{name}'s retained records. Inspect memory, commitments and historical
+        checkpoint selections. Changes require explicit actions.
       </p>
       <SettingsGroup
         title="Memory"
@@ -225,7 +250,7 @@ export function RecordsBrowser({
                 size="sm"
                 onClick={() => {
                   focusDetail.current = true;
-                  setSelected(note.id);
+                  setSelected({ kind: "memory", id: note.id });
                 }}
                 aria-label={`Read full memory ${note.topic}`}
               >
@@ -261,6 +286,19 @@ export function RecordsBrowser({
       </SettingsGroup>
       <CommitmentIndex threadId={threadId} botId={botId} active={active} />
       <CheckpointIndex
+        inspect={(id) => {
+          focusDetail.current = true;
+          setSelected({ kind: "checkpoint", id });
+        }}
+        inspectRef={(id, node) => {
+          if (node && !node.disabled && focusCheckpoint.current === id) {
+            focusCheckpoint.current = null;
+            if (document.activeElement !== document.body) return;
+            const disclosure = node.closest("details");
+            if (disclosure) disclosure.open = true;
+            node.focus();
+          }
+        }}
         threadId={threadId}
         botId={botId}
         active={active && Boolean(state)}
