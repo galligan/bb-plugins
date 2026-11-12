@@ -72,7 +72,8 @@ export async function validateRestoredModels(
       const tiers = model?.supportedServiceTiers ?? provider.serviceTiers ?? [];
       if (
         !provider.capabilities.supportsServiceTier ||
-        !tiers.some((tier) => tier.id === choice.serviceTier)
+        (choice.serviceTier !== "default" &&
+          !tiers.some((tier) => tier.id === choice.serviceTier))
       )
         throw new Error(
           "Saved service tier is unavailable or unknown in the current catalog.",

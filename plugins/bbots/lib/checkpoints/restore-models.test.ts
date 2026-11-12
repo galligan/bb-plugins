@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { randomUUID } from "node:crypto";
 import { makeHostResponse } from "@get-bb/plugin-sdk/testing";
 import { fixture, attribution } from "./restore-fixture.ts";
 
@@ -31,6 +32,50 @@ function catalog() {
     selectedOnlyModels: [],
   };
 }
+
+test("native default service tier restores even when only named tiers are listed, but still requires provider support", async (t) => {
+  const f = fixture(t),
+    botId = f.bot.botId;
+  f.soul.updateDefaults({
+    botId,
+    expectedRevision: 0,
+    defaults: {
+      main: {
+        providerId: "fixture-provider",
+        model: "fixture-model",
+        serviceTier: "default",
+      },
+      worker: null,
+      fallback: null,
+    },
+    ...attribution,
+  });
+  const request = f.request(f.checkpoint(), [
+    { kind: "execution", expectedRevision: 1 },
+  ]);
+  f.harness.sdk.stub("hosts.get", () =>
+    makeHostResponse({ id: "host_fixture", status: "connected" }),
+  );
+  f.harness.sdk.stub("providers.models", () => catalog());
+  const saved = await f.restore(request);
+  assert.equal(saved.replay, false);
+  assert.equal(f.soul.defaults(botId).defaults.main.serviceTier, "default");
+  assert.equal(f.soul.defaults(botId).revision, 2);
+  f.harness.sdk.stub("providers.models", () => {
+    const value = catalog();
+    value.providers[0]!.capabilities.supportsServiceTier = false;
+    return value;
+  });
+  await assert.rejects(
+    f.restore({
+      ...request,
+      requestId: randomUUID(),
+      selection: [{ kind: "execution", expectedRevision: 2 }],
+    }),
+    /tier/,
+  );
+  assert.equal(f.soul.defaults(botId).revision, 2);
+});
 
 test("execution restore validates original-host catalog without changing native threads; replay survives later provider loss", async (t) => {
   const f = fixture(t),
