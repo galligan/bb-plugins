@@ -23,6 +23,8 @@ import { memoryCommands } from "./lib/memory/cli.ts";
 import { openCheckpoints } from "./lib/checkpoints/store.ts";
 import { checkpointCommands } from "./lib/checkpoints/cli.ts";
 import { createRestore } from "./lib/checkpoints/restore.ts";
+import { openContinuity } from "./lib/continuity/store.ts";
+import { continuityCommands } from "./lib/continuity/cli.ts";
 
 export default function plugin(bb: BbPluginApi) {
   const store = openSetup(bb.storage);
@@ -46,12 +48,23 @@ export default function plugin(bb: BbPluginApi) {
     changed,
   );
   const tasks = createTaskSource(bb, store, lifecycle.signal, changed);
+  const commitmentRecords = openCommitments(bb.storage, store, changed);
   const commitments = createCommitments(
     bb,
-    openCommitments(bb.storage, store, changed),
+    commitmentRecords,
     tasks,
     lifecycle.signal,
   );
+  const continuity = openContinuity(bb, {
+    store,
+    memory,
+    work,
+    tasks,
+    commitments: commitmentRecords,
+    commitmentStatus: commitments,
+    checkpoints,
+    lifecycle: lifecycle.signal,
+  });
   const service = createSetupService(
     bb,
     store,
@@ -127,6 +140,7 @@ export default function plugin(bb: BbPluginApi) {
       commitments,
       brief: createBrief(store, soul, work, tasks, commitments, memory),
       memory: memoryCommands(memory, store, lifecycle.signal),
+      continuity: continuityCommands(continuity, store, lifecycle.signal),
       checkpoints: checkpointCommands(
         checkpoints,
         store,

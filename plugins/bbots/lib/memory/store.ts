@@ -17,6 +17,7 @@ import {
 import { provenance, eligibleSql } from "./provenance.ts";
 import { captureProgress } from "./capture.ts";
 import { restoreKnowledge } from "./restore.ts";
+import { captureStreamId } from "./origins.ts";
 
 const limits = {
   historyRetained: true,
@@ -230,6 +231,7 @@ export function openMemory(
       kind?: z.infer<typeof kind>;
       after?: string;
       limit?: number;
+      streamId?: string;
     } = {},
   ) {
     store.get(botId);
@@ -244,6 +246,10 @@ export function openMemory(
       .min(1)
       .max(20)
       .parse(input.limit ?? 10);
+    const stream =
+      input.streamId === undefined
+        ? null
+        : captureStreamId.parse(input.streamId);
     let cursor = Number.MAX_SAFE_INTEGER;
     if (input.after) {
       const row = db
@@ -262,10 +268,20 @@ export function openMemory(
       JOIN document_revisions r ON r.document_id=d.id AND r.revision=d.revision
       WHERE d.bot_id=? AND d.name GLOB 'MEMORY:*' AND d.rowid<? AND ${eligibleSql}
       AND json_extract(r.markdown,'$.kind')=?
+      AND (? IS NULL OR json_extract(r.markdown,'$.boundary.streamId')=?)
       AND (json_extract(r.markdown,'$.topic') LIKE ? ESCAPE '\\' OR json_extract(r.markdown,'$.markdown') LIKE ? ESCAPE '\\')
       ORDER BY d.rowid DESC LIMIT ?`,
       )
-      .all(botId, cursor, selectedKind, pattern, pattern, limit + 1) as {
+      .all(
+        botId,
+        cursor,
+        selectedKind,
+        stream,
+        stream,
+        pattern,
+        pattern,
+        limit + 1,
+      ) as {
       cursor: number;
       name: string;
     }[];
