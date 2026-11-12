@@ -1,6 +1,12 @@
 import type { PluginStorage } from "@get-bb/plugin-sdk";
 import type { SetupStore } from "../setup/storage.ts";
 import { documentName, recordSchema, type RecordBody } from "./contracts.ts";
+import {
+  originKey,
+  originFromKey,
+  originMatchesSql,
+  type Origin,
+} from "./origins.ts";
 
 export const memoryMigrations = [
   `CREATE TABLE memory_sources (
@@ -25,7 +31,7 @@ export const eligibleSql = `NOT EXISTS (
   SELECT 1 FROM memory_exclusions e WHERE e.bot_id=d.bot_id AND
   ((e.kind='record' AND e.key=d.name) OR (e.kind='source' AND EXISTS (
     SELECT 1 FROM memory_sources s WHERE s.bot_id=d.bot_id
-      AND s.document_id=d.id AND s.source_id=e.key
+      AND s.document_id=d.id AND ${originMatchesSql("s.source_id", "e.key")}
   )))
 )`;
 
@@ -45,7 +51,7 @@ export function provenance(storage: PluginStorage, store: SetupStore) {
       input: Pick<RecordBody, "sources" | "parents" | "basis">,
       self?: string,
     ) {
-      const sources = new Set(input.sources);
+      const sources = new Set(input.sources.map(originKey));
       for (const parent of input.parents) {
         if (parent.id === self)
           throw new Error("A record cannot derive from itself.");
@@ -83,20 +89,22 @@ export function provenance(storage: PluginStorage, store: SetupStore) {
         if (
           db
             .prepare(
-              "SELECT 1 FROM memory_exclusions WHERE bot_id=? AND kind='source' AND key=?",
+              `SELECT 1 FROM memory_exclusions e CROSS JOIN (SELECT ? AS source_id) s
+                WHERE e.bot_id=? AND e.kind='source' AND ${originMatchesSql("s.source_id", "e.key")} LIMIT 1`,
             )
-            .get(botId, source)
+            .get(source, botId)
         )
           throw new Error(
             "A known source is excluded. This result cannot be stored.",
           );
-      return [...sources].sort();
+      return [...sources].sort().map(originFromKey);
     },
-    retain(botId: string, documentId: string, sources: readonly string[]) {
+    retain(botId: string, documentId: string, sources: readonly Origin[]) {
       const insert = db.prepare(
         "INSERT OR IGNORE INTO memory_sources(bot_id,document_id,source_id) VALUES (?,?,?)",
       );
-      for (const source of sources) insert.run(botId, documentId, source);
+      for (const source of sources)
+        insert.run(botId, documentId, originKey(source));
     },
     forget(botId: string, name: string, documentId: string, author: string) {
       const now = new Date().toISOString();

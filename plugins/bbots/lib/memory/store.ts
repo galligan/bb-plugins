@@ -109,7 +109,20 @@ export function openMemory(
                 }),
           };
         }
-        const resolved = sources.resolve(value.botId, value);
+        const resolved = sources.resolve(value.botId, {
+          ...value,
+          sources:
+            value.kind === "knowledge"
+              ? value.sources
+              : [
+                  ...value.sources,
+                  {
+                    streamId: value.boundary.streamId,
+                    from: value.boundary.from,
+                    through: value.boundary.through,
+                  },
+                ],
+        });
         const body = {
           requestId: value.requestId,
           creationHash: hash,
@@ -165,7 +178,16 @@ export function openMemory(
             topic: value.topic,
             markdown: value.markdown,
             basis: value.basis,
-            sources: sources.resolve(value.botId, value, value.id),
+            sources: sources.resolve(
+              value.botId,
+              {
+                ...value,
+                sources: before.boundary
+                  ? [...value.sources, before.boundary]
+                  : value.sources,
+              },
+              value.id,
+            ),
             parents: value.parents,
           },
           value,

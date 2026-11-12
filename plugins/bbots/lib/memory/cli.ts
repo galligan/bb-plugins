@@ -79,7 +79,7 @@ const capture = {
     type: "string",
     required: true,
     description:
-      "Stable original source identifier; progress is separate for each capture kind",
+      "Whole-thread/original stream identifier; cite messages as sources; progress is per kind",
   },
 } as const;
 function parents(value: string | undefined): unknown {

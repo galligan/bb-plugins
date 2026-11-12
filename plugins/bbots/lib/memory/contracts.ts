@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { changeSchema, idSchema } from "../storage/schema.ts";
+import { sourceId, originSchema, captureStreamId } from "./origins.ts";
 
 export const memoryId = z
   .string()
@@ -8,18 +9,10 @@ export const memoryId = z
       value.startsWith("mem_") && z.uuid().safeParse(value.slice(4)).success,
     "Use the stable mem_ ID from remember/capture",
   );
-export const sourceId = z
-  .string()
-  .trim()
-  .max(256)
-  .regex(
-    /^(thread|artifact|task|user):\S+$/,
-    "Use an original thread/artifact/task/user source identifier without spaces",
-  );
 export const captureKind = z.enum(["state", "decision", "summary"]);
 export const kind = z.enum(["knowledge", ...captureKind.options]);
 const range = z.strictObject({
-  streamId: sourceId,
+  streamId: captureStreamId,
   from: z.number().int().positive(),
   through: z.number().int().positive(),
 });
@@ -33,7 +26,11 @@ export const boundary = range
   );
 const content = {
   topic: z.string().trim().min(1).max(128),
-  markdown: z.string().trim().min(1).max(8192),
+  markdown: z
+    .string()
+    .min(1)
+    .max(8192)
+    .refine((value) => value.trim().length > 0, "Markdown cannot be blank"),
   basis: z.enum(["fact", "inference"]),
   sources: z.array(sourceId).max(64).default([]),
   parents: z
@@ -67,7 +64,7 @@ export const recordSchema = z
     creationHash: z.string().regex(/^[a-f0-9]{64}$/),
     kind,
     ...content,
-    sources: z.array(sourceId).min(1).max(128),
+    sources: z.array(originSchema).min(1).max(128),
     boundary: range.optional(),
   })
   .refine(

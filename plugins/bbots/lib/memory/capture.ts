@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { SetupStore } from "../setup/storage.ts";
-import { captureKind, sourceId, type Creation } from "./contracts.ts";
+import { captureKind, type Creation } from "./contracts.ts";
+import { captureStreamId } from "./origins.ts";
 
 const progressSchema = z.strictObject({
-  streamId: sourceId,
+  streamId: captureStreamId,
   kind: captureKind,
   through: z.number().int().positive(),
   recordId: z.string(),
@@ -21,8 +22,8 @@ export function captureProgress(store: SetupStore) {
     kind: z.infer<typeof captureKind>,
   ) {
     store.get(botId);
-    sourceId.parse(streamId);
-    captureKind.parse(kind);
+    streamId = captureStreamId.parse(streamId);
+    kind = captureKind.parse(kind);
     const doc = store.documents.get(botId, name(streamId, kind));
     const found = doc ? progressSchema.parse(JSON.parse(doc.markdown)) : null;
     if (found && (found.streamId !== streamId || found.kind !== kind))
