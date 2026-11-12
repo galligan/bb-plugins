@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { UrlLink } from "@get-bb/plugin-sdk/app";
 import { Button } from "../button";
 import { EmptyStatePanel } from "../empty-state";
 import {
@@ -204,6 +205,7 @@ export function ResourceRow({
   actionsVisibility = "hover",
   className,
   openLabel,
+  openHref,
   onOpen,
 }: {
   leading?: ReactNode;
@@ -220,31 +222,58 @@ export function ResourceRow({
   actionsVisibility?: "hover" | "always";
   className?: string;
   openLabel?: string;
+  /** Use an address supplied by the host; do not construct BB route formats. */
+  openHref?: string;
   onOpen: () => void;
 }) {
   const hasLeading =
     leading !== undefined && leading !== null && leading !== false;
-  const openButton = (
+  const openClass = cn(
+    "block min-w-0 cursor-pointer rounded-sm text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+    !titleAside && "w-full",
+  );
+  const openContent = (
+    <span className="flex min-w-0 items-baseline gap-2">
+      <span className="min-w-0 truncate text-sm font-medium text-foreground">
+        {title}
+      </span>
+      {titleMeta ? (
+        <span className="min-w-0 truncate text-xs font-normal text-muted-foreground">
+          {titleMeta}
+        </span>
+      ) : null}
+      {state}
+    </span>
+  );
+  const openButton = openHref ? (
+    <UrlLink
+      href={openHref}
+      aria-label={openLabel}
+      className={openClass}
+      onClick={(event) => {
+        if (
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey
+        )
+          return;
+        event.preventDefault();
+        onOpen();
+      }}
+    >
+      {openContent}
+    </UrlLink>
+  ) : (
     <button
       type="button"
       aria-label={openLabel}
       onClick={onOpen}
-      className={cn(
-        "block min-w-0 cursor-pointer rounded-sm text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-        !titleAside && "w-full",
-      )}
+      className={openClass}
     >
-      <span className="flex min-w-0 items-baseline gap-2">
-        <span className="min-w-0 truncate text-sm font-medium text-foreground">
-          {title}
-        </span>
-        {titleMeta ? (
-          <span className="min-w-0 truncate text-xs font-normal text-muted-foreground">
-            {titleMeta}
-          </span>
-        ) : null}
-        {state}
-      </span>
+      {openContent}
     </button>
   );
   return (
