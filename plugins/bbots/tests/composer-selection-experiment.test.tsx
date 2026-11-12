@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { useState } from "react";
 import { afterEach, expect, test } from "vitest";
-import { cleanup, waitFor } from "@testing-library/react";
+import { act, cleanup, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   useComposer,
@@ -10,6 +10,7 @@ import {
 } from "@get-bb/plugin-sdk/app";
 import { loadPluginApp, renderSlot } from "@get-bb/plugin-sdk/testing/app";
 import { useConversationOwner } from "../lib/ui/use-owner.ts";
+import type { Ownership } from "../lib/ui/contracts.ts";
 
 // Capability experiment only: never registered by app.tsx. The public harness
 // merges picker fields; it does not resolve catalogs, permissions or handoffs.
@@ -49,12 +50,24 @@ function SelectionExperiment({
   providerId?: string;
 }) {
   const composer = useComposer();
-  const { owner: currentOwner, visible } = useConversationOwner(
-    composer.scope.kind === "thread" ? composer.scope.threadId : null,
-  );
+  const threadId =
+    composer.scope.kind === "thread" ? composer.scope.threadId : null;
+  const {
+    owner: currentOwner,
+    visible,
+    query,
+  } = useConversationOwner(threadId);
   const [settled, setSettled] = useState(false);
   if (!currentOwner || !visible || composer.scope.kind !== "thread")
-    return null;
+    return (
+      <output>
+        {threadId === null
+          ? "No thread composer"
+          : query.data?.[threadId] === null
+            ? "Ownership lookup returned no bot"
+            : "Ownership lookup pending"}
+      </output>
+    );
   const sameProvider = composer.selection?.providerId === providerId;
   return (
     <>
@@ -82,7 +95,6 @@ async function fixture(
     providerId?: string;
     running?: boolean;
     submitting?: boolean;
-    owned?: boolean;
   } = {},
 ) {
   const app = await loadPluginApp(() => import("../app.tsx"));
@@ -112,7 +124,7 @@ async function fixture(
           Object.fromEntries(
             (input as { keys: string[] }).keys.map((key) => [
               key,
-              key === "thr_owned" && options.owned !== false ? owner : null,
+              key === "thr_owned" ? owner : null,
             ]),
           ),
       },
@@ -180,8 +192,48 @@ test("cross-provider choices are refused by the experiment rather than assuming 
 });
 
 test("a thread scope alone does not authorize the probe when persisted ownership is absent", async () => {
-  const { slot } = await fixture({ owned: false });
-  await slot.behavior.experimental_invalidateRpc(["bots"]);
+  let release!: (value: Ownership) => void;
+  const pending = new Promise<Ownership>((resolve) => {
+    release = resolve;
+  });
+  const app = await loadPluginApp(() => import("../app.tsx"));
+  const Settings = app.composerCustomizations[0]!.actions![0]!.component;
+  function Composition() {
+    return (
+      <>
+        <Settings />
+        <SelectionExperiment />
+      </>
+    );
+  }
+  const slot = renderSlot(
+    { component: Composition },
+    {},
+    {
+      composer: {
+        ...draft,
+        selection,
+        scope: { kind: "thread", threadId: "thr_owned" },
+      },
+      rpc: {
+        ownership: (input) => {
+          expect(input).toEqual({ keys: ["thr_owned"] });
+          return pending;
+        },
+      },
+    },
+  );
+  await slot.findByText("Ownership lookup pending");
+  await waitFor(() =>
+    expect(
+      slot.inspection.rpcCalls.filter((call) => call.method === "ownership"),
+    ).toHaveLength(1),
+  );
+  expect(
+    slot.queryByRole("button", { name: "Apply fixture model" }),
+  ).toBeNull();
+  await act(async () => release({ thr_owned: null }));
+  await slot.findByText("Ownership lookup returned no bot");
   expect(
     slot.queryByRole("button", { name: "Apply fixture model" }),
   ).toBeNull();
@@ -205,11 +257,14 @@ test.each([
   "the experiment has no setter control in scope $kind/$threadId",
   async (scope) => {
     const { slot } = await fixture({ scope });
-    await waitFor(() =>
-      expect(
-        slot.queryByRole("button", { name: "Apply fixture model" }),
-      ).toBeNull(),
+    await slot.findByText(
+      scope.kind === "thread"
+        ? "Ownership lookup returned no bot"
+        : "No thread composer",
     );
+    expect(
+      slot.queryByRole("button", { name: "Apply fixture model" }),
+    ).toBeNull();
     expect(
       slot.queryByRole("button", { name: "Bot settings for @Bob" }),
     ).toBeNull();
