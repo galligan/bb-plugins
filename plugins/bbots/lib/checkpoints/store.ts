@@ -17,7 +17,7 @@ const columns = "id,bot_id AS botId,name,author,reason,created_at AS createdAt";
 const limitations = {
   portableFormat: "bbots-checkpoint@1",
   import: "not-supported",
-  restore: "not-yet-implemented",
+  restore: "explicit-selected-revisions-only",
   operationalRecovery: "not-a-database-backup",
   liveContextRefresh: "not-performed",
   suppression: "current-exclusions-applied-per-page",
@@ -181,7 +181,19 @@ export function openCheckpoints(
       };
     })();
   }
-  return { create, show, list, page };
+  function selectedDocument(botId: string, id: string, name: string) {
+    header(botId, id);
+    const row = db
+      .prepare(
+        `SELECT c.revision FROM checkpoint_entries c JOIN documents d ON d.id=c.document_id
+      WHERE c.checkpoint_id=? AND d.bot_id=? AND d.name=? AND (d.name='SOUL.md' OR ${eligibleSql})`,
+      )
+      .get(id, botId, name) as { revision: number } | undefined;
+    if (!row)
+      throw new Error("Document is absent or excluded from this checkpoint.");
+    return store.documents.revision(botId, name, row.revision);
+  }
+  return { create, show, list, page, selectedDocument };
 }
 export type Checkpoints = ReturnType<typeof openCheckpoints>;
 

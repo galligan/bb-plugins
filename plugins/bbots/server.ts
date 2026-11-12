@@ -22,6 +22,7 @@ import { openMemory } from "./lib/memory/store.ts";
 import { memoryCommands } from "./lib/memory/cli.ts";
 import { openCheckpoints } from "./lib/checkpoints/store.ts";
 import { checkpointCommands } from "./lib/checkpoints/cli.ts";
+import { createRestore } from "./lib/checkpoints/restore.ts";
 
 export default function plugin(bb: BbPluginApi) {
   const store = openSetup(bb.storage);
@@ -32,6 +33,7 @@ export default function plugin(bb: BbPluginApi) {
   };
   const soul = openSoul(bb.storage, store, changed);
   const memory = openMemory(bb.storage, store, changed);
+  const checkpoints = openCheckpoints(bb.storage, store, soul);
   const work = openWork(bb.storage, store);
   const routing = createRouting(bb, store, work);
   const workers = createWorkService(
@@ -126,9 +128,17 @@ export default function plugin(bb: BbPluginApi) {
       brief: createBrief(store, soul, work, tasks, commitments, memory),
       memory: memoryCommands(memory, store, lifecycle.signal),
       checkpoints: checkpointCommands(
-        openCheckpoints(bb.storage, store, soul),
+        checkpoints,
         store,
         lifecycle.signal,
+        createRestore(
+          bb,
+          store,
+          checkpoints,
+          memory,
+          lifecycle.signal,
+          changed,
+        ),
       ),
     }),
   );

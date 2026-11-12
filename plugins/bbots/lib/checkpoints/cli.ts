@@ -2,6 +2,8 @@ import { cliCommand, type PluginCliContext } from "@get-bb/plugin-sdk";
 import type { SetupStore } from "../setup/storage.ts";
 import { createSchema } from "./contracts.ts";
 import { markdownExport, type Checkpoints } from "./store.ts";
+import type { createRestore } from "./restore.ts";
+import { restoreSchema } from "./restore-contracts.ts";
 
 const bot = [
   { name: "botId", required: true, description: "Stable bot ID" },
@@ -22,6 +24,7 @@ export function checkpointCommands(
   checkpoints: Checkpoints,
   store: SetupStore,
   lifecycle: AbortSignal,
+  restore: ReturnType<typeof createRestore>,
 ) {
   function caller(botId: string, ctx: PluginCliContext) {
     lifecycle.throwIfAborted();
@@ -33,6 +36,61 @@ export function checkpointCommands(
       throw new Error("Owned caller cannot read or checkpoint another bot.");
   }
   return {
+    "checkpoint restore": cliCommand({
+      summary:
+        "Deliberately append selected revisions; no task/session/action replay or native refresh",
+      positionals: entry,
+      options: {
+        json,
+        selection: {
+          type: "string",
+          required: true,
+          description:
+            "JSON selections with kind profile|soul|execution|knowledge, expectedRevision, and knowledge id; max20",
+        },
+        "request-id": {
+          type: "string",
+          required: true,
+          description:
+            "Retained restore UUID; replay reads the receipt without repeating writes",
+        },
+        author: {
+          type: "string",
+          required: true,
+          description: "Truthful person or agent applying the restore",
+        },
+        reason: {
+          type: "string",
+          required: true,
+          description:
+            "Explicit user instruction/approval for these selected changes",
+        },
+      },
+      async run({ positionals, options }, ctx) {
+        caller(positionals.botId, ctx);
+        let selection;
+        try {
+          selection = JSON.parse(options.selection);
+        } catch {
+          throw new Error(
+            "Restore selection must be a JSON array of selected kinds and their expected current revisions.",
+          );
+        }
+        return result(
+          await restore(
+            restoreSchema.parse({
+              botId: positionals.botId,
+              checkpointId: positionals.checkpointId,
+              requestId: options["request-id"],
+              selection,
+              author: options.author,
+              reason: options.reason,
+            }),
+            ctx.signal,
+          ),
+        );
+      },
+    }),
     "checkpoint create": cliCommand({
       summary:
         "Save an immutable profile/SOUL/knowledge selection; starts no turn or restore",

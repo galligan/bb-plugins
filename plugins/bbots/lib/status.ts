@@ -7,7 +7,7 @@ export function developmentStatus(): DevelopmentStatus {
     automaticMaintenance: "disabled",
     automaticContinuity: "disabled",
     limitations: [
-      "Original create/open behavior and explicit owned-worker CLI passed bounded Dev checks. Native UI/settings correction, task sources, commitments and manual memory/capture and checkpoint/export remain offline previews pending their scoped acceptance.",
+      "Original create/open behavior and explicit owned-worker CLI passed bounded Dev checks. Native UI/settings correction, task sources, commitments and manual memory/capture and checkpoint/export/restore remain offline previews pending their scoped acceptance.",
       "Applied soul revision is unknown: configure resolution is not a provider-session receipt; live sessions may retain old guidance.",
       "Native Stop applies per thread; Bots cannot veto other plugins' actions.",
       "Automatic maintenance, fallback and conversation transitions are disabled.",
