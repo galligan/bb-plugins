@@ -202,6 +202,19 @@ export function openContinuity(
         id,
         revision: stored.revision,
         ...stored.record,
+        commitments: stored.record.commitments.map((ref) => {
+          const current = currentCommitments.commitments.find(
+            (item) => item.id === ref.id,
+          );
+          return {
+            id: ref.id,
+            selectedRevision: ref.revision,
+            ownerConversationId: ref.ownerConversationId,
+            currentRevision: current?.revision ?? null,
+            currentStatus: current?.status ?? null,
+            statusAvailability: current?.availability ?? "not-in-status-page",
+          };
+        }),
         knowledge: stored.record.knowledge.flatMap((ref) => {
           const item = currentReference(ref);
           return item ? [item] : [];

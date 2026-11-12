@@ -76,6 +76,34 @@ test("new native clear or a different measured session invalidates a recent-look
   );
 });
 
+test("an older previous-session usage event cannot invalidate a newer snapshot", () => {
+  const now = Date.now(),
+    thread = makeThreadResponse({ id: "thr_main" });
+  const old = context(now - 2000);
+  old.usage.snapshot.providerSessionId = "session_previous";
+  const event = {
+    id: "event_old",
+    threadId: thread.id,
+    scope: { kind: "thread" as const },
+    seq: 1,
+    createdAt: now - 2000,
+    type: "thread/contextWindowUsage/updated" as const,
+    data: {
+      providerThreadId: "provider_previous",
+      contextWindowUsage: old.usage,
+    },
+  };
+  const observed = summarizeNative(
+    thread,
+    context(now - 1000),
+    [event],
+    [],
+    now,
+  );
+  assert.equal(observed.usage.status, "fresh");
+  assert.equal(observed.safeToExecuteTransition, false);
+});
+
 test("bounded native observations retain manual Stop and parentage without queue text or any native mutation", async (t) => {
   const f = fixture(t),
     now = Date.now();

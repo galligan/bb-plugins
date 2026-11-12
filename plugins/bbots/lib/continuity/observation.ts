@@ -41,6 +41,7 @@ export function summarizeNative(
           ageMs > 60_000 ||
           (contextChange && contextChange.createdAt > capturedAt) ||
           (latestUsage?.type === "thread/contextWindowUsage/updated" &&
+            latestUsage.createdAt >= capturedAt &&
             latestUsage.data.contextWindowUsage.snapshot &&
             latestUsage.data.contextWindowUsage.snapshot.providerSessionId !==
               snapshot.providerSessionId)

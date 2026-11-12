@@ -164,6 +164,38 @@ test("current closed commitments and changed records are current state, never re
   assert.equal(shown.currentTaskSource.availability, "unconfigured");
 });
 
+test("a saved obligation pushed off the current status page is explicitly unknown with pagination retained", async (t) => {
+  const f = fixture(t),
+    botId = f.bot.botId;
+  const add = () =>
+    f.commitments.add(
+      botId,
+      {
+        requestId: randomUUID(),
+        ownerConversationId: f.bot.conversationId,
+        what: "Fixture obligation",
+        evidence: [],
+        reference: { kind: "unlinked", status: "open" },
+      },
+      attribution,
+    );
+  const old = add(),
+    prepared = await f.continuity.prepare(f.request());
+  f.commitments.close(botId, old.id, 1, attribution);
+  for (let i = 0; i < 11; i++) add();
+  const shown = await f.continuity.show(botId, prepared.id);
+  const saved = shown.commitments.find((item) => item.id === old.id);
+  assert.equal(saved?.currentStatus, null);
+  assert.equal(saved?.statusAvailability, "not-in-status-page");
+  assert.ok(shown.currentCommitmentsNextCursor);
+  assert.equal(shown.currentCommitments.length, 10);
+  assert.equal(
+    f.commitments.get(botId, old.id).record.reference.kind,
+    "unlinked",
+  );
+  assert.equal(f.commitments.get(botId, old.id).revision, 2);
+});
+
 test("checkpoint and preparation references roll back together after an actual SQLite fault", async (t) => {
   const f = fixture(t),
     request = f.request(),
