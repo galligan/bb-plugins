@@ -179,6 +179,20 @@ test("cross-provider choices are refused by the experiment rather than assuming 
   noDispatch(slot);
 });
 
+test("a thread scope alone does not authorize the probe when persisted ownership is absent", async () => {
+  const { slot } = await fixture({ owned: false });
+  await slot.behavior.experimental_invalidateRpc(["bots"]);
+  expect(
+    slot.queryByRole("button", { name: "Apply fixture model" }),
+  ).toBeNull();
+  expect(
+    slot.queryByRole("button", { name: "Bot settings for @Bob" }),
+  ).toBeNull();
+  expect(slot.inspection.composer.selections).toEqual([]);
+  expect(slot.inspection.composer.draft).toEqual(draft);
+  noDispatch(slot);
+});
+
 test.each([
   { kind: "new-thread", projectId: "proj_fixture" },
   {
