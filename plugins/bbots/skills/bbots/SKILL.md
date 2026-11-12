@@ -31,11 +31,19 @@ These are explicit new communications. Native queue-if-active delivery can start
 
 ## Task source
 
-Use `tasks show <bot-id>` to read task authority before choosing or changing work. `tasks select` and `tasks create` require an explicit source instruction, expected revision, author and reason. A configured tracker remains authoritative during an outage; do not create a replacement or switch to Markdown. If creation is uncertain, inspect the recorded intent and native Tasks board before explicit `tasks recover` with its confirmed stable ID. Prefix matching does not prove original identity after deletion/reuse; confirm the intended board independently.
+Use `tasks show <bot-id>` to read task authority before choosing or changing work. `tasks select` and `tasks create` require an explicit source instruction, expected revision, author and reason. A configured tracker remains authoritative during an outage. The outage does not authorize a replacement or Markdown fallback; change an established authority only through the explicit assisted-migration procedure below. If creation is uncertain, inspect the recorded intent and native Tasks board before explicit `tasks recover` with its confirmed stable ID. Prefix matching does not prove original identity after deletion/reuse; confirm the intended board independently.
 
 When Tasks is absent at the initial task-source choice, use `tasks markdown-init` with the expected source revision, author and reason. Inventory must confirm absence; disabled Tasks and RPC errors are not absence. Use `tasks markdown-resume` only to reconcile the same interrupted initialization. Do not overwrite an occupied file or choose another home.
 
 In Markdown mode, use `tasks read` and `tasks write --hash <current-hash> --markdown '<complete-file>'`. These operations route to the original home host, including from remote workers. Preserve the complete file; arbitrary Markdown has no inferred task counter. Read again after a stale write or uncertain receipt. Coordinate external editors; only Bots writers share its lock. A retained lock requires inspecting stopped owned work and the original host before manual recovery. Never remove a lock merely because the caller timed out.
+
+## Assisted migration
+
+Migrate only under an explicit user instruction to change task authority. Prepare and inspect the destination using the native source tools on the relevant host. Preserve the old source and record its old-to-new links in a retained mapping artifact. For Markdown, prepare `tasks.md` in the original home on its original machine and compute its hash there; a local file on a remote worker is not that destination. Quiesce relevant editors while confirming.
+
+Use `tasks migration-confirm <bot-id> --revision <current-source-revision> --request-id <retained-uuid> --board <existing-id> --mapping '<JSON array of {from,to} references>' --evidence '<inspection/mapping reference>' --author <identity> --reason '<user instruction>'`. For a prepared Markdown destination, use `--markdown-hash <sha256>` instead of `--board`. The command validates the destination and atomically saves the source change and receipt. It does not verify the meaning of the supplied mapping or transfer content; confirm that work yourself before submitting. Keep larger mappings in a retained artifact referenced by the bounded receipt.
+
+After uncertain delivery, inspect `tasks show` and `tasks migration-show <bot-id> <request-id>`. Identical replay recovers the original receipt and current authority without reverting a later choice; do not create a new request as a blind retry. Reconcile existing commitments explicitly with `commitment relink` after inspecting the mapping. Retain the migration-capable plugin build; older strict source readers can reject migration metadata. No source change authorizes deleting the old board/file, changing homes or restarting canceled work.
 
 ## Commitments
 

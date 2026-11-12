@@ -4,6 +4,7 @@ import { idSchema } from "../storage/schema.ts";
 import { prefixSchema, tasksClient, type Board } from "./client.ts";
 import { createSourceStore, type SourceEdit as Edit } from "./source-store.ts";
 import { createMarkdownSource } from "./markdown-source.ts";
+import { createMigration } from "./migration.ts";
 
 export function createTaskSource(
   bb: BbPluginApi,
@@ -27,12 +28,24 @@ export function createTaskSource(
   }
   return {
     read,
+    migration: createMigration(bb, store, journal, lifecycle, changed),
     markdownInitialize: markdown.initialize,
     markdownResume: markdown.resume,
     markdownRead: markdown.read,
     markdownWrite: markdown.write,
     async show(botId: string, signal?: AbortSignal) {
       const current = read(botId);
+      function changedDuringRead() {
+        const latest = read(botId);
+        return latest.revision === current.revision
+          ? null
+          : {
+              ...latest,
+              availability: "changed-during-read",
+              limitation:
+                "Task authority changed while its source was responding. Read it again deliberately; this response makes no availability claim about the new source.",
+            };
+      }
       if (!current.source)
         return {
           ...current,
@@ -40,8 +53,11 @@ export function createTaskSource(
           limitation:
             "Choose a stable Tasks board explicitly, or initialize tasks.md only when Tasks is absent at this initial source choice. No source is assumed.",
         };
-      if (current.source.kind === "markdown")
-        return markdown.show(botId, current, signal);
+      if (current.source.kind === "markdown") {
+        const result = await markdown.show(botId, current, signal);
+        checkSignal(signal);
+        return changedDuringRead() ?? result;
+      }
       if (current.source.phase === "creating")
         return {
           ...current,
@@ -50,23 +66,29 @@ export function createTaskSource(
             "Creation outcome is uncertain. Inspect Tasks for the recorded prefix, then explicitly recover with its stable board ID. No automatic adoption or duplicate creation.",
         };
       try {
-        return {
-          ...current,
-          availability: "available",
-          board: await board(current.source.boardId, signal),
-        };
+        const found = await board(current.source.boardId, signal);
+        checkSignal(signal);
+        return (
+          changedDuringRead() ?? {
+            ...current,
+            availability: "available",
+            board: found,
+          }
+        );
       } catch (error) {
         checkSignal(signal);
-        return {
-          ...current,
-          availability: "unavailable",
-          error:
-            error instanceof Error
-              ? error.message.slice(0, 1024)
-              : "Tasks unavailable",
-          limitation:
-            "The configured board remains authoritative. Reconnect Tasks or restore that board; no Markdown fallback or replacement was created.",
-        };
+        return (
+          changedDuringRead() ?? {
+            ...current,
+            availability: "unavailable",
+            error:
+              error instanceof Error
+                ? error.message.slice(0, 1024)
+                : "Tasks unavailable",
+            limitation:
+              "The configured board remains authoritative. Reconnect Tasks or restore that board; no Markdown fallback or replacement was created.",
+          }
+        );
       }
     },
     async select(input: Edit & { boardId: string }, signal?: AbortSignal) {

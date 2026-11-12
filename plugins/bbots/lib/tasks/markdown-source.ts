@@ -41,11 +41,18 @@ export function createMarkdownSource(
   }
   async function read(botId: string, request?: AbortSignal) {
     const current = source(botId);
+    const revision = journal.read(botId).revision;
     const result = await host.call(
       "tasksRead",
       { botId, path: current.homePath },
       { hostId: current.hostId, signal: signal(request), timeoutMs: 5000 },
     );
+    lifecycle.throwIfAborted();
+    request?.throwIfAborted();
+    if (journal.read(botId).revision !== revision)
+      throw new Error(
+        "Task authority changed while reading the file. Read the current authority deliberately; no old file is presented as current.",
+      );
     if (current.phase !== "ready" || result.path !== current.path)
       throw new Error(
         "The machine returned a different task file. Inspect the recorded authority before continuing.",

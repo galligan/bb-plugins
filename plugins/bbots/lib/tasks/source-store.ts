@@ -9,7 +9,7 @@ const markdown = z.strictObject({
   homePath: z.string().min(1).max(4096),
   requestId: z.uuid(),
 });
-const sourceSchema = z.union([
+export const sourceSchema = z.union([
   z.strictObject({
     kind: z.literal("tasks"),
     phase: z.literal("creating"),
@@ -20,11 +20,13 @@ const sourceSchema = z.union([
     kind: z.literal("tasks"),
     phase: z.literal("ready"),
     boardId: idSchema,
+    migrationId: z.uuid().optional(),
   }),
   markdown.extend({ phase: z.literal("initializing") }),
   markdown.extend({
     phase: z.literal("ready"),
     path: z.string().min(1).max(4096),
+    migrationId: z.uuid().optional(),
   }),
 ]);
 const editSchema = changeSchema.extend({

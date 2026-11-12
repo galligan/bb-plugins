@@ -24,6 +24,7 @@ export const uiContract = defineRpcContract({
         "available",
         "unavailable",
         "recovery-required",
+        "changed-during-read",
       ]),
       boardId: idSchema.nullable(),
       file: z
