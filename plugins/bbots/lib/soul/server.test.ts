@@ -287,6 +287,7 @@ test("CLI handles deliberate editing, malformed defaults and current bounded bri
   assert.equal(brief.soul.currentRevision, 2);
   assert.equal(brief.soul.appliedRevision, null);
   assert.equal(brief.soul.current, undefined);
-  assert.ok(brief.unavailable.includes("memory"));
+  assert.deepEqual(brief.memory, { knowledge: [], captures: [] });
+  assert.equal(brief.unavailable.includes("memory"), false);
   assert.equal(f.harness.inspection.sdk.calls.length, 0);
 });

@@ -16,6 +16,7 @@ import type { TaskSource } from "../tasks/source.ts";
 import { commitmentCommands } from "../commitments/cli.ts";
 import type { Commitments } from "../commitments/service.ts";
 import type { Brief } from "../brief.ts";
+import type { memoryCommands } from "../memory/cli.ts";
 
 const json = {
   type: "boolean",
@@ -46,11 +47,13 @@ export function botCli(
     tasks,
     commitments,
     brief,
+    memory,
   }: {
     workers: ReturnType<typeof workCommands>;
     tasks: TaskSource;
     commitments: Commitments;
     brief: Brief;
+    memory: ReturnType<typeof memoryCommands>;
   },
 ) {
   return defineCli({
@@ -61,6 +64,7 @@ export function botCli(
       ...workers,
       ...taskCommands(tasks, store),
       ...commitmentCommands(commitments, store),
+      ...memory,
       brief: cliCommand({
         summary:
           "Read bounded current identity, contract, task authority and commitments; starts no turn",
