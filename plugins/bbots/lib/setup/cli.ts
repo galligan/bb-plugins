@@ -18,6 +18,7 @@ import type { Commitments } from "../commitments/service.ts";
 import type { Brief } from "../brief.ts";
 import type { memoryCommands } from "../memory/cli.ts";
 import type { checkpointCommands } from "../checkpoints/cli.ts";
+import type { continuityCommands } from "../continuity/cli.ts";
 
 const json = {
   type: "boolean",
@@ -50,6 +51,7 @@ export function botCli(
     brief,
     memory,
     checkpoints,
+    continuity,
   }: {
     workers: ReturnType<typeof workCommands>;
     tasks: TaskSource;
@@ -57,6 +59,7 @@ export function botCli(
     brief: Brief;
     memory: ReturnType<typeof memoryCommands>;
     checkpoints: ReturnType<typeof checkpointCommands>;
+    continuity: ReturnType<typeof continuityCommands>;
   },
 ) {
   return defineCli({
@@ -69,6 +72,7 @@ export function botCli(
       ...commitmentCommands(commitments, store),
       ...memory,
       ...checkpoints,
+      ...continuity,
       brief: cliCommand({
         summary:
           "Read bounded current identity, contract, task authority and commitments; starts no turn",
