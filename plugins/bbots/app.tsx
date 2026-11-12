@@ -11,6 +11,12 @@ import {
   BotContextCardRow,
 } from "./components/conversation-context.tsx";
 import { uiContract, type Ownership } from "./lib/ui/contracts.ts";
+import {
+  recordsTab,
+  BotRecordsPanel,
+  BotRecordsInfo,
+  useRecordsVisible,
+} from "./components/records/panel.tsx";
 
 export default definePluginApp((app) => {
   app.slots.navPanel({
@@ -23,6 +29,14 @@ export default definePluginApp((app) => {
     experimental_usePageTitle: useBotsTitle,
   });
   app.slots.settingsSection({ id: "bots", component: BotsSettings });
+  app.slots.experimental_tab({
+    ...recordsTab,
+    title: "Bot records",
+    icon: "BookOpen",
+    layout: "padded",
+    useVisible: useRecordsVisible,
+    component: BotRecordsPanel,
+  });
   app.composer.customize({
     id: "bot-settings",
     scopes: ["thread"],
@@ -32,6 +46,11 @@ export default definePluginApp((app) => {
     id: "bot-identity",
     group: "1_thread",
     component: BotInfoRow,
+  });
+  app.slots.experimental_threadInfoRow({
+    id: "bot-records",
+    group: "1_thread",
+    component: BotRecordsInfo,
   });
   app.slots.experimental_threadContextCardRow({
     id: "bot-identity",
