@@ -29,13 +29,19 @@ export function createCommitments(
     if (!current || current.phase !== "ready")
       throw new Error("Finish task-source setup before linking a commitment.");
     if (taskId && current.kind === "tasks")
-      return { kind: "tasks", boardId: current.boardId, taskId };
+      return {
+        kind: "tasks",
+        boardId: current.boardId,
+        taskId,
+        ...(current.migrationId ? { migrationId: current.migrationId } : {}),
+      };
     if (markdownReference && current.kind === "markdown")
       return {
         kind: "markdown",
         hostId: current.hostId,
         path: current.path,
         reference: markdownReference,
+        ...(current.migrationId ? { migrationId: current.migrationId } : {}),
       };
     throw new Error(
       "The link type must match the configured task authority. No fallback or status copy is inferred.",
@@ -58,6 +64,7 @@ export function createCommitments(
     const current = initialSource.source;
     const matches =
       current?.phase === "ready" &&
+      ref.migrationId === current.migrationId &&
       ((ref.kind === "tasks" &&
         current.kind === "tasks" &&
         ref.boardId === current.boardId) ||

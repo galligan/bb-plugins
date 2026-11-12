@@ -5,6 +5,144 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fixture } from "./migration-fixture.test.ts";
 
+test("returning to the same board cannot reactivate an unreconciled legacy or previously relinked commitment", async (t) => {
+  const f = await fixture(t);
+  const added = await f.run([
+    "commitment",
+    "add",
+    f.setup.botId,
+    "--what",
+    "Old board obligation",
+    "--task",
+    "task_old",
+    "--author",
+    "fixture-user",
+    "--reason",
+    "Original link",
+    "--request-id",
+    randomUUID(),
+    "--json",
+  ]);
+  assert.equal(added.exitCode, 0, added.stderr);
+  const original = JSON.parse(added.stdout);
+  assert.equal(original.record.reference.migrationId, undefined);
+  for (const revision of [1, 3]) {
+    assert.equal(
+      (await f.run(f.args(["--board", "board_new"], randomUUID(), revision)))
+        .exitCode,
+      0,
+    );
+    const back = await f.run(
+      f.args(["--board", "board_old"], randomUUID(), revision + 1),
+    );
+    assert.equal(back.exitCode, 0, back.stderr);
+    const shown = await f.run([
+      "commitment",
+      "show",
+      f.setup.botId,
+      original.id,
+      "--json",
+    ]);
+    assert.equal(
+      JSON.parse(shown.stdout).availability,
+      "source-reconciliation-required",
+    );
+    assert.equal(JSON.parse(shown.stdout).status, null);
+    if (revision === 1) {
+      const relink = await f.run([
+        "commitment",
+        "relink",
+        f.setup.botId,
+        original.id,
+        "--task",
+        "task_old",
+        "--revision",
+        "1",
+        "--author",
+        "fixture-user",
+        "--reason",
+        "Inspected return mapping",
+        "--json",
+      ]);
+      assert.equal(relink.exitCode, 0, relink.stderr);
+      const linked = JSON.parse(relink.stdout);
+      assert.equal(linked.availability, "available");
+      assert.equal(
+        linked.record.reference.migrationId,
+        JSON.parse(back.stdout).current.source.migrationId,
+      );
+    }
+  }
+});
+
+test("returning to the same Markdown path requires explicit reconciliation to its new generation", async (t) => {
+  const f = await fixture(t);
+  const hash = await f.prepare("- [ ] Original literal obligation\n");
+  assert.equal((await f.run(f.args(["--markdown-hash", hash]))).exitCode, 0);
+  const added = await f.run([
+    "commitment",
+    "add",
+    f.setup.botId,
+    "--what",
+    "File obligation",
+    "--markdown-reference",
+    "line 1",
+    "--author",
+    "fixture-user",
+    "--reason",
+    "Original file link",
+    "--request-id",
+    randomUUID(),
+    "--json",
+  ]);
+  assert.equal(added.exitCode, 0, added.stderr);
+  const original = JSON.parse(added.stdout);
+  assert.equal(
+    (await f.run(f.args(["--board", "board_new"], randomUUID(), 2))).exitCode,
+    0,
+  );
+  const back = await f.run(f.args(["--markdown-hash", hash], randomUUID(), 3));
+  assert.equal(back.exitCode, 0, back.stderr);
+  const shown = await f.run([
+    "commitment",
+    "show",
+    f.setup.botId,
+    original.id,
+    "--json",
+  ]);
+  assert.equal(
+    JSON.parse(shown.stdout).availability,
+    "source-reconciliation-required",
+  );
+  const relink = await f.run([
+    "commitment",
+    "relink",
+    f.setup.botId,
+    original.id,
+    "--markdown-reference",
+    "line 1",
+    "--revision",
+    "1",
+    "--author",
+    "fixture-user",
+    "--reason",
+    "Inspected file mapping",
+    "--json",
+  ]);
+  assert.equal(relink.exitCode, 0, relink.stderr);
+  const linked = JSON.parse(relink.stdout);
+  assert.equal(linked.availability, "manual-source-read");
+  assert.equal(linked.record.reference.path, original.record.reference.path);
+  assert.notEqual(
+    linked.record.reference.migrationId,
+    original.record.reference.migrationId,
+  );
+  assert.equal(
+    linked.record.reference.migrationId,
+    JSON.parse(back.stdout).current.source.migrationId,
+  );
+});
+
 test("a delayed source-availability response cannot advertise the old board after migration", async (t) => {
   const f = await fixture(t);
   f.afterRead(() => f.source("board_new", 1));

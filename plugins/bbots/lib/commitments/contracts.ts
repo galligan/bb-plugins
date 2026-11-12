@@ -16,12 +16,14 @@ export const referenceSchema = z.discriminatedUnion("kind", [
     kind: z.literal("tasks"),
     boardId: idSchema,
     taskId: idSchema,
+    migrationId: z.uuid().optional(),
   }),
   z.strictObject({
     kind: z.literal("markdown"),
     hostId: idSchema,
     path: z.string().min(1).max(4096),
     reference: z.string().trim().min(1).max(512),
+    migrationId: z.uuid().optional(),
   }),
 ]);
 export const commitmentSchema = content.extend({ reference: referenceSchema });
