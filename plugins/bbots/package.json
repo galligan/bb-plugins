@@ -42,7 +42,7 @@
     "@radix-ui/react-tooltip": "1.4.1"
   },
   "devDependencies": {
-    "@get-bb/plugin-sdk": "0.6.140",
+    "@get-bb/plugin-sdk": "0.6.150",
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
